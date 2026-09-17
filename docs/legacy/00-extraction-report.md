@@ -5,7 +5,7 @@
 | File | Size | Notes |
 |---|---|---|
 | `Song Manager/SetupSongManager-latest.exe` | 42.6 MB | Inno Setup 5.5.6, **v1.0.41** |
-| `Song Manager/KEY.txt` | 38 B | Licence key `B96V-P648-TK7H-58HV-L5AR-AAU7-3UVR-DBF` |
+| `Song Manager/KEY.txt` | 38 B | A SwiftTec licence key (redacted — this repo is public) |
 | `Song Manager 2/SetupSongManager-romanian.exe` | 42.6 MB | **Byte-identical** to `-latest` (same MD5 `a2144ffe…`) |
 | `Song Manager 2/SetupSongManager-english.exe` | 26.4 MB | Inno Setup 5.5.0, **v1.0.39** |
 | `Song Manager 2/vc*redist*.exe` | — | Microsoft VC++ runtimes, irrelevant |
