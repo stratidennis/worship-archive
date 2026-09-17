@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
@@ -37,6 +37,7 @@ function KeyBadge({ song }: { song: SongSummary }) {
 }
 
 export function Library() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
   const collection = params.get('collection') ?? '';
@@ -81,9 +82,27 @@ export function Library() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-16 pt-6">
-      <header className="mb-4">
-        <p className="text-xs uppercase tracking-widest text-(--color-muted)">Worship Archive</p>
-        <h1 className="text-2xl font-bold">Biblioteca</h1>
+      <header className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-(--color-muted)">Worship Archive</p>
+          <h1 className="text-2xl font-bold">Biblioteca</h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void fetch('/api/songs', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ title: '' }),
+            })
+              .then((r) => r.json() as Promise<SongSummary>)
+              .then((created) => navigate(`/edit/${encodeURIComponent(created.id)}`))
+              .catch((e: unknown) => setError(String(e)));
+          }}
+          className="shrink-0 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
+        >
+          + Cântare nouă
+        </button>
       </header>
 
       <input

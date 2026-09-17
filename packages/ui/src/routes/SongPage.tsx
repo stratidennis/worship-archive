@@ -90,6 +90,12 @@ export function SongPage() {
               Bas
             </Btn>
             <Btn onClick={() => window.print()}>Print</Btn>
+            <Link
+              to={`/edit/${encodeURIComponent(id)}`}
+              className="min-w-8 rounded-md border border-(--color-line) px-2 py-1 text-sm font-medium hover:bg-(--color-line) sm:px-2.5 sm:py-1.5"
+            >
+              Editează
+            </Link>
           </div>
         </div>
       </header>

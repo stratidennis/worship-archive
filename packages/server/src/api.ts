@@ -9,6 +9,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import type { Song } from '@worship/core';
 import type { Library } from './library.js';
 
 export interface ApiOptions {
@@ -62,6 +64,73 @@ export function createServer(options: ApiOptions): FastifyInstance {
   app.get('/api/songs/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const song = library.get(id);
+    if (!song) return reply.code(404).send({ error: 'not found' });
+    return song;
+  });
+
+  /**
+   * Create or overwrite a song.
+   *
+   * The previous version is snapshotted before the file is written, so no edit can be
+   * unrecoverable. `rev` is bumped server-side rather than trusted from the client.
+   */
+  app.put('/api/songs/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const incoming = request.body as Song | undefined;
+    if (!incoming || typeof incoming !== 'object') {
+      return reply.code(400).send({ error: 'expected a song document' });
+    }
+    // `rev`, `createdAt` and `updatedAt` are the library's to set, not the client's.
+    return library.save({ ...incoming, id });
+  });
+
+  app.post('/api/songs', async (request, reply) => {
+    const incoming = (request.body ?? {}) as Partial<Song>;
+    const now = new Date().toISOString();
+    const song: Song = {
+      id: randomUUID(),
+      legacyUuid: null,
+      title: incoming.title ?? '',
+      writtenKey: incoming.writtenKey ?? null,
+      performanceKey: incoming.performanceKey ?? null,
+      tempo: incoming.tempo ?? null,
+      timeSignature: incoming.timeSignature ?? null,
+      authors: incoming.authors ?? [],
+      copyright: incoming.copyright ?? null,
+      ccli: incoming.ccli ?? null,
+      tags: incoming.tags ?? [],
+      collectionIds: incoming.collectionIds ?? [],
+      blocks: incoming.blocks ?? [],
+      arrangement: incoming.arrangement ?? null,
+      lang: incoming.lang ?? null,
+      createdAt: now,
+      updatedAt: now,
+      rev: 0,
+    };
+    return reply.code(201).send(library.save(song));
+  });
+
+  app.delete('/api/songs/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    if (!library.delete(id)) return reply.code(404).send({ error: 'not found' });
+    return reply.code(204).send();
+  });
+
+  app.get('/api/songs/:id/revisions', async (request) => {
+    const { id } = request.params as { id: string };
+    return library.revisions(id);
+  });
+
+  app.get('/api/songs/:id/revisions/:rev', async (request, reply) => {
+    const { id, rev } = request.params as { id: string; rev: string };
+    const song = library.revision(id, Number(rev));
+    if (!song) return reply.code(404).send({ error: 'not found' });
+    return song;
+  });
+
+  app.post('/api/songs/:id/revisions/:rev/restore', async (request, reply) => {
+    const { id, rev } = request.params as { id: string; rev: string };
+    const song = library.revert(id, Number(rev));
     if (!song) return reply.code(404).send({ error: 'not found' });
     return song;
   });

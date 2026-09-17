@@ -9,7 +9,15 @@
 
 import Database from 'better-sqlite3';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, extname, join, relative, sep } from 'node:path';
 import { parseChordPro, serialiseChordPro, type Song } from '@worship/core';
 
@@ -79,6 +87,19 @@ CREATE VIRTUAL TABLE IF NOT EXISTS songs_fts USING fts5(
   lyrics,
   tokenize = 'unicode61 remove_diacritics 2'
 );
+
+-- Every version ever saved. This is the one place the index holds something the
+-- .chopro files do not, and it is deliberate: an edit that loses a verse must always
+-- be recoverable, and a text file only remembers its current contents.
+CREATE TABLE IF NOT EXISTS song_revisions (
+  song_id   TEXT NOT NULL,
+  rev       INTEGER NOT NULL,
+  title     TEXT NOT NULL,
+  doc       TEXT NOT NULL,
+  saved_at  TEXT NOT NULL,
+  PRIMARY KEY (song_id, rev)
+);
+CREATE INDEX IF NOT EXISTS revisions_song ON song_revisions(song_id, rev DESC);
 `;
 
 /** Flatten a song's lyrics for the search index. */
@@ -336,6 +357,52 @@ export class Library {
     return { songs, collections: this.collections().length };
   }
 
+  /** Past versions of a song, newest first. */
+  revisions(songId: string, limit = 50): { rev: number; title: string; savedAt: string }[] {
+    return this.db
+      .prepare(
+        `SELECT rev, title, saved_at AS savedAt FROM song_revisions
+         WHERE song_id = ? ORDER BY rev DESC LIMIT ?`,
+      )
+      .all(songId, limit) as { rev: number; title: string; savedAt: string }[];
+  }
+
+  /** One past version in full, for preview or restore. */
+  revision(songId: string, rev: number): Song | null {
+    const row = this.db
+      .prepare('SELECT doc FROM song_revisions WHERE song_id = ? AND rev = ?')
+      .get(songId, rev) as { doc: string } | undefined;
+    return row ? (JSON.parse(row.doc) as Song) : null;
+  }
+
+  /**
+   * Restore a past version.
+   *
+   * The restore is itself a new revision rather than a rewind, so the version being
+   * replaced stays recoverable too. Undo must never be the thing that loses work.
+   */
+  revert(songId: string, rev: number): Song | null {
+    const old = this.revision(songId, rev);
+    if (!old) return null;
+    const current = this.get(songId);
+    const restored: Song = {
+      ...old,
+      rev: (current?.rev ?? old.rev) + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    this.save(restored);
+    return restored;
+  }
+
+  /** Remove a song from the library and delete its file. Revisions are kept. */
+  delete(songId: string): boolean {
+    const path = this.pathOf(songId);
+    if (!path) return false;
+    rmSync(path, { force: true });
+    this.reindex();
+    return true;
+  }
+
   /** Path on disk for a song, or null if it is not indexed. */
   pathOf(id: string): string | null {
     const row = this.db.prepare('SELECT path FROM songs WHERE id = ?').get(id) as
@@ -345,20 +412,51 @@ export class Library {
   }
 
   /**
-   * Write a song to disk and reindex it.
+   * Write a song to disk and reindex it. Returns what was actually stored.
    *
-   * The file is written first and the index updated from what landed there, so the
+   * The library owns `rev` and `updatedAt` rather than trusting the caller. Revisions
+   * are keyed by (song, rev), so a caller that forgot to bump it would make each save
+   * overwrite the previous snapshot — history would silently collapse to one entry,
+   * and the whole point of keeping it is that it never silently loses anything.
+   *
+   * The file is written first and the index rebuilt from what landed there, so the
    * index can never claim something the file does not say.
    */
-  save(song: Song, relPath?: string): void {
+  save(song: Song, relPath?: string): Song {
     const existing = this.db.prepare('SELECT path FROM songs WHERE id = ?').get(song.id) as
       | { path: string }
       | undefined;
-    const target = relPath ?? existing?.path ?? `${slug(song.title, song.id)}.chopro`;
+
+    // Snapshot what is being replaced, at its own revision, before overwriting it.
+    const previous = this.get(song.id);
+    if (previous) {
+      this.db
+        .prepare(
+          `INSERT OR REPLACE INTO song_revisions (song_id, rev, title, doc, saved_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          previous.id,
+          previous.rev,
+          previous.title,
+          JSON.stringify(previous),
+          new Date().toISOString(),
+        );
+    }
+
+    const stored: Song = {
+      ...song,
+      rev: (previous?.rev ?? 0) + 1,
+      createdAt: previous?.createdAt ?? song.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const target = relPath ?? existing?.path ?? `${slug(stored.title, stored.id)}.chopro`;
     const full = join(this.songsDir, target);
     mkdirSync(dirname(full), { recursive: true });
-    writeFileSync(full, serialiseChordPro(song), 'utf8');
+    writeFileSync(full, serialiseChordPro(stored), 'utf8');
     this.reindex();
+    return stored;
   }
 }
 
