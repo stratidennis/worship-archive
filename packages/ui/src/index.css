@@ -1,20 +1,26 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-stage-bg: oklch(98% 0.005 260);
-  --color-stage-fg: oklch(22% 0.01 260);
+  --color-stage-bg: oklch(99% 0.003 260);
+  --color-stage-fg: oklch(20% 0.01 260);
   --color-chord: oklch(48% 0.16 255);
-  --color-muted: oklch(55% 0.01 260);
+  --color-bass: oklch(52% 0.14 155);
+  --color-muted: oklch(52% 0.012 260);
   --color-line: oklch(90% 0.005 260);
+  --color-cue: oklch(72% 0.13 70);
+  --color-cue-bg: oklch(96% 0.02 70);
 }
 
 @media (prefers-color-scheme: dark) {
   @theme {
-    --color-stage-bg: oklch(18% 0.008 260);
-    --color-stage-fg: oklch(93% 0.005 260);
+    --color-stage-bg: oklch(17% 0.008 260);
+    --color-stage-fg: oklch(94% 0.005 260);
     --color-chord: oklch(78% 0.13 245);
-    --color-muted: oklch(65% 0.01 260);
-    --color-line: oklch(28% 0.008 260);
+    --color-bass: oklch(76% 0.12 155);
+    --color-muted: oklch(64% 0.012 260);
+    --color-line: oklch(27% 0.008 260);
+    --color-cue: oklch(70% 0.12 70);
+    --color-cue-bg: oklch(24% 0.02 70);
   }
 }
 
@@ -27,4 +33,23 @@ body,
 body {
   background: var(--color-stage-bg);
   color: var(--color-stage-fg);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Printing is words-and-chords on paper: fixed readable size, no viewport fitting. */
+@media print {
+  html,
+  body,
+  #root {
+    height: auto;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  main {
+    font-size: 11pt !important;
+    column-count: 1 !important;
+    overflow: visible !important;
+  }
 }

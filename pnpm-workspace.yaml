@@ -2,7 +2,8 @@ packages:
   - 'packages/*'
   - 'tools'
 
-# pnpm blocks dependency install scripts by default. esbuild (used by Vite and
-# Vitest) needs its postinstall to fetch the right platform binary.
+# pnpm blocks dependency install scripts by default. These two genuinely need them:
+# esbuild fetches its platform binary, better-sqlite3 compiles a native addon.
 allowBuilds:
   esbuild: true
+  better-sqlite3: true

@@ -218,9 +218,15 @@ export function importSongXml(source: string, options: SongXmlOptions = {}): Imp
   // Filename keys and title.
   if (options.filename) {
     const fromName = parseFilenameKeys(options.filename);
-    if (!song.title && fromName.title) {
-      song.title = fromName.title;
-      notes.push({ kind: 'title-from-filename', detail: `title taken from filename` });
+    if (!song.title) {
+      // Fall back to the filename stem even when it carries no key prefix — a song
+      // with no title at all is unfindable, which is worse than a slightly untidy one.
+      const fallback =
+        fromName.title ?? options.filename.replace(/\.[^.]+$/, '').trim() ?? '';
+      if (fallback) {
+        song.title = fallback;
+        notes.push({ kind: 'title-from-filename', detail: `title taken from the filename` });
+      }
     }
     if (fromName.performanceKey && !song.performanceKey) {
       song.performanceKey = fromName.performanceKey;

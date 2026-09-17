@@ -4,8 +4,21 @@ A browser-based replacement for the SwiftTec Song Management System — the Wind
 the band currently uses to lead worship. Offline-first, LAN-hosted, packaged as an
 Electron desktop app.
 
-**Nothing is built yet.** This folder holds the analysis of the old system and the plan
-for the new one.
+**Phases 0–2 are built.** The library, search and the fit-to-one-screen song view work
+against the real 153-song collection. The editor, service sets and the live session are
+next — see [`PLAN.md`](PLAN.md).
+
+## Running it
+
+```bash
+pnpm install
+pnpm migrate --in "~/Downloads/Song Files" --out ./data   # one time, from .song XML
+WORSHIP_DATA="$PWD/data" pnpm dev                          # server on 7374, UI on 7373
+```
+
+Then open `http://localhost:7373`, or `http://<your-lan-ip>:7373` from any device on the
+same WiFi. The migration prints three verification gates and writes a report; all three
+must pass before it writes anything.
 
 ## Read in this order
 

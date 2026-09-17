@@ -1,8 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/importers" },
-    { "path": "./packages/ui" }
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/importers"
+    },
+    {
+      "path": "./packages/server"
+    },
+    {
+      "path": "./packages/ui"
+    }
   ]
 }
