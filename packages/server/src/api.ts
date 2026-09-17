@@ -10,6 +10,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { hostname, networkInterfaces } from 'node:os';
 import type { ServiceSet, Song } from '@worship/core';
 import type { Library } from './library.js';
 import type { SetStore } from './sets.js';
@@ -20,6 +21,9 @@ export interface ApiOptions {
   sets: SetStore;
   /** Attached after the HTTP server exists, since the hub upgrades its connections. */
   hub?: SessionHub | undefined;
+  /** Advertised to clients so the QR code points somewhere reachable. */
+  port?: number | undefined;
+  mdnsName?: string | undefined;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
@@ -207,6 +211,49 @@ export function createServer(options: ApiOptions): FastifyInstance {
       if (song) songs[item.songId] = song;
     }
     return { set, songs };
+  });
+
+  /**
+   * The whole library in one response, for clients to mirror.
+   *
+   * `since` lets a client skip the transfer entirely when nothing has changed, which is
+   * the usual case on arriving at church with the same songs as last week.
+   */
+  app.get('/api/library/export', async (request, reply) => {
+    const q = request.query as Record<string, string | undefined>;
+    const songs = library.all();
+    const allSets = sets.all();
+    const latest = [...songs, ...allSets].reduce(
+      (max, item) => (item.updatedAt > max ? item.updatedAt : max),
+      '',
+    );
+    if (q['since'] && latest && q['since'] >= latest) {
+      return reply.code(204).send();
+    }
+    return { songs, sets: allSets, latest, exportedAt: new Date().toISOString() };
+  });
+
+  /**
+   * How to reach this host, for the QR code and the join screen.
+   *
+   * Every LAN address is offered rather than a guess: a laptop on both WiFi and
+   * Ethernet has two, and only one of them is the network the band is on.
+   *
+   * `hostname` is the machine's own `.local` name, which macOS and Windows advertise
+   * over mDNS themselves. It is the one name that actually resolves in a browser — our
+   * own service advertisement does not create one.
+   */
+  app.get('/api/host', async () => {
+    const addresses = Object.values(networkInterfaces())
+      .flat()
+      .filter((i): i is NonNullable<typeof i> => Boolean(i))
+      .filter((i) => i.family === 'IPv4' && !i.internal)
+      .map((i) => i.address);
+    return {
+      addresses,
+      port: options.port ?? 7374,
+      hostname: hostname(),
+    };
   });
 
   app.get('/api/session', async () => ({

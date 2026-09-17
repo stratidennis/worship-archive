@@ -7,6 +7,7 @@ import {
   type Song,
 } from '@worship/core';
 import { api, type SearchHit, type SongSummary } from '../lib/api.js';
+import { repo } from '../lib/repo.js';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
@@ -24,12 +25,16 @@ export function SetEditPage() {
   const savedRef = useRef('');
 
   useEffect(() => {
-    api
+    repo
       .setFull(id)
-      .then(({ set: loaded, songs: loadedSongs }) => {
-        savedRef.current = JSON.stringify(loaded);
-        setSet(loaded);
-        setSongs(loadedSongs);
+      .then((result) => {
+        if (!result) {
+          setError('Programul nu e salvat local.');
+          return;
+        }
+        savedRef.current = JSON.stringify(result.set);
+        setSet(result.set);
+        setSongs(result.songs);
       })
       .catch((e: unknown) => setError(String(e)));
   }, [id]);
@@ -37,7 +42,7 @@ export function SetEditPage() {
   // Song picker: show recent songs until something is typed.
   useEffect(() => {
     const timer = setTimeout(() => {
-      const request = query.trim() ? api.search(query) : api.songs({ sort: 'updated' });
+      const request = query.trim() ? repo.search(query) : repo.songs();
       request.then((r) => setHits(r.slice(0, 40))).catch(() => setHits([]));
     }, 120);
     return () => clearTimeout(timer);
@@ -74,7 +79,9 @@ export function SetEditPage() {
 
   const addSong = (song: SongSummary): void => {
     if (!songs[song.id]) {
-      void api.song(song.id).then((full) => setSongs((s) => ({ ...s, [song.id]: full })));
+      void repo.song(song.id).then((full) => {
+        if (full) setSongs((s) => ({ ...s, [song.id]: full }));
+      });
     }
     update((s) => ({
       ...s,

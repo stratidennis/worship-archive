@@ -18,7 +18,7 @@ import {
   type Singers,
   type Song,
 } from '@worship/core';
-import { api } from '../lib/api.js';
+import { repo } from '../lib/repo.js';
 import { useUndoable } from '../lib/useUndoable.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
@@ -44,9 +44,13 @@ export function EditPage() {
 
   const { reset } = song;
   useEffect(() => {
-    api
+    repo
       .song(id)
       .then((loaded) => {
+        if (!loaded) {
+          setError('Cântarea nu e în biblioteca salvată local.');
+          return;
+        }
         savedRef.current = JSON.stringify(loaded);
         reset(loaded);
       })
@@ -67,14 +71,9 @@ export function EditPage() {
     setSaveState('dirty');
     const timer = setTimeout(() => {
       setSaveState('saving');
-      fetch(`/api/songs/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: serialised,
-      })
-        .then(async (response) => {
-          if (!response.ok) throw new Error(`${response.status}`);
-          const stored = (await response.json()) as Song;
+      repo
+        .saveSong(id, current)
+        .then((stored) => {
           savedRef.current = JSON.stringify({ ...current, rev: stored.rev, updatedAt: stored.updatedAt });
           setSaveState('saved');
         })

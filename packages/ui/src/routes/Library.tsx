@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
+import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
 function Snippet({ text }: { text: string }) {
@@ -47,12 +48,36 @@ export function Library() {
   const [songs, setSongs] = useState<SongSummary[]>([]);
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reach, setReach] = useState<Reachability>('unknown');
+  const [mirror, setMirror] = useState<{ songs: number; lastSync: string | null } | null>(null);
 
+  useEffect(() => onReachabilityChange(setReach), []);
+
+  // Mirror first, then refresh from the host. The list therefore appears instantly and
+  // identically whether or not there is a host to reach.
   useEffect(() => {
-    api.facets().then(setFacets).catch((e: unknown) => setError(String(e)));
+    let cancelled = false;
+    const show = async (): Promise<void> => {
+      const local = await repo.songs();
+      if (!cancelled && local.length > 0) setSongs(local);
+      const synced = await repo.sync();
+      if (cancelled) return;
+      if (synced) setSongs(await repo.songs());
+      setMirror(await repo.status());
+    };
+    void show();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Facets come from the host's index; offline the filters simply do not appear.
+  useEffect(() => {
+    api.facets().then(setFacets).catch(() => setFacets(null));
   }, []);
 
   useEffect(() => {
+    if (!collection && !key) return;
     api
       .songs({ collection: collection || undefined, key: key || undefined })
       .then(setSongs)
@@ -66,7 +91,7 @@ export function Library() {
       return;
     }
     const timer = setTimeout(() => {
-      api.search(query).then(setHits).catch((e: unknown) => setError(String(e)));
+      repo.search(query).then(setHits).catch((e: unknown) => setError(String(e)));
     }, 120);
     return () => clearTimeout(timer);
   }, [query]);
@@ -167,9 +192,16 @@ export function Library() {
         </p>
       )}
 
-      <p className="mt-5 mb-2 text-xs text-(--color-muted)">
-        {results.length} {results.length === 1 ? 'cântare' : 'cântări'}
-        {hits && ' găsite'}
+      <p className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)">
+        <span>
+          {results.length} {results.length === 1 ? 'cântare' : 'cântări'}
+          {hits && ' găsite'}
+        </span>
+        {reach === 'offline' && mirror && (
+          <span className="rounded-full bg-(--color-line) px-2 py-0.5">
+            offline · {mirror.songs} salvate local
+          </span>
+        )}
       </p>
 
       <ul className="divide-y divide-(--color-line)">

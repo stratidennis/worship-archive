@@ -7,6 +7,7 @@ import { SetEditPage } from './routes/SetEditPage.js';
 import { LeadPage } from './routes/LeadPage.js';
 import { BandPage } from './routes/BandPage.js';
 import { StagePage } from './routes/StagePage.js';
+import { JoinPage } from './routes/JoinPage.js';
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
         <Route path="/lead" element={<LeadPage />} />
         <Route path="/band" element={<BandPage />} />
         <Route path="/stage" element={<StagePage />} />
+        <Route path="/join" element={<JoinPage />} />
       </Routes>
     </BrowserRouter>
   );

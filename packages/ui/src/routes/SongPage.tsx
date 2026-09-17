@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Song } from '@worship/core';
-import { api } from '../lib/api.js';
+import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { SongBody, resolveKey } from '../components/SongBody.js';
@@ -17,9 +17,12 @@ export function SongPage() {
 
   useEffect(() => {
     setSong(null);
-    api
+    repo
       .song(id)
-      .then(setSong)
+      .then((loaded) => {
+        if (loaded) setSong(loaded);
+        else setError('Cântarea nu e în biblioteca salvată local.');
+      })
       .catch((e: unknown) => setError(String(e)));
   }, [id]);
 

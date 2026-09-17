@@ -4,10 +4,13 @@ A browser-based replacement for the SwiftTec Song Management System — the Wind
 the band currently uses to lead worship. Offline-first, LAN-hosted, packaged as an
 Electron desktop app.
 
-**Phases 0–5 are built.** Library and search, the fit-to-one-screen song view, the song
+**Phases 0–6 are built.** Library and search, the fit-to-one-screen song view, the song
 editor, service sets, and the live session all work against the real 153-song
-collection. Offline support, discovery and the Electron package are next — see
-[`PLAN.md`](PLAN.md).
+collection, and the whole library is mirrored locally so a device works with no host
+reachable. The Electron package is next — see [`PLAN.md`](PLAN.md).
+
+Joining: open `/join` on the host for a QR code. Every device also keeps its own copy of
+the library, so it still works at home with nothing to connect to.
 
 During a service:
 

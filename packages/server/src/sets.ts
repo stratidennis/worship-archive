@@ -144,6 +144,13 @@ export class SetStore {
       .all() as SetSummary[];
   }
 
+  /** Every set, in full — the other half of an offline mirror. */
+  all(): ServiceSet[] {
+    return (this.db.prepare('SELECT doc FROM sets').all() as { doc: string }[]).map(
+      (r) => JSON.parse(r.doc) as ServiceSet,
+    );
+  }
+
   get(id: string): ServiceSet | null {
     const row = this.db.prepare('SELECT doc FROM sets WHERE id = ?').get(id) as
       | { doc: string }

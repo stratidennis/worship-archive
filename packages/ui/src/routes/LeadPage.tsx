@@ -303,12 +303,12 @@ export function LeadPage() {
               </li>
             ))}
           </ul>
-          {devices.length <= 1 && (
-            <p className="mt-3 text-xs text-(--color-muted)">
-              Deschide <span className="font-mono">/band</span> pe telefoane și{' '}
-              <span className="font-mono">/stage</span> pe ecran.
-            </p>
-          )}
+          <Link
+            to="/join"
+            className="mt-3 block rounded-md border border-(--color-line) px-2 py-1.5 text-center text-xs hover:bg-(--color-line)"
+          >
+            Cod QR pentru conectare
+          </Link>
         </aside>
       </div>
     </div>

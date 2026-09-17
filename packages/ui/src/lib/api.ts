@@ -62,6 +62,28 @@ export const api = {
   song: (id: string) => get<Song>(`/api/songs/${encodeURIComponent(id)}`),
   search: (query: string) => get<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`),
 
+  /** The whole library in one call. `204` means nothing changed since `since`. */
+  libraryExport: async (since: string | null) => {
+    const q = since ? `?since=${encodeURIComponent(since)}` : '';
+    const response = await fetch(`/api/library/export${q}`, {
+      headers: { accept: 'application/json' },
+    });
+    if (response.status === 204) return 'unchanged' as const;
+    if (!response.ok) throw new Error(`${response.status} for library export`);
+    return (await response.json()) as {
+      songs: Song[];
+      sets: ServiceSet[];
+      latest: string;
+      exportedAt: string;
+    };
+  },
+
+  host: () =>
+    get<{ addresses: string[]; port: number; hostname: string }>('/api/host'),
+
+  saveSong: (id: string, song: Song) =>
+    send<Song>(`/api/songs/${encodeURIComponent(id)}`, 'PUT', song),
+
   sets: () => get<SetSummary[]>('/api/sets'),
   set: (id: string) => get<ServiceSet>(`/api/sets/${encodeURIComponent(id)}`),
   /** A set plus every song it references, in one request. */

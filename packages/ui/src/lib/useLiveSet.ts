@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ServiceSet, SetItem, Song } from '@worship/core';
-import { api } from './api.js';
+import { repo } from './repo.js';
 
 /**
  * The set currently being led, with every song already in memory.
@@ -28,10 +28,10 @@ export function useLiveSet(setId: string | null, reloadKey = 0): LiveSet {
     }
     let cancelled = false;
     setLoading(true);
-    api
+    repo
       .setFull(setId)
       .then((result) => {
-        if (cancelled) return;
+        if (cancelled || !result) return;
         setData(result);
         setError(null);
       })

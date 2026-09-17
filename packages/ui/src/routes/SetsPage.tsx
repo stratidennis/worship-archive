@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { SetSummary } from '../lib/api.js';
 import { api } from '../lib/api.js';
+import { repo } from '../lib/repo.js';
 
 /** The next Sunday, as an ISO date — the default for a new service. */
 function nextSunday(): string {
@@ -26,7 +27,24 @@ export function SetsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = (): void => {
-    api.sets().then(setSets).catch((e: unknown) => setError(String(e)));
+    api
+      .sets()
+      .then(setSets)
+      .catch(() => {
+        // Offline: list what the mirror holds instead of showing nothing.
+        void repo.sets().then((local) =>
+          setSets(
+            local.map((s) => ({
+              id: s.id,
+              title: s.title,
+              date: s.date,
+              itemCount: s.items.length,
+              songCount: s.items.filter((i) => i.kind === 'song').length,
+              updatedAt: s.updatedAt,
+            })),
+          ),
+        );
+      });
   };
   useEffect(load, []);
 

@@ -300,6 +300,19 @@ export class Library {
     );
   }
 
+  /**
+   * Every song, in full.
+   *
+   * This is what a client mirrors so it works with no host reachable. The whole library
+   * is well under a megabyte, and fetching it in one request rather than 153 is the
+   * difference between a sync that finishes on church WiFi and one that does not.
+   */
+  all(): Song[] {
+    return (this.db.prepare('SELECT doc FROM songs ORDER BY title COLLATE NOCASE').all() as {
+      doc: string;
+    }[]).map((r) => JSON.parse(r.doc) as Song);
+  }
+
   get(id: string): Song | null {
     const row = this.db.prepare('SELECT doc FROM songs WHERE id = ?').get(id) as
       | { doc: string }
