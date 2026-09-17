@@ -1,0 +1,13 @@
+{
+  "name": "@worship/tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "tsx src/migrate.ts"
+  },
+  "dependencies": {
+    "@worship/core": "workspace:*",
+    "@worship/importers": "workspace:*"
+  }
+}
