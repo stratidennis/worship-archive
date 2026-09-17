@@ -8,6 +8,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, relative, sep } from 'node:path';
 import { parseChordPro, serialiseChordPro, type Song } from '@worship/core';
@@ -63,7 +64,7 @@ CREATE TABLE IF NOT EXISTS songs (
   updated_at      TEXT NOT NULL,
   block_count     INTEGER NOT NULL DEFAULT 0,
   doc             TEXT NOT NULL,
-  mtime_ms        INTEGER NOT NULL
+  content_hash    TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS songs_title      ON songs(title COLLATE NOCASE);
@@ -147,30 +148,35 @@ export class Library {
   /**
    * Bring the index in line with the folder.
    *
-   * Only re-parses files whose mtime changed, so a rescan of an unchanged library is
-   * effectively free and can run on every start.
+   * Change is detected by hashing file contents, not by mtime. mtime granularity is a
+   * whole second on some filesystems, so two edits inside the same tick — or a checkout
+   * that rewrites a file with a preserved timestamp — would be silently missed, and the
+   * app would keep serving a song that no longer matches what is on disk.
+   *
+   * Reading and hashing the whole library is a few milliseconds at this size. Parsing
+   * is the expensive part, and that is still skipped for unchanged files.
    */
   reindex(): ReindexResult {
     const result: ReindexResult = { added: 0, updated: 0, removed: 0, failed: [] };
     const onDisk = this.files();
-    const known = new Map<string, number>(
+    const known = new Map<string, string>(
       this.db
-        .prepare('SELECT path, mtime_ms FROM songs')
+        .prepare('SELECT path, content_hash FROM songs')
         .all()
-        .map((r) => [(r as { path: string }).path, (r as { mtime_ms: number }).mtime_ms]),
+        .map((r) => [(r as { path: string }).path, (r as { content_hash: string }).content_hash]),
     );
 
     const upsert = this.db.prepare(`
       INSERT INTO songs (id, path, title, written_key, performance_key, tempo, time_signature,
-                         authors, tags, collection, updated_at, block_count, doc, mtime_ms)
+                         authors, tags, collection, updated_at, block_count, doc, content_hash)
       VALUES (@id, @path, @title, @writtenKey, @performanceKey, @tempo, @timeSignature,
-              @authors, @tags, @collection, @updatedAt, @blockCount, @doc, @mtimeMs)
+              @authors, @tags, @collection, @updatedAt, @blockCount, @doc, @contentHash)
       ON CONFLICT(id) DO UPDATE SET
         path=excluded.path, title=excluded.title, written_key=excluded.written_key,
         performance_key=excluded.performance_key, tempo=excluded.tempo,
         time_signature=excluded.time_signature, authors=excluded.authors, tags=excluded.tags,
         collection=excluded.collection, updated_at=excluded.updated_at,
-        block_count=excluded.block_count, doc=excluded.doc, mtime_ms=excluded.mtime_ms
+        block_count=excluded.block_count, doc=excluded.doc, content_hash=excluded.content_hash
     `);
     const dropFts = this.db.prepare('DELETE FROM songs_fts WHERE id = ?');
     const addFts = this.db.prepare('INSERT INTO songs_fts (id, title, lyrics) VALUES (?, ?, ?)');
@@ -178,13 +184,22 @@ export class Library {
     const run = this.db.transaction(() => {
       for (const rel of onDisk) {
         const full = join(this.songsDir, rel);
-        const mtimeMs = Math.floor(statSync(full).mtimeMs);
         const previous = known.get(rel);
         known.delete(rel);
-        if (previous === mtimeMs) continue;
+
+        let source: string;
+        let contentHash: string;
+        try {
+          source = readFileSync(full, 'utf8');
+          contentHash = createHash('sha256').update(source).digest('hex');
+        } catch (error) {
+          result.failed.push({ path: rel, error: String(error) });
+          continue;
+        }
+        if (previous === contentHash) continue;
 
         try {
-          const song = parseChordPro(readFileSync(full, 'utf8'));
+          const song = parseChordPro(source);
           upsert.run({
             id: song.id,
             path: rel,
@@ -199,7 +214,7 @@ export class Library {
             updatedAt: song.updatedAt,
             blockCount: song.blocks.length,
             doc: JSON.stringify(song),
-            mtimeMs,
+            contentHash,
           });
           dropFts.run(song.id);
           addFts.run(song.id, song.title, lyricsOf(song));
