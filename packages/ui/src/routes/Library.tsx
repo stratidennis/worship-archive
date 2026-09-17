@@ -87,6 +87,13 @@ export function Library() {
           <p className="text-xs uppercase tracking-widest text-(--color-muted)">Worship Archive</p>
           <h1 className="text-2xl font-bold">Biblioteca</h1>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        <Link
+          to="/sets"
+          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+        >
+          Programe
+        </Link>
         <button
           type="button"
           onClick={() => {
@@ -103,6 +110,7 @@ export function Library() {
         >
           + Cântare nouă
         </button>
+        </div>
       </header>
 
       <input

@@ -47,9 +47,14 @@ body {
     background: #fff;
     color: #000;
   }
+  /* The song view fits text to the screen; on paper it should be a fixed, readable
+     size in a single column instead. */
   main {
     font-size: 11pt !important;
     column-count: 1 !important;
     overflow: visible !important;
+  }
+  @page {
+    margin: 16mm;
   }
 }

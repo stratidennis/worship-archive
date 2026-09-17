@@ -137,7 +137,8 @@ export function toFtsQuery(raw: string): string | null {
 
 export class Library {
   readonly songsDir: string;
-  private readonly db: Database.Database;
+  /** Shared with SetStore: one data folder, one index file. */
+  readonly db: Database.Database;
 
   constructor(readonly dataDir: string) {
     this.songsDir = join(dataDir, 'songs');

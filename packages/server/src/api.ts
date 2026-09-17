@@ -10,18 +10,20 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import type { Song } from '@worship/core';
+import type { ServiceSet, Song } from '@worship/core';
 import type { Library } from './library.js';
+import type { SetStore } from './sets.js';
 
 export interface ApiOptions {
   library: Library;
+  sets: SetStore;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
 }
 
 export function createServer(options: ApiOptions): FastifyInstance {
-  const { library } = options;
+  const { library, sets } = options;
   const app = Fastify({ logger: options.logger ?? false });
 
   // The LAN is the trust boundary here, not the browser origin — band devices load the
@@ -135,7 +137,76 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return song;
   });
 
-  app.post('/api/reindex', async () => library.reindex());
+  // ---- service sets --------------------------------------------------------
+
+  app.get('/api/sets', async () => sets.list());
+
+  app.get('/api/sets/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const set = sets.get(id);
+    if (!set) return reply.code(404).send({ error: 'not found' });
+    return set;
+  });
+
+  app.post('/api/sets', async (request, reply) => {
+    const incoming = (request.body ?? {}) as Partial<ServiceSet>;
+    const now = new Date().toISOString();
+    return reply.code(201).send(
+      sets.save({
+        id: randomUUID(),
+        title: incoming.title ?? 'Program nou',
+        date: incoming.date ?? null,
+        items: incoming.items ?? [],
+        createdAt: now,
+        updatedAt: now,
+        rev: 0,
+      }),
+    );
+  });
+
+  app.put('/api/sets/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const incoming = request.body as ServiceSet | undefined;
+    if (!incoming || typeof incoming !== 'object') {
+      return reply.code(400).send({ error: 'expected a set document' });
+    }
+    return sets.save({ ...incoming, id });
+  });
+
+  app.post('/api/sets/:id/duplicate', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { title?: string; date?: string | null };
+    const copy = sets.duplicate(id, body);
+    if (!copy) return reply.code(404).send({ error: 'not found' });
+    return reply.code(201).send(copy);
+  });
+
+  app.delete('/api/sets/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    if (!sets.delete(id)) return reply.code(404).send({ error: 'not found' });
+    return reply.code(204).send();
+  });
+
+  /**
+   * A set with every referenced song embedded.
+   *
+   * One request for the whole service: the print view needs it, and so will the live
+   * session, which must keep working when the network drops mid-song.
+   */
+  app.get('/api/sets/:id/full', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const set = sets.get(id);
+    if (!set) return reply.code(404).send({ error: 'not found' });
+    const songs: Record<string, Song> = {};
+    for (const item of set.items) {
+      if (item.kind !== 'song') continue;
+      const song = library.get(item.songId);
+      if (song) songs[item.songId] = song;
+    }
+    return { set, songs };
+  });
+
+  app.post('/api/reindex', async () => ({ songs: library.reindex(), sets: sets.reindex() }));
 
   if (options.uiDir && existsSync(options.uiDir)) {
     app.register(fastifyStatic, { root: options.uiDir });
