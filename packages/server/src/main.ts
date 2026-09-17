@@ -12,6 +12,7 @@ import chokidar from 'chokidar';
 import { createServer } from './api.js';
 import { Library } from './library.js';
 import { SetStore } from './sets.js';
+import { SessionHub } from './hub.js';
 
 const dataDir = resolve(process.env['WORSHIP_DATA'] ?? './data');
 const port = Number(process.env['PORT'] ?? 7374);
@@ -32,6 +33,8 @@ const watcher = chokidar.watch([library.songsDir, sets.setsDir], {
   ignoreInitial: true,
   awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
 });
+// Assigned once the server is listening; the watcher may fire before then.
+let hubRef: SessionHub | null = null;
 let pending: NodeJS.Timeout | null = null;
 const scheduleReindex = (): void => {
   if (pending) clearTimeout(pending);
@@ -39,6 +42,7 @@ const scheduleReindex = (): void => {
     const r = library.reindex();
     const s = sets.reindex();
     if (r.added || r.updated || r.removed || s.added || s.updated || s.removed) {
+      hubRef?.notifyLibraryChanged();
       console.log(
         `Reindexed: songs +${r.added} ~${r.updated} -${r.removed}, ` +
           `sets +${s.added} ~${s.updated} -${s.removed}`,
@@ -48,9 +52,20 @@ const scheduleReindex = (): void => {
 };
 watcher.on('add', scheduleReindex).on('change', scheduleReindex).on('unlink', scheduleReindex);
 
-const app = createServer({ library, sets, uiDir });
+const options: { library: Library; sets: SetStore; uiDir?: string; hub?: SessionHub } = {
+  library,
+  sets,
+  ...(uiDir ? { uiDir } : {}),
+};
+const app = createServer(options);
 
 await app.listen({ port, host: '0.0.0.0' });
+
+// The hub upgrades connections on the HTTP server, so it can only exist once Fastify
+// has one — that is after listen().
+const hub = new SessionHub(app.server, { statePath: resolve(dataDir, 'session.json') });
+options.hub = hub;
+hubRef = hub;
 
 const addresses = Object.values(networkInterfaces())
   .flat()
@@ -62,6 +77,7 @@ for (const address of addresses) console.log(`  Network: http://${address}:${por
 console.log('');
 
 const shutdown = async (): Promise<void> => {
+  hub.close();
   await watcher.close();
   await app.close();
   library.close();

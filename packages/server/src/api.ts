@@ -13,10 +13,13 @@ import { randomUUID } from 'node:crypto';
 import type { ServiceSet, Song } from '@worship/core';
 import type { Library } from './library.js';
 import type { SetStore } from './sets.js';
+import type { SessionHub } from './hub.js';
 
 export interface ApiOptions {
   library: Library;
   sets: SetStore;
+  /** Attached after the HTTP server exists, since the hub upgrades its connections. */
+  hub?: SessionHub | undefined;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
@@ -205,6 +208,11 @@ export function createServer(options: ApiOptions): FastifyInstance {
     }
     return { set, songs };
   });
+
+  app.get('/api/session', async () => ({
+    state: options.hub?.getState() ?? null,
+    devices: options.hub?.getDevices() ?? [],
+  }));
 
   app.post('/api/reindex', async () => ({ songs: library.reindex(), sets: sets.reindex() }));
 

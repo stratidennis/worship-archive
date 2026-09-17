@@ -9,6 +9,10 @@ export default defineConfig({
   server: {
     host: true,
     port: 7373,
-    proxy: { '/api': { target: 'http://localhost:7374', changeOrigin: true } },
+    proxy: {
+      '/api': { target: 'http://localhost:7374', changeOrigin: true },
+      // ws:true — without it the live session silently never connects in development.
+      '/ws': { target: 'ws://localhost:7374', ws: true },
+    },
   },
 });

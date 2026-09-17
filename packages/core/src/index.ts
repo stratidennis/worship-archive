@@ -5,3 +5,4 @@ export * from './chordpro/directives.js';
 export * from './chordpro/parse.js';
 export * from './chordpro/serialise.js';
 export * from './edit.js';
+export * from './session.js';

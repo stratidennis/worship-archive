@@ -1,3 +1,4 @@
 export * from './library.js';
 export * from './sets.js';
+export * from './hub.js';
 export * from './api.js';

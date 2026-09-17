@@ -30,28 +30,35 @@ export function resolveKey(song: Song, extra: number): { semitones: number; key:
   return { semitones: base + extra, key: song.performanceKey ?? song.writtenKey };
 }
 
-interface Segment {
+interface Part {
   chord: string | null;
   bass: string | null;
   text: string;
 }
 
+/** One word, plus any trailing whitespace. Never broken across lines. */
+type Chunk = Part[];
+
 /**
- * Slice a lyric line at its chord positions.
+ * Lay a line out as words, each carrying the chords that fall inside it.
  *
- * Each segment carries the chord that lands on its first character, so the chord can be
- * stacked directly above the syllable it belongs to rather than floated approximately.
+ * Two constraints pull against each other, and both matter:
+ *
+ *  - a chord must sit exactly above the character it is anchored to, which means the
+ *    text has to be cut at every anchor;
+ *  - a word must never break across lines, which means those cuts must not become
+ *    wrapping opportunities. Cutting naively gives "să Te sl / ăvesc".
+ *
+ * Resolved by making the *word* the unit of layout: cuts happen inside a word, but the
+ * word wraps as one. Whitespace stays at the end of a word, so lines still break in the
+ * ordinary places.
  */
-function segmentsOf(
+function chunksOf(
   line: Line,
   options: RenderOptions,
   semitones: number,
   targetKey: string | null,
-): Segment[] {
-  const positions = new Set<number>();
-  if (options.showChords) for (const a of line.chords) positions.add(a.at);
-  if (options.showBass) for (const a of line.bass) positions.add(a.at);
-
+): Chunk[] {
   const render = (raw: string): string => {
     let token = parseChord(raw);
     token = transposeChord(token, semitones, targetKey);
@@ -59,23 +66,46 @@ function segmentsOf(
     return formatChord(token);
   };
 
-  const cuts = [...positions].sort((a, b) => a - b);
-  const out: Segment[] = [];
-
-  if (cuts.length === 0 || (cuts[0] ?? 0) > 0) {
-    out.push({ chord: null, bass: null, text: line.text.slice(0, cuts[0] ?? line.text.length) });
+  const anchors = new Map<number, { chord: string | null; bass: string | null }>();
+  if (options.showChords) {
+    for (const a of line.chords) {
+      anchors.set(a.at, { ...(anchors.get(a.at) ?? { chord: null, bass: null }), chord: render(a.raw) });
+    }
   }
-  cuts.forEach((at, i) => {
-    const next = cuts[i + 1] ?? line.text.length;
-    const chord = options.showChords ? line.chords.find((c) => c.at === at) : undefined;
-    const bass = options.showBass ? line.bass.find((c) => c.at === at) : undefined;
-    out.push({
-      chord: chord ? render(chord.raw) : null,
-      bass: bass ? render(bass.raw) : null,
-      text: line.text.slice(at, next),
+  if (options.showBass) {
+    for (const a of line.bass) {
+      anchors.set(a.at, { ...(anchors.get(a.at) ?? { chord: null, bass: null }), bass: render(a.raw) });
+    }
+  }
+  const positions = [...anchors.keys()].sort((a, b) => a - b);
+
+  const chunks: Chunk[] = [];
+  // Each token is a word with its trailing spaces, or a run of leading spaces.
+  for (const match of line.text.matchAll(/\S+\s*|\s+/g)) {
+    const from = match.index;
+    const to = from + match[0].length;
+    const inside = positions.filter((p) => p >= from && p < to);
+    const parts: Chunk = [];
+
+    if (inside.length === 0 || inside[0]! > from) {
+      parts.push({ chord: null, bass: null, text: line.text.slice(from, inside[0] ?? to) });
+    }
+    inside.forEach((at, i) => {
+      const next = inside[i + 1] ?? to;
+      const anchor = anchors.get(at)!;
+      parts.push({ chord: anchor.chord, bass: anchor.bass, text: line.text.slice(at, next) });
     });
-  });
-  return out;
+    chunks.push(parts);
+  }
+
+  // A chord placed past the end of the text — "play this here" at the line's close.
+  for (const at of positions.filter((p) => p >= line.text.length)) {
+    const anchor = anchors.get(at)!;
+    chunks.push([{ chord: anchor.chord, bass: anchor.bass, text: '' }]);
+  }
+
+  if (chunks.length === 0) chunks.push([{ chord: null, bass: null, text: line.text }]);
+  return chunks;
 }
 
 function LineView({
@@ -89,8 +119,8 @@ function LineView({
   semitones: number;
   targetKey: string | null;
 }) {
-  const segments = useMemo(
-    () => segmentsOf(line, options, semitones, targetKey),
+  const chunks = useMemo(
+    () => chunksOf(line, options, semitones, targetKey),
     [line, options, semitones, targetKey],
   );
 
@@ -106,17 +136,19 @@ function LineView({
         color: line.color ?? undefined,
       }}
     >
-      {segments.map((segment, i) => (
-        <span key={i} className="whitespace-pre-wrap">
-          {anyChords && (
-            <span className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord)">
-              {segment.chord ?? ' '}
-              {segment.bass && (
-                <span className="ml-1 text-(--color-bass)">{segment.bass}</span>
+      {chunks.map((chunk, c) => (
+        <span key={c} className="flex items-end">
+          {chunk.map((part, i) => (
+            <span key={i} className="whitespace-pre">
+              {anyChords && (
+                <span className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord)">
+                  {part.chord ?? ' '}
+                  {part.bass && <span className="ml-1 text-(--color-bass)">{part.bass}</span>}
+                </span>
               )}
+              <span className="block leading-[1.25]">{part.text}</span>
             </span>
-          )}
-          <span className="block leading-[1.25]">{segment.text}</span>
+          ))}
         </span>
       ))}
     </div>
