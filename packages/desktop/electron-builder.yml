@@ -6,6 +6,19 @@ directories:
   output: release
   buildResources: build
 
+# Needed even though nothing is ever published from the build job.
+#
+# The `zip` and `nsis` targets are updater-compatible, so electron-builder writes
+# `latest-mac.yml` / `latest.yml` alongside them — and that step reads
+# `publishConfig.provider`, which is null when no provider is configured. The result is
+# `Cannot read properties of null (reading 'provider')` *after* the installers have been
+# built, which is why `electron-builder --dir` cannot reproduce it: --dir stops before
+# the artifact phase. `--publish never` still means nothing leaves the runner.
+publish:
+  provider: github
+  owner: stratidennis
+  repo: worship-archive
+
 # Only the bundle ships. Everything the app needs is inside `dist/` — see
 # `scripts/bundle.mjs` — except the one native module, which electron-builder collects
 # from `dependencies` and rebuilds for Electron's ABI.
