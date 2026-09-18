@@ -1,0 +1,31 @@
+{
+  "name": "@worship/desktop",
+  "productName": "Worship Archive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Electron host: one double-click starts the server, the window and the WiFi discovery.",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node scripts/bundle.mjs",
+    "build:ui": "pnpm --filter @worship/ui build",
+    "dev": "pnpm build && electron .",
+    "rebuild": "electron-builder install-app-deps",
+    "pack": "pnpm build:ui && pnpm build && electron-builder --dir",
+    "dist": "pnpm build:ui && pnpm build && electron-builder",
+    "dist:mac": "pnpm build:ui && pnpm build && electron-builder --mac",
+    "dist:win": "pnpm build:ui && pnpm build && electron-builder --win"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1"
+  },
+  "devDependencies": {
+    "@worship/core": "workspace:*",
+    "@worship/importers": "workspace:*",
+    "@worship/server": "workspace:*",
+    "@worship/ui": "workspace:*",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.25.12"
+  }
+}

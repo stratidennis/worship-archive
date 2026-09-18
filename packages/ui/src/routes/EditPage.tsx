@@ -18,8 +18,11 @@ import {
   type Singers,
   type Song,
 } from '@worship/core';
+import { adminApi } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { useUndoable } from '../lib/useUndoable.js';
+import { useT, type Translator } from '../lib/i18n.js';
+import { confirmAction } from '../lib/desktop.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 
@@ -33,6 +36,7 @@ const TYPE_KEYS: Record<string, BlockType> = {
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 export function EditPage() {
+  const { t, blockName, singerName } = useT();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const song = useUndoable<Song | null>(null);
@@ -48,14 +52,14 @@ export function EditPage() {
       .song(id)
       .then((loaded) => {
         if (!loaded) {
-          setError('Cântarea nu e în biblioteca salvată local.');
+          setError(t('song.notLocal'));
           return;
         }
         savedRef.current = JSON.stringify(loaded);
         reset(loaded);
       })
       .catch((e: unknown) => setError(String(e)));
-  }, [id, reset]);
+  }, [id, reset, t]);
 
   const current = song.value;
 
@@ -110,49 +114,54 @@ export function EditPage() {
     return (
       <div className="p-6">
         <Link to="/" className="text-sm underline">
-          ← Biblioteca
+          ← {t('app.library')}
         </Link>
-        <p className="mt-4 text-sm text-(--color-muted)">Nu pot încărca cântarea: {error}</p>
+        <p className="mt-4 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>
       </div>
     );
   }
-  if (!current) return <div className="p-6 text-sm text-(--color-muted)">Se încarcă…</div>;
+  if (!current) return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   return (
     <div className="flex h-dvh flex-col">
       <header className="shrink-0 border-b border-(--color-line) px-4 py-2">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2">
-          <Link to={`/song/${encodeURIComponent(id)}`} className="text-sm text-(--color-muted)">
+          <Link
+            to={`/song/${encodeURIComponent(id)}`}
+            className="text-sm text-(--color-muted)"
+            aria-label={t('app.back')}
+          >
             ←
           </Link>
           <input
             value={current.title}
             onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}
-            placeholder="Titlul cântării"
+            placeholder={t('edit.title')}
+            aria-label={t('edit.title')}
             className="min-w-40 flex-1 bg-transparent text-lg font-bold outline-none focus:bg-(--color-chord)/5"
           />
           <SaveBadge state={saveState} />
           <div className="flex items-center gap-1 text-sm">
-            <Btn onClick={song.undo} disabled={!song.canUndo} title="Anulează (Cmd+Z)">
+            <Btn onClick={song.undo} disabled={!song.canUndo} title={t('edit.undo')}>
               ↶
             </Btn>
-            <Btn onClick={song.redo} disabled={!song.canRedo} title="Refă (Cmd+Shift+Z)">
+            <Btn onClick={song.redo} disabled={!song.canRedo} title={t('edit.redo')}>
               ↷
             </Btn>
             <Btn onClick={() => setLayer(layer === 'chords' ? 'bass' : 'chords')} active={layer === 'bass'}>
-              {layer === 'bass' ? 'Bas' : 'Acorduri'}
+              {layer === 'bass' ? t('song.bass') : t('song.chords')}
             </Btn>
             <Btn onClick={() => setPreview(!preview)} active={preview}>
-              Previzualizare
+              {t('edit.preview')}
             </Btn>
           </div>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div id="main" className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           <div className="mx-auto max-w-3xl">
-            <Metadata song={current} edit={edit} />
+            <Metadata song={current} edit={edit} t={t} />
 
             {current.blocks.map((block, blockIndex) => (
               <section
@@ -173,11 +182,11 @@ export function EditPage() {
                       edit((s) => updateBlock(s, block.id, { type: e.target.value as BlockType }))
                     }
                     className="rounded border border-(--color-line) bg-transparent px-1.5 py-1 font-semibold uppercase tracking-wide"
-                    aria-label="Tipul secțiunii"
+                    aria-label={t('edit.sectionType')}
                   >
-                    {BLOCK_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
+                    {BLOCK_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {blockName(type)}
                       </option>
                     ))}
                   </select>
@@ -188,7 +197,8 @@ export function EditPage() {
                     onChange={(e) =>
                       edit((s) => updateBlock(s, block.id, { label: e.target.value || null }), `label-${block.id}`)
                     }
-                    placeholder="etichetă (ex. Dennis)"
+                    placeholder={t('edit.label')}
+                    aria-label={t('edit.label')}
                     className="w-32 rounded border border-transparent bg-transparent px-1 py-1 outline-none focus:border-(--color-line)"
                   />
 
@@ -202,12 +212,12 @@ export function EditPage() {
                       )
                     }
                     className="rounded border border-(--color-line) bg-transparent px-1.5 py-1"
-                    aria-label="Cine cântă"
+                    aria-label={t('edit.whoSingsLabel')}
                   >
-                    <option value="">cine cântă…</option>
-                    {SINGERS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                    <option value="">{t('edit.whoSings')}</option>
+                    {SINGERS.map((who) => (
+                      <option key={who} value={who}>
+                        {singerName(who)}
                       </option>
                     ))}
                   </select>
@@ -226,11 +236,14 @@ export function EditPage() {
                         )
                       }
                       className="w-12 rounded border border-(--color-line) bg-transparent px-1 py-1"
-                      aria-label="Repetări"
+                      aria-label={t('edit.repeats')}
                     />
                   </label>
 
-                  <label className="flex items-center gap-1 text-(--color-muted)" title="Ține lipit de secțiunea anterioară">
+                  <label
+                    className="flex items-center gap-1 text-(--color-muted)"
+                    title={t('edit.linkedHint')}
+                  >
                     <input
                       type="checkbox"
                       checked={block.linkToPrevious}
@@ -238,9 +251,12 @@ export function EditPage() {
                         edit((s) => updateBlock(s, block.id, { linkToPrevious: e.target.checked }))
                       }
                     />
-                    lipit
+                    {t('edit.linked')}
                   </label>
-                  <label className="flex items-center gap-1 text-(--color-muted)" title="Doar pentru trupă">
+                  <label
+                    className="flex items-center gap-1 text-(--color-muted)"
+                    title={t('edit.bandOnlyHint')}
+                  >
                     <input
                       type="checkbox"
                       checked={block.bandOnly}
@@ -248,20 +264,20 @@ export function EditPage() {
                         edit((s) => updateBlock(s, block.id, { bandOnly: e.target.checked }))
                       }
                     />
-                    trupă
+                    {t('edit.bandOnly')}
                   </label>
 
                   <span className="ml-auto flex gap-0.5">
-                    <Btn small onClick={() => edit((s) => moveBlock(s, block.id, -1))} title="Sus">
+                    <Btn small onClick={() => edit((s) => moveBlock(s, block.id, -1))} title={t('edit.moveUp')}>
                       ↑
                     </Btn>
-                    <Btn small onClick={() => edit((s) => moveBlock(s, block.id, 1))} title="Jos">
+                    <Btn small onClick={() => edit((s) => moveBlock(s, block.id, 1))} title={t('edit.moveDown')}>
                       ↓
                     </Btn>
-                    <Btn small onClick={() => edit((s) => mergeBlockUp(s, block.id))} title="Unește cu cea de sus">
+                    <Btn small onClick={() => edit((s) => mergeBlockUp(s, block.id))} title={t('edit.mergeUp')}>
                       ⇧⇧
                     </Btn>
-                    <Btn small onClick={() => edit((s) => removeBlock(s, block.id))} title="Șterge secțiunea">
+                    <Btn small onClick={() => edit((s) => removeBlock(s, block.id))} title={t('edit.removeSection')}>
                       ✕
                     </Btn>
                   </span>
@@ -295,15 +311,15 @@ export function EditPage() {
 
                 <div className="mt-1 flex gap-1 text-xs">
                   <Btn small onClick={() => edit((s) => insertLine(s, block.id, block.lines.length - 1))}>
-                    + linie
+                    {t('edit.addLine')}
                   </Btn>
                   {block.lines.length > 1 && (
                     <Btn small onClick={() => edit((s) => splitBlock(s, block.id, 1))}>
-                      desparte
+                      {t('edit.split')}
                     </Btn>
                   )}
                   <Btn small onClick={() => edit((s) => insertBlock(s, 'Verse', blockIndex))}>
-                    + secțiune dedesubt
+                    {t('edit.addSectionBelow')}
                   </Btn>
                 </div>
               </section>
@@ -313,7 +329,7 @@ export function EditPage() {
               {(['Verse', 'Chorus', 'PreChorus', 'Bridge', 'Intro', 'Instrumental', 'Solo', 'Ending', 'Note'] as BlockType[]).map(
                 (type) => (
                   <Btn key={type} onClick={() => edit((s) => insertBlock(s, type))}>
-                    + {type}
+                    + {blockName(type)}
                   </Btn>
                 ),
               )}
@@ -323,14 +339,16 @@ export function EditPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!confirm(`Ștergi definitiv „${current.title}”?`)) return;
-                  void fetch(`/api/songs/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(() =>
-                    navigate('/'),
-                  );
+                  void confirmAction({
+                    message: t('edit.deleteConfirm', { title: current.title }),
+                    confirmLabel: t('app.delete'),
+                  }).then((ok) => {
+                    if (ok) void adminApi.deleteSong(id).then(() => navigate('/'));
+                  });
                 }}
                 className="text-xs text-(--color-muted) underline hover:text-red-500"
               >
-                Șterge cântarea
+                {t('edit.deleteSong')}
               </button>
             </div>
           </div>
@@ -339,7 +357,7 @@ export function EditPage() {
         {preview && (
           <aside className="hidden min-h-0 w-[42%] shrink-0 overflow-y-auto border-l border-(--color-line) px-4 py-4 lg:block">
             <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
-              Previzualizare
+              {t('edit.preview')}
             </p>
             <div style={{ fontSize: '16px' }}>
               <SongBody
@@ -354,35 +372,43 @@ export function EditPage() {
   );
 }
 
-function Metadata({ song, edit }: { song: Song; edit: (fn: (s: Song) => Song, k?: string) => void }) {
+function Metadata({
+  song,
+  edit,
+  t,
+}: {
+  song: Song;
+  edit: (fn: (s: Song) => Song, k?: string) => void;
+  t: Translator['t'];
+}) {
   return (
     <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
       <Field
-        label="Tonalitate scrisă"
+        label={t('edit.writtenKey')}
         value={song.writtenKey ?? ''}
         onChange={(v) => edit((s) => ({ ...s, writtenKey: v || null }), 'writtenKey')}
         placeholder="G"
       />
       <Field
-        label="Tonalitate cântată"
+        label={t('edit.performanceKey')}
         value={song.performanceKey ?? ''}
         onChange={(v) => edit((s) => ({ ...s, performanceKey: v || null }), 'performanceKey')}
         placeholder="Bb"
       />
       <Field
-        label="Tempo"
+        label={t('edit.tempo')}
         value={song.tempo?.toString() ?? ''}
         onChange={(v) => edit((s) => ({ ...s, tempo: v ? Number(v) : null }), 'tempo')}
         placeholder="72"
       />
       <Field
-        label="Măsură"
+        label={t('edit.timeSignature')}
         value={song.timeSignature ?? ''}
         onChange={(v) => edit((s) => ({ ...s, timeSignature: v || null }), 'timeSignature')}
         placeholder="4/4"
       />
       <Field
-        label="Autor"
+        label={t('edit.author')}
         value={song.authors.join(', ')}
         onChange={(v) =>
           edit((s) => ({ ...s, authors: v ? v.split(',').map((a) => a.trim()).filter(Boolean) : [] }), 'authors')
@@ -390,21 +416,21 @@ function Metadata({ song, edit }: { song: Song; edit: (fn: (s: Song) => Song, k?
         placeholder="—"
       />
       <Field
-        label="Categorie / temă"
+        label={t('edit.tags')}
         value={song.tags.join(', ')}
         onChange={(v) =>
           edit((s) => ({ ...s, tags: v ? v.split(',').map((t) => t.trim()).filter(Boolean) : [] }), 'tags')
         }
-        placeholder="închinare"
+        placeholder={t('block.Chorus').toLowerCase()}
       />
       <Field
-        label="Copyright"
+        label={t('edit.copyright')}
         value={song.copyright ?? ''}
         onChange={(v) => edit((s) => ({ ...s, copyright: v || null }), 'copyright')}
         placeholder="—"
       />
       <Field
-        label="CCLI"
+        label={t('edit.ccli')}
         value={song.ccli ?? ''}
         onChange={(v) => edit((s) => ({ ...s, ccli: v || null }), 'ccli')}
         placeholder="—"
@@ -440,12 +466,13 @@ function Field({
 }
 
 function SaveBadge({ state }: { state: SaveState }) {
+  const { t } = useT();
   const text: Record<SaveState, string> = {
     idle: '',
-    dirty: 'nesalvat',
-    saving: 'se salvează…',
-    saved: 'salvat',
-    error: 'eroare la salvare',
+    dirty: t('save.dirty'),
+    saving: t('save.saving'),
+    saved: t('save.saved'),
+    error: t('save.error'),
   };
   if (!text[state]) return null;
   return (

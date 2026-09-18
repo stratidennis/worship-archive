@@ -2,7 +2,7 @@
   "name": "worship-archive",
   "version": "0.1.0",
   "private": true,
-  "description": "Offline-first worship song manager for bands — browser + Electron, LAN-hosted",
+  "description": "Offline-first worship song manager for bands \u2014 browser + Electron, LAN-hosted",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -21,7 +21,13 @@
     "migrate": "pnpm --filter @worship/tools migrate",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "dev:server": "pnpm --filter @worship/server dev",
-    "dev:ui": "pnpm --filter @worship/ui dev"
+    "dev:ui": "pnpm --filter @worship/ui dev",
+    "dev:desktop": "pnpm --filter @worship/ui build && pnpm --filter @worship/desktop dev",
+    "abi:node": "node tools/src/native-abi.mjs node",
+    "abi:electron": "node tools/src/native-abi.mjs electron",
+    "smoke:desktop": "node packages/desktop/scripts/smoke.mjs",
+    "dist:desktop": "pnpm --filter @worship/desktop dist",
+    "icons": "python3 tools/src/make-icons.py"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

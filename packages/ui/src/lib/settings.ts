@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 /**
  * Per-device preferences.
@@ -8,6 +8,10 @@ import { useCallback, useEffect, useState } from 'react';
  * and neither should affect the other. Stored in localStorage, which is exactly the
  * right tool for a per-viewer convenience — and every access is guarded, because it
  * throws in private windows and can come back empty at any time.
+ *
+ * One store for the whole app, not one per component. Language and theme are read in a
+ * dozen places and changed in one; with per-component state, changing the language in
+ * Settings would update the Settings page and nothing else.
  */
 
 export interface Prefs {
@@ -19,6 +23,12 @@ export interface Prefs {
   /** A ceiling, not a command — the fit algorithm decides the actual size. */
   maxFontPx: number;
   language: 'ro' | 'en';
+  /**
+   * `auto` follows the operating system. `stage` is not a darker dark — it is a
+   * different job: near-black with warm high-contrast text, for a display read from
+   * across a room with the house lights down.
+   */
+  theme: 'auto' | 'light' | 'dark' | 'stage';
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -28,6 +38,7 @@ export const DEFAULT_PREFS: Prefs = {
   transpose: 0,
   maxFontPx: 26,
   language: 'ro',
+  theme: 'auto',
 };
 
 const KEY = 'worship-archive:prefs';
@@ -50,19 +61,29 @@ function write(prefs: Prefs): void {
   }
 }
 
+let current: Prefs = read();
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** The same object identity until something actually changes, as the hook requires. */
+function snapshot(): Prefs {
+  return current;
+}
+
+export function updatePrefs(patch: Partial<Prefs>): void {
+  const next = { ...current, ...patch };
+  if ((Object.keys(patch) as (keyof Prefs)[]).every((k) => current[k] === next[k])) return;
+  current = next;
+  write(next);
+  for (const listener of listeners) listener();
+}
+
 export function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
-  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
-
-  // Read after mount so server-side/first paint is deterministic.
-  useEffect(() => setPrefs(read()), []);
-
-  const update = useCallback((patch: Partial<Prefs>) => {
-    setPrefs((current) => {
-      const next = { ...current, ...patch };
-      write(next);
-      return next;
-    });
-  }, []);
-
+  const prefs = useSyncExternalStore(subscribe, snapshot, snapshot);
+  const update = useCallback((patch: Partial<Prefs>) => updatePrefs(patch), []);
   return [prefs, update];
 }

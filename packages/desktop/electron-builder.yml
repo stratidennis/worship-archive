@@ -1,0 +1,72 @@
+appId: ro.worshiparchive.app
+productName: Worship Archive
+copyright: MIT
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the bundle ships. Everything the app needs is inside `dist/` — see
+# `scripts/bundle.mjs` — except the one native module, which electron-builder collects
+# from `dependencies` and rebuilds for Electron's ABI.
+files:
+  - dist/**/*
+  - '!dist/**/*.map'
+  - package.json
+  # The compiled addon is all that ships. better-sqlite3's 9 MB of C sources and build
+  # machinery are only needed to produce it; the app never compiles anything.
+  - '!**/node_modules/better-sqlite3/{deps,src,build/Release/obj.target}/**'
+  - '!**/node_modules/better-sqlite3/{binding.gyp,build/*.mk,build/Makefile,build/*.gypi}'
+
+# `better-sqlite3` is a .node binary and cannot be read from inside an asar archive.
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+
+npmRebuild: true
+
+mac:
+  category: public.app-category.music
+  icon: build/icon-mac.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # Unsigned: there is no Apple developer account behind this, and pretending otherwise
+  # would only produce a build that fails notarisation at the end. See README for how to
+  # open it the first time.
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+dmg:
+  title: Worship Archive
+  contents:
+    - x: 140
+      y: 180
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Worship Archive
+
+linux:
+  icon: build/icon.png
+  category: Audio
+  target:
+    - AppImage

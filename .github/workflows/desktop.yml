@@ -1,0 +1,105 @@
+name: Desktop builds
+
+# Installers are built on demand and on a version tag, not on every push: each run
+# downloads an Electron runtime per platform and takes minutes, and nobody needs a new
+# installer for a typo in a comment.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      # One platform failing should still leave you with the other installer, which is
+      # usually the one you were waiting for.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+            # Apple Silicon and Intel, so an older church laptop is covered too.
+            args: --mac
+          - os: windows-latest
+            name: Windows
+            args: --win
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `better-sqlite3` is a native addon and has to match Electron's ABI, not Node's.
+      # This is the step that makes the difference between an app that starts and one
+      # that dies on launch with NODE_MODULE_VERSION.
+      - name: Rebuild native modules for Electron
+        run: pnpm --filter @worship/desktop exec electron-builder install-app-deps
+
+      - name: Build the UI
+        run: pnpm --filter @worship/ui build
+
+      - name: Bundle the main process
+        run: pnpm --filter @worship/desktop build
+
+      - name: Package
+        run: pnpm --filter @worship/desktop exec electron-builder ${{ matrix.args }} --publish never
+        env:
+          # Unsigned builds. There is no Apple developer account behind this project, and
+          # a half-configured signing step fails at notarisation rather than skipping.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worship-archive-${{ matrix.name }}
+          # The installers only. `release/` also holds the unpacked app directory, which
+          # is hundreds of megabytes and of no use to anyone downloading this.
+          path: |
+            packages/desktop/release/*.dmg
+            packages/desktop/release/*.zip
+            packages/desktop/release/*.exe
+            packages/desktop/release/*.AppImage
+            packages/desktop/release/latest*.yml
+          if-no-files-found: error
+          retention-days: 30
+
+  # A tag publishes; a manual run just leaves the artifacts above.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: installers/*
+          draft: true
+          generate_release_notes: true
+          body: |
+            ## Installing
+
+            **Windows** — download the `.exe` and run it. Windows SmartScreen will warn
+            that the publisher is unknown, because this build is not code-signed:
+            choose *More info* → *Run anyway*.
+
+            **macOS** — download the `.dmg`, drag the app to Applications, then
+            **right-click it and choose Open** the first time. Double-clicking an
+            unsigned app shows a dialog with no way past it; right-click → Open does.
+
+            Both start the whole system with one double-click: the library, the LAN
+            server and the window. Everyone else joins from a browser — open
+            **Connect a device** for a QR code.

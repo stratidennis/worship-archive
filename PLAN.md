@@ -586,6 +586,9 @@ security, and the docs should say so plainly.
 
 Each phase ends with something genuinely usable. No phase is "just plumbing".
 
+**All nine phases are built.** What each one actually shipped, and what was learned
+along the way, is in its commit message.
+
 ### Phase 0 — Foundations *(~2 days)*
 pnpm monorepo, TS config, Vite, Tailwind, Vitest, CI. `core` types. A blank app that runs.
 **Done when:** `pnpm dev` serves a page and `pnpm test` runs.
@@ -624,19 +627,45 @@ mode, clear/blackout, tempo + beat LED, connected-device panel, silent reconnect
 Service worker, IndexedDB mirror, pending-op queue, mDNS, QR join, manual IP.
 **Done when:** a phone in airplane mode still opens the full library, and rejoins cleanly.
 
-### Phase 7 — Electron *(~4 days)*
+### Phase 7 — Electron *(~4 days)* — **built**
 Main process hosts the server, native file dialogs via IPC, tray icon, prevent-sleep,
-`electron-rebuild` for `better-sqlite3`, electron-builder for Windows + macOS,
-first-run setup (data folder, admin PIN, import wizard).
-**Done when:** a signed-ish installer on a clean Windows laptop starts the whole system
-with one double-click.
+`electron-rebuild` for `better-sqlite3`, electron-builder for Windows + macOS, first-run
+setup (data folder, import wizard).
+**Done when:** an installer on a clean Windows laptop starts the whole system with one
+double-click.
 
-### Phase 8 — Polish *(~4 days)*
-Romanian + English throughout, dark stage theme, keyboard shortcuts, backup/restore,
-the chord-cleanup review UI (D12), accessibility pass, on-stage legibility testing.
+Two things were harder than planned and are worth knowing about:
 
-**Rough total: 7–8 focused weeks.** Phases 1 and 5 carry the real risk; the rest is
-well-understood work.
+- **Bundling.** The main process is bundled with esbuild, everything inlined except the
+  one native module. That sidesteps pnpm's symlinked `node_modules` entirely — there is
+  nothing for electron-builder to collect. Fastify survives bundling but only unminified;
+  its plugin system reads function names at registration. `pnpm smoke:desktop` is a CI
+  gate that runs the bundled server and checks it actually serves.
+- **The native ABI.** One copy of `better-sqlite3` exists in the pnpm store, and Node and
+  Electron want different ABIs of it. Worse, `@electron/rebuild` keeps a `.forge-meta`
+  marker and *skips silently* when it matches — so switching back and forth can produce
+  an installer whose app dies on launch, with a packaging log identical to a good one.
+  `pnpm abi:node` / `pnpm abi:electron` handle the marker and **verify the result** by
+  opening a database rather than trusting the rebuild's report.
+
+No admin PIN: the inventory settled on a trusted network with no authentication, and a
+PIN that protects nothing is worse than no PIN.
+
+### Phase 8 — Polish *(~4 days)* — **built**
+Romanian + English throughout, stage theme, keyboard shortcuts, backup/restore, the
+chord-cleanup review UI (D12), accessibility pass, on-stage legibility testing.
+
+The English dictionary is typed against the Romanian one, so a missing translation is a
+compile error. Plurals go through `Intl.PluralRules`, which matters more than it sounds:
+Romanian has three forms and 153 songs is *153 de cântări*.
+
+The cleanup pass over the real library finds **105 chords in 13 spellings across 23
+songs**, out of 3504 — reproducing the counts in `docs/legacy/04-real-library-analysis.md`
+exactly. It proposes and never applies; each spelling is one decision, expandable to
+every occurrence in context.
+
+**Rough total: 7–8 focused weeks.** Phases 1 and 5 carried the real risk, as expected;
+Phase 7's native-module packaging was the one underestimate.
 
 ---
 
@@ -664,6 +693,8 @@ B12/B14/B15 (rarely used attributes), B20/B22/B26 (extra metadata, references,
 translation layer), D13/D14 (Nashville numbers, chord diagrams), E4, F17, H4, J6,
 K5/K6, L6, O9.
 
-Next concrete step: **Phase 0 + Phase 1**, since the chord engine and the importer are
-the foundation everything else stands on — and Phase 1 is what proves the 153 songs are
-safe.
+A9/A10 are now built: plain-text and OpenSong import both ship, and the format is
+detected from the file's content rather than its extension.
+
+Everything planned is built. What remains is use: the next real information comes from
+a service, not from this document.

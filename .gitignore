@@ -1,6 +1,11 @@
 node_modules/
 dist/
 build/
+# …except the desktop package's, which holds the committed app icons. Without them
+# electron-builder fails on a fresh checkout with "icon not found", which would only
+# show up in CI.
+!packages/desktop/build/
+!packages/desktop/build/**
 out/
 release/
 coverage/
@@ -15,3 +20,6 @@ index.db-*
 /data/
 /tmp/
 migration-report.html
+.tsc/
+packages/desktop/release/
+.smoke/

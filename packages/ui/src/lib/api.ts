@@ -99,3 +99,53 @@ export const api = {
     send<ServiceSet>(`/api/sets/${encodeURIComponent(id)}/duplicate`, 'POST', body),
   deleteSet: (id: string) => send<void>(`/api/sets/${encodeURIComponent(id)}`, 'DELETE'),
 };
+
+// ---- backup, restore, chord cleanup ----------------------------------------
+
+export interface Backup {
+  format: 'worship-archive-backup';
+  version: number;
+  createdAt: string;
+  counts: { songs: number; sets: number };
+  songs: { path: string; text: string }[];
+  sets: { path: string; text: string }[];
+}
+
+export interface RestoreResult {
+  songs: number;
+  sets: number;
+  removed: number;
+  skipped: { path: string; error: string }[];
+}
+
+export interface CleanupSuggestion {
+  songId: string;
+  title: string;
+  blockId: string;
+  lineIndex: number;
+  at: number;
+  layer: 'chords' | 'bass';
+  raw: string;
+  fixed: string;
+  reason: string;
+  context: string;
+}
+
+export interface CleanupAudit {
+  suggestions: CleanupSuggestion[];
+  spellings: { raw: string; fixed: string; reason: string; count: number }[];
+  songsAffected: number;
+  chordsScanned: number;
+}
+
+export const adminApi = {
+  backup: () => get<Backup>('/api/backup'),
+  restore: (backup: Backup, mode: 'merge' | 'replace') =>
+    send<RestoreResult>('/api/restore', 'POST', { backup, mode }),
+  cleanup: () => get<CleanupAudit>('/api/cleanup'),
+  applyCleanup: (fixes: Omit<CleanupSuggestion, 'title' | 'reason' | 'context'>[]) =>
+    send<{ songs: number; chords: number; stale: number }>('/api/cleanup/apply', 'POST', { fixes }),
+  /** Creates in one write, so an imported song starts with a clean history. */
+  createSong: (song: Partial<Song>) => send<Song>('/api/songs', 'POST', song),
+  deleteSong: (id: string) => send<void>(`/api/songs/${encodeURIComponent(id)}`, 'DELETE'),
+};

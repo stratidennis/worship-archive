@@ -66,9 +66,10 @@ export const BLOCK_ID_PREFIX: Record<BlockType, string> = {
  * A chord or bass note anchored inside a lyric line.
  *
  * `raw` is stored EXACTLY as authored and is never rewritten on import. The legacy
- * library contains 73 distinct spellings, 67 of them malformed (`Cm#` for `C#m`, and
- * so on). Silently "fixing" them would change songs people have played for years, so
- * normalisation is an explicit, reviewable, revertible action instead.
+ * library contains 73 distinct spellings, 13 of them malformed across 105 of the 3504
+ * chords (`Cm#` for `C#m`, a lowercase root, a backslash bass separator). Silently
+ * "fixing" them would change songs people have played for years, so normalisation is an
+ * explicit, reviewable, revertible action instead.
  */
 export interface Anchor {
   /** UTF-16 index into `Line.text`. 0 means "before the first character". */

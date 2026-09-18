@@ -28,8 +28,8 @@ point, not a decision.
 | A6 | Tags / themes on songs | `theme`, `category` | KEEP | |
 | A7 | Import `.song` XML (the 153 existing files) | `lib` | **KEEP — mandatory** | |
 | A8 | Import folder in bulk | `SongDatabase::importFolder` | KEEP | |
-| A9 | Import plain text / paste from a website (chords above lyrics) | ini, real-world | **KEEP** | KEEP |
-| A10 | Import OpenSong XML | ini `SongFileType` | **KEEP** | KEEP |
+| A9 | Import plain text / paste from a website (chords above lyrics) | ini, real-world | **KEEP** | BUILT |
+| A10 | Import OpenSong XML | ini `SongFileType` | **KEEP** | BUILT |
 | A11 | Import `.sng` (Presentation Manager Pro) | ini `SongFileType` | DROP | |
 | A12 | Import ChordPro — **and it is now the storage format** | — | **NEW — core** | KEEP |
 | A13 | Export to ChordPro / `.song` / OpenSong | — | KEEP (escape hatch) | KEEP |
@@ -110,7 +110,7 @@ point, not a decision.
 | D9 | Lenient chord parser (accepts `Cm#`, `C#min`, lowercase `b`) | `lib` (73 variants) | **NEW — mandatory** | |
 | D10 | Slash chords transposed on both sides (`C#/A`) | `lib` | KEEP | |
 | D11 | Parenthesised alternates preserved (`G(A)`, `Em(C,D)`) | `lib` | KEEP | |
-| D12 | Bulk chord-spelling cleanup with review + undo | `lib` (67 bad spellings) | NEW | |
+| D12 | Bulk chord-spelling cleanup with review + undo | `lib` (105 chords, 13 spellings) | NEW | BUILT |
 | D13 | Nashville numbers / roman numerals view | — | DROP | DROP |
 | D14 | Chord diagrams (guitar fingerings) | — | DROP | DROP |
 

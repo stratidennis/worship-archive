@@ -6,8 +6,23 @@ import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
+import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
+import { Shortcuts } from '../components/Shortcuts.js';
+
+const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
+  { keys: '→', label: 'keys.nextSong' },
+  { keys: '←', label: 'keys.prevSong' },
+  { keys: '↓', label: 'keys.nextBlock' },
+  { keys: '↑', label: 'keys.prevBlock' },
+  { keys: 'Space', label: 'keys.sendLive' },
+  { keys: 'b', label: 'keys.black' },
+  { keys: 'c', label: 'keys.clear' },
+  { keys: 'm', label: 'keys.autoManual' },
+  { keys: '?', label: 'keys.help' },
+];
 
 /**
  * The leader console.
@@ -18,13 +33,16 @@ import { BeatLed } from '../components/BeatLed.js';
  * protocol never needs to know a leader is browsing.
  */
 export function LeadPage() {
-  const session = useSession('leader', 'Lider');
+  const { t, blockName } = useT();
+  // The name the band sees in the device list, so it follows their language too.
+  const session = useSession('leader', t('lead.roleLeader'));
   const { state, devices, status, clockOffset, patch, libraryRev } = session;
   const live = useLiveSet(state.setId, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
   const [sets, setSets] = useState<SetSummary[]>([]);
   const [auto, setAuto] = useState(true);
+  const [help, setHelp] = useState(false);
   /** Where the leader is looking, which in Manual mode is not where the service is. */
   const [cursor, setCursor] = useState<{ itemIndex: number; blockId: string | null }>({
     itemIndex: 0,
@@ -75,29 +93,17 @@ export function LeadPage() {
   };
 
   // Keyboard is the primary interface here — a leader's hands are on an instrument.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) {
-        return;
-      }
-      const handlers: Record<string, () => void> = {
-        ArrowRight: () => step(1),
-        ArrowLeft: () => step(-1),
-        ArrowDown: () => stepBlock(1),
-        ArrowUp: () => stepBlock(-1),
-        ' ': () => (auto ? undefined : goLive()),
-        b: () => patch({ output: state.output === 'black' ? 'live' : 'black' }),
-        c: () => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' }),
-        m: () => setAuto((v) => !v),
-      };
-      const handler = handlers[event.key];
-      if (handler) {
-        event.preventDefault();
-        handler();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+  useHotkeys({
+    ArrowRight: () => step(1),
+    ArrowLeft: () => step(-1),
+    ArrowDown: () => stepBlock(1),
+    ArrowUp: () => stepBlock(-1),
+    ' ': () => (auto ? undefined : goLive()),
+    b: () => patch({ output: state.output === 'black' ? 'live' : 'black' }),
+    c: () => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' }),
+    m: () => setAuto((v) => !v),
+    '?': () => setHelp((open) => !open),
+    Escape: () => setHelp(false),
   });
 
   const fit = useFitToScreen(container, content, {
@@ -123,15 +129,16 @@ export function LeadPage() {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-(--color-line) px-3 py-2">
-        <Link to="/" className="text-sm text-(--color-muted)">
+        <Link to="/" className="text-sm text-(--color-muted)" aria-label={t('app.library')}>
           ←
         </Link>
         <select
           value={state.setId ?? ''}
           onChange={(e) => patch({ setId: e.target.value || null, itemIndex: 0, blockId: null })}
+          aria-label={t('app.sets')}
           className="rounded border border-(--color-line) bg-transparent px-2 py-1 text-sm"
         >
-          <option value="">— alege programul —</option>
+          <option value="">{t('lead.choose')}</option>
           {sets.map((s) => (
             <option key={s.id} value={s.id}>
               {s.title}
@@ -140,31 +147,36 @@ export function LeadPage() {
           ))}
         </select>
 
-        <Toggle on={auto} onClick={() => setAuto((v) => !v)} onLabel="Auto" offLabel="Manual" />
+        <Toggle
+          on={auto}
+          onClick={() => setAuto((v) => !v)}
+          onLabel={t('lead.auto')}
+          offLabel={t('lead.manual')}
+        />
         <Toggle
           on={state.mode === 'block'}
           onClick={() => patch({ mode: state.mode === 'block' ? 'song' : 'block' })}
-          onLabel="Pe blocuri"
-          offLabel="Pe cântare"
+          onLabel={t('lead.byBlock')}
+          offLabel={t('lead.bySong')}
         />
         <Btn
           onClick={() => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' })}
           active={state.output === 'cleared'}
         >
-          Gol
+          {t('lead.clear')}
         </Btn>
         <Btn
           onClick={() => patch({ output: state.output === 'black' ? 'live' : 'black' })}
           active={state.output === 'black'}
         >
-          Negru
+          {t('lead.black')}
         </Btn>
 
         <Tempo state={state} patch={patch} clockOffset={clockOffset} />
 
         <span className="ml-auto flex items-center gap-2">
           <Btn onClick={() => setPrefs({ showChords: !prefs.showChords })} active={prefs.showChords}>
-            Acorduri
+            {t('song.chords')}
           </Btn>
           <StatusDot status={status} />
         </span>
@@ -176,12 +188,15 @@ export function LeadPage() {
           onClick={goLive}
           className="shrink-0 bg-(--color-chord) px-4 py-2 text-sm font-semibold text-white"
         >
-          Trimite pe ecrane (Space) — te uiți înainte, nimeni nu vede încă
+          {t('lead.sendToScreens')}
         </button>
       )}
 
       <div className="flex min-h-0 flex-1">
-        <nav className="hidden w-56 shrink-0 overflow-y-auto border-r border-(--color-line) py-2 md:block">
+        <nav
+          aria-label={t('app.sets')}
+          className="hidden w-56 shrink-0 overflow-y-auto border-r border-(--color-line) py-2 md:block"
+        >
           {(live.set?.items ?? []).map((item, index) => {
             const isLive = index === state.itemIndex;
             const isCursor = index === cursor.itemIndex;
@@ -191,6 +206,7 @@ export function LeadPage() {
                 key={index}
                 type="button"
                 onClick={() => go({ itemIndex: index, blockId: null })}
+                aria-current={isLive ? 'true' : undefined}
                 className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-sm ${
                   isLive ? 'bg-(--color-chord)/20 font-semibold' : ''
                 } ${isCursor && !isLive ? 'ring-1 ring-inset ring-(--color-chord)' : ''}`}
@@ -202,20 +218,20 @@ export function LeadPage() {
                   {item.kind === 'song'
                     ? (song?.title ?? '…')
                     : item.kind === 'note'
-                      ? item.text || 'notă'
-                      : item.label || 'pauză'}
+                      ? item.text || t('sets.note')
+                      : item.label || t('sets.gap')}
                 </span>
               </button>
             );
           })}
           {!live.set && (
             <p className="px-3 py-4 text-xs text-(--color-muted)">
-              Alege un program din lista de sus.
+              {t('lead.pickSet')}
             </p>
           )}
         </nav>
 
-        <main className="flex min-h-0 flex-1 flex-col">
+        <main id="main" className="flex min-h-0 flex-1 flex-col">
           {viewing && (
             <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-(--color-line) px-3 py-1.5">
               <span className="mr-2 truncate text-sm font-semibold">{viewing.song.title}</span>
@@ -232,7 +248,8 @@ export function LeadPage() {
                         ? 'ring-1 ring-(--color-chord)'
                         : 'bg-(--color-line)'
                   }`}
-                  title={block.type}
+                  title={blockName(block.type)}
+                  aria-label={`${blockName(block.type)} ${block.id}`}
                 >
                   {block.id}
                 </button>
@@ -243,7 +260,7 @@ export function LeadPage() {
                   onClick={() => go({ blockId: null })}
                   className="rounded px-1.5 py-0.5 text-xs text-(--color-muted)"
                 >
-                  toată cântarea
+                  {t('lead.wholeSong')}
                 </button>
               )}
             </div>
@@ -279,15 +296,18 @@ export function LeadPage() {
               </div>
             ) : (
               <p className="mt-10 text-center text-sm text-(--color-muted)">
-                {live.set ? 'Acest element nu e o cântare.' : 'Niciun program selectat.'}
+                {live.set ? t('lead.notASong') : t('lead.noSet')}
               </p>
             )}
           </div>
         </main>
 
-        <aside className="hidden w-48 shrink-0 overflow-y-auto border-l border-(--color-line) px-3 py-2 lg:block">
+        <aside
+          aria-label={t('lead.connected', { count: devices.length })}
+          className="hidden w-48 shrink-0 overflow-y-auto border-l border-(--color-line) px-3 py-2 lg:block"
+        >
           <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
-            Conectați ({devices.length})
+            {t('lead.connected', { count: devices.length })}
           </p>
           <ul className="space-y-1 text-sm">
             {devices.map((device) => (
@@ -296,9 +316,15 @@ export function LeadPage() {
                   className="h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{ background: 'oklch(70% 0.17 150)' }}
                 />
-                <span className="min-w-0 flex-1 truncate">{device.name}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {device.name || t('lead.unnamedDevice')}
+                </span>
                 <span className="shrink-0 text-[0.65rem] uppercase text-(--color-muted)">
-                  {device.role === 'stage' ? 'ecran' : device.role === 'leader' ? 'lider' : ''}
+                  {device.role === 'stage'
+                    ? t('lead.roleStage')
+                    : device.role === 'leader'
+                      ? t('lead.roleLeader')
+                      : ''}
                 </span>
               </li>
             ))}
@@ -307,10 +333,12 @@ export function LeadPage() {
             to="/join"
             className="mt-3 block rounded-md border border-(--color-line) px-2 py-1.5 text-center text-xs hover:bg-(--color-line)"
           >
-            Cod QR pentru conectare
+            {t('lead.qr')}
           </Link>
         </aside>
       </div>
+
+      {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
     </div>
   );
 }
@@ -324,6 +352,7 @@ function Tempo({
   patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
   clockOffset: number;
 }) {
+  const { t } = useT();
   const [taps, setTaps] = useState<number[]>([]);
 
   // Tapping is how musicians set tempo; typing a number is a fallback.
@@ -342,11 +371,13 @@ function Tempo({
 
   return (
     <span className="flex items-center gap-1">
-      <Btn onClick={tap}>Tap</Btn>
+      <Btn onClick={tap}>{t('lead.tap')}</Btn>
       {state.tempo !== null && (
         <>
           <BeatLed state={state} clockOffset={clockOffset} size="sm" />
-          <Btn onClick={() => patch({ tempo: null, beatEpoch: null })}>✕</Btn>
+          <Btn onClick={() => patch({ tempo: null, beatEpoch: null })} label={t('lead.stopTempo')}>
+            ✕
+          </Btn>
         </>
       )}
     </span>
@@ -354,15 +385,22 @@ function Tempo({
 }
 
 export function StatusDot({ status }: { status: 'connecting' | 'live' | 'offline' }) {
+  const { t } = useT();
   const colour =
     status === 'live'
       ? 'oklch(70% 0.17 150)'
       : status === 'connecting'
         ? 'oklch(78% 0.15 85)'
         : 'oklch(62% 0.21 25)';
-  const label = status === 'live' ? 'conectat' : status === 'connecting' ? 'se conectează' : 'deconectat';
+  const label = t(
+    status === 'live' ? 'status.live' : status === 'connecting' ? 'status.connecting' : 'status.offline',
+  );
   return (
-    <span className="flex items-center gap-1.5 text-xs text-(--color-muted)" title={label}>
+    <span
+      className="flex items-center gap-1.5 text-xs text-(--color-muted)"
+      title={label}
+      role="status"
+    >
       <span className="h-2 w-2 rounded-full" style={{ background: colour }} />
       {label}
     </span>
@@ -399,15 +437,19 @@ function Btn({
   onClick,
   children,
   active,
+  label,
 }: {
   onClick: () => void;
   children: React.ReactNode;
   active?: boolean;
+  label?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
+      title={label}
       className={`rounded-md border px-2.5 py-1.5 text-sm font-medium ${
         active
           ? 'border-(--color-chord) bg-(--color-chord) text-white'

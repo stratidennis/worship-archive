@@ -4,6 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Worship Archive</title>
+    <meta name="theme-color" content="#16181a" />
+    <!--
+      The theme is applied before the first paint. Reading it in React is one frame too
+      late: the page would paint in the default theme and then swap, which on the way to
+      a stage display is a white flash in front of a congregation.
+    -->
+    <script>
+      try {
+        var p = JSON.parse(localStorage.getItem('worship-archive:prefs') || '{}');
+        if (p.theme && p.theme !== 'auto')
+          document.documentElement.setAttribute('data-theme', p.theme);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

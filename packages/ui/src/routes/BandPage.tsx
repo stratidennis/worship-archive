@@ -5,9 +5,22 @@ import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
+import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
+import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from './LeadPage.js';
+
+const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
+  { keys: '→', label: 'keys.nextSong' },
+  { keys: '←', label: 'keys.prevSong' },
+  { keys: 'Esc', label: 'keys.backToLeader' },
+  { keys: 'c', label: 'keys.chords' },
+  { keys: '+', label: 'keys.transposeUp' },
+  { keys: '-', label: 'keys.transposeDown' },
+  { keys: '?', label: 'keys.help' },
+];
 
 const NAME_KEY = 'worship-archive:device-name';
 
@@ -22,6 +35,7 @@ const NAME_KEY = 'worship-archive:device-name';
  * view diverges, so nobody is ever confused about why they are seeing a different verse.
  */
 export function BandPage() {
+  const { t } = useT();
   const [name, setName] = useState(() => {
     try {
       return localStorage.getItem(NAME_KEY) ?? '';
@@ -29,12 +43,13 @@ export function BandPage() {
       return '';
     }
   });
-  const session = useSession('band', name || 'muzician');
+  const session = useSession('band', name || t('band.defaultName'));
   const { state, status, clockOffset, libraryRev } = session;
   const live = useLiveSet(state.setId, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
   const [local, setLocal] = useState<{ itemIndex: number; blockId: string | null } | null>(null);
+  const [help, setHelp] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const songIndices = useSongIndices(live.set);
@@ -56,15 +71,18 @@ export function BandPage() {
     setLocal({ itemIndex: next, blockId: null });
   };
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.target instanceof HTMLInputElement) return;
-      if (event.key === 'ArrowRight') step(1);
-      if (event.key === 'ArrowLeft') step(-1);
-      if (event.key === 'Escape') setLocal(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+  useHotkeys({
+    ArrowRight: () => step(1),
+    ArrowLeft: () => step(-1),
+    // Escape means "stop looking ahead" first and "close the help" second, because
+    // during a service the first is the one people press without thinking.
+    Escape: () => (help ? setHelp(false) : setLocal(null)),
+    c: () => setPrefs({ showChords: !prefs.showChords }),
+    '+': () => setPrefs({ transpose: prefs.transpose + 1 }),
+    '=': () => setPrefs({ transpose: prefs.transpose + 1 }),
+    '-': () => setPrefs({ transpose: prefs.transpose - 1 }),
+    '0': () => setPrefs({ transpose: 0 }),
+    '?': () => setHelp((open) => !open),
   });
 
   // Phones lock their screens mid-song otherwise.
@@ -105,24 +123,43 @@ export function BandPage() {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--color-line) px-3 py-1.5">
-        <Link to="/" className="text-sm text-(--color-muted)">
+        <Link to="/" className="text-sm text-(--color-muted)" aria-label={t('app.library')}>
           ←
         </Link>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-          {viewing?.song.title ?? (live.set ? '—' : 'Niciun program live')}
+          {viewing?.song.title ?? (live.set ? '—' : t('band.noLiveSet'))}
         </span>
         <BeatLed state={state} clockOffset={clockOffset} size="sm" />
 
-        <Small onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}>♭</Small>
-        <Small onClick={() => setPrefs({ transpose: 0 })}>
+        <Small
+          onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}
+          label={t('song.transposeDown')}
+        >
+          ♭
+        </Small>
+        <Small onClick={() => setPrefs({ transpose: 0 })} label={t('song.transposeReset')}>
           {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
         </Small>
-        <Small onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}>♯</Small>
-        <Small onClick={() => setPrefs({ capo: prefs.capo > 0 ? prefs.capo - 1 : 0 })}>
-          capo {prefs.capo}
+        <Small
+          onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}
+          label={t('song.transposeUp')}
+        >
+          ♯
         </Small>
-        <Small onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })}>+</Small>
-        <Small onClick={() => setPrefs({ showChords: !prefs.showChords })} active={prefs.showChords}>
+        <Small
+          onClick={() => setPrefs({ capo: prefs.capo > 0 ? prefs.capo - 1 : 0 })}
+          label={t('song.capoDown')}
+        >
+          {t('sets.capo')} {prefs.capo}
+        </Small>
+        <Small onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })} label={t('song.capoUp')}>
+          +
+        </Small>
+        <Small
+          onClick={() => setPrefs({ showChords: !prefs.showChords })}
+          active={prefs.showChords}
+          label={t('song.chords')}
+        >
           ♪
         </Small>
         <StatusDot status={status} />
@@ -134,11 +171,12 @@ export function BandPage() {
           onClick={() => setLocal(null)}
           className="shrink-0 bg-(--color-chord) px-4 py-1.5 text-sm font-semibold text-white"
         >
-          ↩ Înapoi la lider
+          {t('band.backToLeader')}
         </button>
       )}
 
       <main
+        id="main"
         ref={container}
         className={`min-h-0 flex-1 px-3 py-2 ${fit.fits ? 'overflow-hidden' : 'overflow-y-auto'}`}
         onTouchStart={(e) => {
@@ -173,7 +211,7 @@ export function BandPage() {
           </div>
         ) : (
           <p className="mt-10 text-center text-sm text-(--color-muted)">
-            {live.set ? 'Liderul nu e pe o cântare.' : 'Așteptăm liderul…'}
+            {live.set ? t('band.leaderNotOnSong') : t('band.waiting')}
           </p>
         )}
       </main>
@@ -196,11 +234,14 @@ export function BandPage() {
         >
           <input
             name="name"
-            placeholder="Numele tău (ex. Dennis — chitară)"
+            placeholder={t('band.yourName')}
+            aria-label={t('band.yourName')}
             className="w-full rounded border border-(--color-line) bg-transparent px-2 py-1.5 text-sm outline-none"
           />
         </form>
       )}
+
+      {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
     </div>
   );
 }
@@ -209,15 +250,20 @@ function Small({
   onClick,
   children,
   active,
+  label,
 }: {
   onClick: () => void;
   children: React.ReactNode;
   active?: boolean;
+  /** ♭, ♯ and ♪ mean nothing read aloud. */
+  label?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
+      title={label}
       className={`rounded border px-1.5 py-1 text-xs font-medium tabular-nums ${
         active
           ? 'border-(--color-chord) bg-(--color-chord) text-white'

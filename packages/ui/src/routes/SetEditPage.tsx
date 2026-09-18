@@ -8,12 +8,15 @@ import {
 } from '@worship/core';
 import { api, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
+import { useT, type Translator } from '../lib/i18n.js';
+import { confirmAction } from '../lib/desktop.js';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 export function SetEditPage() {
+  const { t, date: formatDate } = useT();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const [set, setSet] = useState<ServiceSet | null>(null);
@@ -29,7 +32,7 @@ export function SetEditPage() {
       .setFull(id)
       .then((result) => {
         if (!result) {
-          setError('Programul nu e salvat local.');
+          setError(t('sets.notLocal'));
           return;
         }
         savedRef.current = JSON.stringify(result.set);
@@ -37,7 +40,7 @@ export function SetEditPage() {
         setSongs(result.songs);
       })
       .catch((e: unknown) => setError(String(e)));
-  }, [id]);
+  }, [id, t]);
 
   // Song picker: show recent songs until something is typed.
   useEffect(() => {
@@ -135,30 +138,32 @@ export function SetEditPage() {
     return (
       <div className="p-6">
         <Link to="/sets" className="text-sm underline">
-          ← Programe
+          ← {t('app.sets')}
         </Link>
         <p className="mt-4 text-sm text-(--color-muted)">{error}</p>
       </div>
     );
   }
-  if (!set) return <div className="p-6 text-sm text-(--color-muted)">Se încarcă…</div>;
+  if (!set) return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-20 pt-5 print:max-w-none print:pt-0">
       <header className="mb-5 flex flex-wrap items-end gap-3 print:hidden">
-        <Link to="/sets" className="text-sm text-(--color-muted)">
+        <Link to="/sets" className="text-sm text-(--color-muted)" aria-label={t('app.sets')}>
           ←
         </Link>
         <input
           value={set.title}
           onChange={(e) => update((s) => ({ ...s, title: e.target.value }))}
           className="min-w-48 flex-1 bg-transparent text-xl font-bold outline-none focus:bg-(--color-chord)/5"
-          placeholder="Numele programului"
+          placeholder={t('sets.name')}
+          aria-label={t('sets.name')}
         />
         <input
           type="date"
           value={set.date ?? ''}
           onChange={(e) => update((s) => ({ ...s, date: e.target.value || null }))}
+          aria-label={t('sets.noDate')}
           className="rounded border border-(--color-line) bg-transparent px-2 py-1 text-sm"
         />
         <SaveBadge state={saveState} />
@@ -167,24 +172,34 @@ export function SetEditPage() {
           onClick={() => window.print()}
           className="rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
         >
-          Print / PDF
+          {t('app.print')}
         </button>
         <button
           type="button"
           onClick={() => {
-            if (!confirm(`Ștergi programul „${set.title}”?`)) return;
-            void api.deleteSet(id).then(() => navigate('/sets'));
+            void confirmAction({
+              message: t('sets.deleteConfirm', { title: set.title }),
+              confirmLabel: t('app.delete'),
+            }).then((ok) => {
+              if (ok) void api.deleteSet(id).then(() => navigate('/sets'));
+            });
           }}
           className="rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm text-(--color-muted) hover:text-red-500"
         >
-          Șterge
+          {t('app.delete')}
         </button>
       </header>
 
-      <PrintableRunningOrder set={set} songs={songs} songNumbers={songNumbers} />
+      <PrintableRunningOrder
+        set={set}
+        songs={songs}
+        songNumbers={songNumbers}
+        t={t}
+        formatDate={formatDate}
+      />
 
       <div className="grid gap-6 print:hidden lg:grid-cols-[1fr_20rem]">
-        <ol className="space-y-2">
+        <ol id="main" className="space-y-2">
           {set.items.map((item, index) => (
             <li key={index} className="rounded-lg border border-(--color-line) px-3 py-2">
               {item.kind === 'song' ? (
@@ -198,7 +213,7 @@ export function SetEditPage() {
                 />
               ) : item.kind === 'note' ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-(--color-muted)">notă</span>
+                  <span className="text-xs uppercase text-(--color-muted)">{t('sets.note')}</span>
                   <input
                     value={item.text}
                     onChange={(e) =>
@@ -210,13 +225,14 @@ export function SetEditPage() {
                       }))
                     }
                     className="flex-1 bg-transparent outline-none"
-                    placeholder="ex. rugăciune, anunțuri…"
+                    placeholder={t('sets.notePlaceholder')}
+                    aria-label={t('sets.note')}
                   />
                   <RowButtons onMove={(d) => move(index, d)} onRemove={() => remove(index)} />
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-(--color-muted)">pauză</span>
+                  <span className="text-xs uppercase text-(--color-muted)">{t('sets.gap')}</span>
                   <input
                     value={item.label}
                     onChange={(e) =>
@@ -228,7 +244,8 @@ export function SetEditPage() {
                       }))
                     }
                     className="flex-1 bg-transparent outline-none"
-                    placeholder="ex. predică"
+                    placeholder={t('sets.gapPlaceholder')}
+                    aria-label={t('sets.gap')}
                   />
                   <input
                     type="number"
@@ -245,7 +262,8 @@ export function SetEditPage() {
                       }))
                     }
                     className="w-16 rounded border border-(--color-line) bg-transparent px-1 py-0.5 text-sm"
-                    placeholder="min"
+                    placeholder={t('sets.minutes')}
+                    aria-label={t('sets.minutes')}
                   />
                   <RowButtons onMove={(d) => move(index, d)} onRemove={() => remove(index)} />
                 </div>
@@ -255,7 +273,7 @@ export function SetEditPage() {
 
           {set.items.length === 0 && (
             <li className="rounded-lg border border-dashed border-(--color-line) px-3 py-6 text-center text-sm text-(--color-muted)">
-              Adaugă prima cântare din listă →
+              {t('sets.addFirst')}
             </li>
           )}
         </ol>
@@ -267,14 +285,14 @@ export function SetEditPage() {
               onClick={() => addItem({ kind: 'note', text: '' })}
               className="flex-1 rounded-md border border-(--color-line) px-2 py-1.5 text-xs hover:bg-(--color-line)"
             >
-              + notă
+              {t('sets.addNote')}
             </button>
             <button
               type="button"
               onClick={() => addItem({ kind: 'gap', label: '', minutes: null })}
               className="flex-1 rounded-md border border-(--color-line) px-2 py-1.5 text-xs hover:bg-(--color-line)"
             >
-              + pauză
+              {t('sets.addGap')}
             </button>
           </div>
 
@@ -282,7 +300,8 @@ export function SetEditPage() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Caută cântare…"
+            placeholder={t('sets.searchSong')}
+            aria-label={t('sets.searchSong')}
             className="w-full rounded-lg border border-(--color-line) bg-transparent px-3 py-2 text-sm outline-none focus:border-(--color-chord)"
           />
 
@@ -305,7 +324,7 @@ export function SetEditPage() {
 
           {totalMinutes > 0 && (
             <p className="mt-3 text-xs text-(--color-muted)">
-              Pauze planificate: {totalMinutes} min
+              {t('sets.plannedGaps', { minutes: totalMinutes })}
             </p>
           )}
         </aside>
@@ -329,6 +348,7 @@ function SongRow({
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const { t } = useT();
   const nativeKey = song?.performanceKey ?? song?.writtenKey ?? null;
   const key = item.keyOverride ?? nativeKey;
   const shifted = item.keyOverride && nativeKey && item.keyOverride !== nativeKey;
@@ -342,11 +362,11 @@ function SongRow({
         to={song ? `/song/${encodeURIComponent(song.id)}` : '#'}
         className="min-w-0 flex-1 truncate font-medium hover:underline"
       >
-        {song?.title ?? '(cântare lipsă)'}
+        {song?.title ?? t('sets.missingSong')}
       </Link>
 
       <label className="flex items-center gap-1 text-xs print:hidden">
-        <span className="text-(--color-muted)">ton</span>
+        <span className="text-(--color-muted)">{t('sets.key')}</span>
         <select
           value={item.keyOverride ?? ''}
           onChange={(e) => onPatch({ keyOverride: e.target.value || null })}
@@ -362,7 +382,7 @@ function SongRow({
       </label>
 
       <label className="flex items-center gap-1 text-xs print:hidden">
-        <span className="text-(--color-muted)">capo</span>
+        <span className="text-(--color-muted)">{t('sets.capo')}</span>
         <input
           type="number"
           min={0}
@@ -380,7 +400,11 @@ function SongRow({
         style={shifted ? undefined : { background: 'var(--color-line)' }}
         title={
           shifted && song
-            ? `în bibliotecă ${nativeKey}, în acest program ${item.keyOverride} (${semitonesBetween(nativeKey!, item.keyOverride!)} semitonuri)`
+            ? t('sets.keyShifted', {
+                native: nativeKey ?? '',
+                override: item.keyOverride ?? '',
+                semitones: semitonesBetween(nativeKey!, item.keyOverride!) ?? 0,
+              })
             : undefined
         }
       >
@@ -399,15 +423,16 @@ function RowButtons({
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const { t } = useT();
   return (
     <span className="flex shrink-0 gap-0.5 print:hidden">
-      <Small onClick={() => onMove(-1)} title="Sus">
+      <Small onClick={() => onMove(-1)} title={t('edit.moveUp')}>
         ↑
       </Small>
-      <Small onClick={() => onMove(1)} title="Jos">
+      <Small onClick={() => onMove(1)} title={t('edit.moveDown')}>
         ↓
       </Small>
-      <Small onClick={onRemove} title="Scoate din program">
+      <Small onClick={onRemove} title={t('sets.removeFromSet')}>
         ✕
       </Small>
     </span>
@@ -428,6 +453,7 @@ function Small({
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
       className="rounded border border-(--color-line) px-1.5 py-0.5 text-xs hover:bg-(--color-line)"
     >
       {children}
@@ -447,18 +473,17 @@ function PrintableRunningOrder({
   set,
   songs,
   songNumbers,
+  t,
+  formatDate,
 }: {
   set: ServiceSet;
   songs: Record<string, Song>;
   songNumbers: Map<number, number>;
+  t: Translator['t'];
+  formatDate: Translator['date'];
 }) {
   const date = set.date
-    ? new Date(`${set.date}T00:00:00`).toLocaleDateString('ro-RO', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? formatDate(set.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
   return (
@@ -476,11 +501,11 @@ function PrintableRunningOrder({
                 <span className="w-5 shrink-0 text-right tabular-nums">
                   {songNumbers.get(index)}.
                 </span>
-                <span className="font-medium">{song?.title ?? '(cântare lipsă)'}</span>
+                <span className="font-medium">{song?.title ?? t('sets.missingSong')}</span>
                 <span className="flex-1 border-b border-dotted border-black/30" />
                 <span className="shrink-0 font-mono text-sm">
                   {key ?? '—'}
-                  {item.capoOverride ? ` · capo ${item.capoOverride}` : ''}
+                  {item.capoOverride ? ` · ${t('sets.capo')} ${item.capoOverride}` : ''}
                   {song?.tempo ? ` · ${song.tempo}` : ''}
                 </span>
               </li>
@@ -495,8 +520,8 @@ function PrintableRunningOrder({
           }
           return (
             <li key={index} className="break-inside-avoid pl-7 text-sm">
-              {item.label || 'pauză'}
-              {item.minutes ? ` — ${item.minutes} min` : ''}
+              {item.label || t('sets.gap')}
+              {item.minutes ? ` — ${item.minutes} ${t('sets.minutes')}` : ''}
             </li>
           );
         })}
@@ -506,12 +531,13 @@ function PrintableRunningOrder({
 }
 
 function SaveBadge({ state }: { state: SaveState }) {
+  const { t } = useT();
   const text: Record<SaveState, string> = {
     idle: '',
-    dirty: 'nesalvat',
-    saving: 'se salvează…',
-    saved: 'salvat',
-    error: 'eroare',
+    dirty: t('save.dirty'),
+    saving: t('save.saving'),
+    saved: t('save.saved'),
+    error: t('save.error'),
   };
   if (!text[state]) return null;
   return (

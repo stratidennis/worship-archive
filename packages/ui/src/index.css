@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 
+/*
+  The palette, in four themes.
+
+  `@theme` defines the light values. Everything after it redefines the same custom
+  properties under a more specific selector, which is what lets an explicit choice beat
+  the system preference: `:root[data-theme="light"]` (0,1,1) outranks the `:root` (0,1,0)
+  inside the media query, so choosing Light on a machine set to dark actually works.
+*/
 @theme {
   --color-stage-bg: oklch(99% 0.003 260);
   --color-stage-fg: oklch(20% 0.01 260);
@@ -9,6 +17,7 @@
   --color-line: oklch(90% 0.005 260);
   --color-cue: oklch(72% 0.13 70);
   --color-cue-bg: oklch(96% 0.02 70);
+  --color-focus: oklch(55% 0.19 255);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,7 +30,53 @@
     --color-line: oklch(27% 0.008 260);
     --color-cue: oklch(70% 0.12 70);
     --color-cue-bg: oklch(24% 0.02 70);
+    --color-focus: oklch(78% 0.15 245);
   }
+}
+
+:root[data-theme='light'] {
+  --color-stage-bg: oklch(99% 0.003 260);
+  --color-stage-fg: oklch(20% 0.01 260);
+  --color-chord: oklch(48% 0.16 255);
+  --color-bass: oklch(52% 0.14 155);
+  --color-muted: oklch(52% 0.012 260);
+  --color-line: oklch(90% 0.005 260);
+  --color-cue: oklch(72% 0.13 70);
+  --color-cue-bg: oklch(96% 0.02 70);
+  --color-focus: oklch(55% 0.19 255);
+}
+
+:root[data-theme='dark'] {
+  --color-stage-bg: oklch(17% 0.008 260);
+  --color-stage-fg: oklch(94% 0.005 260);
+  --color-chord: oklch(78% 0.13 245);
+  --color-bass: oklch(76% 0.12 155);
+  --color-muted: oklch(64% 0.012 260);
+  --color-line: oklch(27% 0.008 260);
+  --color-cue: oklch(70% 0.12 70);
+  --color-cue-bg: oklch(24% 0.02 70);
+  --color-focus: oklch(78% 0.15 245);
+}
+
+/*
+  Stage.
+
+  Not simply a darker dark. A display read from twenty metres in a room with the lights
+  down needs near-black rather than dark grey — grey glows and washes out the words —
+  and warm rather than blue-white text, which is easier on eyes looking at it for an
+  hour. Chords stay clearly distinct from lyrics but stop competing with them for
+  attention: on stage the words are what people are reading.
+*/
+:root[data-theme='stage'] {
+  --color-stage-bg: oklch(8% 0.004 260);
+  --color-stage-fg: oklch(97% 0.012 90);
+  --color-chord: oklch(84% 0.14 85);
+  --color-bass: oklch(80% 0.13 155);
+  --color-muted: oklch(62% 0.01 260);
+  --color-line: oklch(22% 0.006 260);
+  --color-cue: oklch(78% 0.14 70);
+  --color-cue-bg: oklch(16% 0.02 70);
+  --color-focus: oklch(84% 0.14 85);
 }
 
 html,
@@ -34,6 +89,46 @@ body {
   background: var(--color-stage-bg);
   color: var(--color-stage-fg);
   -webkit-text-size-adjust: 100%;
+}
+
+/*
+  A visible focus ring, everywhere, on keyboard focus only.
+
+  The leader's hands are on an instrument and the keyboard is the primary interface;
+  losing track of where focus is mid-service is a real failure, not a checkbox.
+*/
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Only visible once focused: the first Tab on any page reaches it. */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: 50;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--color-chord);
+  color: white;
+  transition: top 120ms ease;
+}
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+/* Someone who asked the system for less motion means it here too. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Printing is words-and-chords on paper: fixed readable size, no viewport fitting. */

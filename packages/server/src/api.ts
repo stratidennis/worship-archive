@@ -15,6 +15,8 @@ import type { ServiceSet, Song } from '@worship/core';
 import type { Library } from './library.js';
 import type { SetStore } from './sets.js';
 import type { SessionHub } from './hub.js';
+import { auditLibrary, applyFixes, type Fix } from './cleanup.js';
+import { backupFilename, createBackup, isBackup, restoreBackup } from './backup.js';
 
 export interface ApiOptions {
   library: Library;
@@ -31,7 +33,10 @@ export interface ApiOptions {
 
 export function createServer(options: ApiOptions): FastifyInstance {
   const { library, sets } = options;
-  const app = Fastify({ logger: options.logger ?? false });
+  // A backup POST carries the whole library. 1 MB (Fastify's default) is enough for
+  // 153 songs and not enough for a library that has grown, and a 413 at restore time
+  // would be inexplicable. 64 MB is far past any plausible text library.
+  const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 * 1024 });
 
   // The LAN is the trust boundary here, not the browser origin — band devices load the
   // app from this same server. CORS is open so a Vite dev server on another port works.
@@ -161,7 +166,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return reply.code(201).send(
       sets.save({
         id: randomUUID(),
-        title: incoming.title ?? 'Program nou',
+        title: incoming.title ?? '',
         date: incoming.date ?? null,
         items: incoming.items ?? [],
         createdAt: now,
@@ -254,6 +259,47 @@ export function createServer(options: ApiOptions): FastifyInstance {
       port: options.port ?? 7374,
       hostname: hostname(),
     };
+  });
+
+  // ---- backup, restore, cleanup ---------------------------------------------
+
+  /**
+   * The whole library as one JSON file.
+   *
+   * `Content-Disposition` so a browser downloads it rather than rendering a megabyte of
+   * JSON — the desktop app ignores the header and writes it wherever the user chose.
+   */
+  app.get('/api/backup', async (_request, reply) => {
+    const backup = createBackup(library, sets);
+    reply.header('Content-Disposition', `attachment; filename="${backupFilename()}"`);
+    reply.header('Content-Type', 'application/json; charset=utf-8');
+    return backup;
+  });
+
+  app.post('/api/restore', async (request, reply) => {
+    const body = request.body as { backup?: unknown; mode?: 'merge' | 'replace' } | undefined;
+    const candidate = body && 'backup' in body ? body.backup : body;
+    if (!isBackup(candidate)) {
+      return reply.code(400).send({ error: 'not a Worship Archive backup file' });
+    }
+    const result = restoreBackup(library, sets, candidate, {
+      mode: body?.mode === 'replace' ? 'replace' : 'merge',
+    });
+    options.hub?.notifyLibraryChanged();
+    return result;
+  });
+
+  /** Proposed chord-spelling fixes across the whole library. Never applied here. */
+  app.get('/api/cleanup', async () => auditLibrary(library));
+
+  app.post('/api/cleanup/apply', async (request, reply) => {
+    const body = request.body as { fixes?: Fix[] } | undefined;
+    if (!body || !Array.isArray(body.fixes)) {
+      return reply.code(400).send({ error: 'expected { fixes: [...] }' });
+    }
+    const result = applyFixes(library, body.fixes);
+    options.hub?.notifyLibraryChanged();
+    return result;
   });
 
   app.get('/api/session', async () => ({

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Line } from '@worship/core';
+import { useT } from '../lib/i18n.js';
 
 /**
  * One editable lyric line, with its chords stacked above the right syllables.
@@ -55,6 +56,7 @@ export function LineEditor({
   onBackspaceEmpty,
   autoFocus,
 }: LineEditorProps) {
+  const { t } = useT();
   const input = useRef<HTMLInputElement>(null);
   const [editingAt, setEditingAt] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
@@ -134,7 +136,8 @@ export function LineEditor({
                   type="button"
                   onClick={() => startChordAt(segment.at)}
                   className="absolute left-0 top-0 cursor-pointer rounded px-0.5 font-semibold text-(--color-chord) hover:bg-(--color-chord)/15"
-                  title="Editează acordul"
+                  title={t('edit.editChord')}
+                  aria-label={t('edit.editChord')}
                 >
                   {segment.chord}
                 </button>
@@ -159,7 +162,8 @@ export function LineEditor({
             type="button"
             onClick={() => startChordAt(input.current?.selectionStart ?? 0)}
             className="shrink-0 rounded px-1.5 text-xs text-(--color-muted) opacity-0 transition-opacity hover:bg-(--color-line) group-focus-within:opacity-100 group-hover:opacity-100"
-            title="Adaugă acord la cursor (F9)"
+            title={t('edit.addChord')}
+            aria-label={t('edit.addChord')}
           >
             +♪
           </button>

@@ -4,6 +4,7 @@ import { semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { useT } from '../lib/i18n.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 
@@ -19,10 +20,11 @@ import { BeatLed } from '../components/BeatLed.js';
  * something is wrong, because anything else is a distraction on a platform.
  */
 export function StagePage() {
+  const { t } = useT();
   const [params] = useSearchParams();
   const showChords = params.get('chords') !== '0';
   const showBass = params.get('bass') === '1';
-  const name = params.get('name') ?? 'Ecran';
+  const name = params.get('name') ?? t('app.stage');
 
   const { state, status, clockOffset, libraryRev } = useSession('stage', name);
   const live = useLiveSet(state.setId, libraryRev);
@@ -85,7 +87,7 @@ export function StagePage() {
 
   return (
     <div className="relative flex h-dvh flex-col bg-(--color-stage-bg)">
-      <div ref={container} className="min-h-0 flex-1 overflow-hidden px-6 py-5">
+      <div id="main" ref={container} className="min-h-0 flex-1 overflow-hidden px-6 py-5">
         {state.output === 'cleared' ? null : song ? (
           <div
             ref={content}
@@ -108,7 +110,7 @@ export function StagePage() {
           </div>
         ) : (
           <p className="mt-[20vh] text-center text-lg text-(--color-muted)">
-            {live.set ? '' : 'Se așteaptă liderul…'}
+            {live.set ? '' : t('band.waiting')}
           </p>
         )}
       </div>
@@ -120,7 +122,7 @@ export function StagePage() {
             className="rounded-full px-2 py-0.5 text-xs"
             style={{ background: 'oklch(62% 0.21 25)', color: 'white' }}
           >
-            {status === 'connecting' ? 'se reconectează…' : 'deconectat'}
+            {status === 'connecting' ? t('status.reconnecting') : t('status.offline')}
           </span>
         )}
       </div>

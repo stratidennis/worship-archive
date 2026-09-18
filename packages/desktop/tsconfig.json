@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // esbuild produces what actually runs; tsc is here only to typecheck, so its own
+    // output goes somewhere ignored rather than next to the bundle.
+    "outDir": "./.tsc",
+    "rootDir": ".",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../importers" }]
+}

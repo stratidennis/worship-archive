@@ -2,8 +2,11 @@ packages:
   - 'packages/*'
   - 'tools'
 
-# pnpm blocks dependency install scripts by default. These two genuinely need them:
-# esbuild fetches its platform binary, better-sqlite3 compiles a native addon.
+# pnpm blocks dependency install scripts by default. These genuinely need them:
+# esbuild fetches its platform binary, better-sqlite3 compiles a native addon,
+# electron downloads its runtime, and electron-winstaller builds the Windows installer.
 allowBuilds:
   esbuild: true
   better-sqlite3: true
+  electron: true
+  electron-winstaller: true

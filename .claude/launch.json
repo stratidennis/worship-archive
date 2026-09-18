@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "ui",
+      "name": "worship",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "worship-archive", "--filter", "@worship/ui", "dev"],
+      "runtimeArgs": ["--dir", "worship-archive", "dev"],
       "port": 7373
     }
   ]

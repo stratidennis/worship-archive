@@ -143,7 +143,10 @@ export class SessionHub {
     const id = randomUUID();
     const client: Client = {
       socket,
-      device: { id, name: 'dispozitiv', role: 'band', since: new Date().toISOString() },
+      // Empty rather than a placeholder word: the server has no language, and this is
+      // only visible for the few milliseconds before the device says hello. The client
+      // renders its own translated fallback.
+      device: { id, name: '', role: 'band', since: new Date().toISOString() },
       alive: true,
       deviceId: null,
     };
@@ -182,7 +185,7 @@ export class SessionHub {
           }
           client.device = {
             ...client.device,
-            name: message.name?.slice(0, 60) || 'dispozitiv',
+            name: message.name?.slice(0, 60) || '',
             role: message.role,
           };
           this.broadcastDevices();

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
+import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
+import { useT } from '../lib/i18n.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
 function Snippet({ text }: { text: string }) {
@@ -22,6 +24,7 @@ function Snippet({ text }: { text: string }) {
 }
 
 function KeyBadge({ song }: { song: SongSummary }) {
+  const { t } = useT();
   const key = song.performanceKey ?? song.writtenKey;
   if (!key) return null;
   const transposed = song.performanceKey && song.writtenKey && song.performanceKey !== song.writtenKey;
@@ -29,7 +32,14 @@ function KeyBadge({ song }: { song: SongSummary }) {
     <span
       className="shrink-0 rounded px-1.5 py-0.5 font-mono text-xs tabular-nums"
       style={{ background: 'var(--color-line)' }}
-      title={transposed ? `written in ${song.writtenKey}, played in ${song.performanceKey}` : undefined}
+      title={
+        transposed
+          ? t('library.writtenPlayed', {
+              written: song.writtenKey ?? '',
+              performance: song.performanceKey ?? '',
+            })
+          : undefined
+      }
     >
       {key}
       {transposed && <span className="ml-1 text-(--color-muted)">← {song.writtenKey}</span>}
@@ -38,6 +48,7 @@ function KeyBadge({ song }: { song: SongSummary }) {
 }
 
 export function Library() {
+  const { t } = useT();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
@@ -50,8 +61,16 @@ export function Library() {
   const [error, setError] = useState<string | null>(null);
   const [reach, setReach] = useState<Reachability>('unknown');
   const [mirror, setMirror] = useState<{ songs: number; lastSync: string | null } | null>(null);
+  const search = useRef<HTMLInputElement>(null);
 
   useEffect(() => onReachabilityChange(setReach), []);
+
+  // `/` is the search shortcut everywhere on the web, and a leader hunting for a song
+  // between two others has both hands free for exactly as long as that takes.
+  useHotkeys({
+    '/': () => search.current?.focus(),
+    n: () => void createSong(),
+  });
 
   // Mirror first, then refresh from the host. The list therefore appears instantly and
   // identically whether or not there is a host to reach.
@@ -96,6 +115,12 @@ export function Library() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  const createSong = (): Promise<void> =>
+    adminApi
+      .createSong({ title: '' })
+      .then((created) => navigate(`/edit/${encodeURIComponent(created.id)}`))
+      .catch((e: unknown) => setError(String(e)));
+
   const setParam = (name: string, value: string): void => {
     const next = new URLSearchParams(params);
     if (value) next.set(name, value);
@@ -109,52 +134,53 @@ export function Library() {
     <div className="mx-auto max-w-4xl px-4 pb-16 pt-6">
       <header className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-widest text-(--color-muted)">Worship Archive</p>
-          <h1 className="text-2xl font-bold">Biblioteca</h1>
+          <p className="text-xs uppercase tracking-widest text-(--color-muted)">{t('app.name')}</p>
+          <h1 className="text-2xl font-bold">{t('app.library')}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
         <Link
           to="/lead"
           className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
         >
-          Condu
+          {t('app.lead')}
         </Link>
         <Link
           to="/band"
           className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
         >
-          Trupă
+          {t('app.band')}
         </Link>
         <Link
           to="/sets"
           className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
         >
-          Programe
+          {t('app.sets')}
+        </Link>
+        <Link
+          to="/settings"
+          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+          aria-label={t('settings.title')}
+          title={t('settings.title')}
+        >
+          ⚙
         </Link>
         <button
           type="button"
-          onClick={() => {
-            void fetch('/api/songs', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ title: '' }),
-            })
-              .then((r) => r.json() as Promise<SongSummary>)
-              .then((created) => navigate(`/edit/${encodeURIComponent(created.id)}`))
-              .catch((e: unknown) => setError(String(e)));
-          }}
+          onClick={() => void createSong()}
           className="shrink-0 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
         >
-          + Cântare nouă
+          {t('library.new')}
         </button>
         </div>
       </header>
 
       <input
+        ref={search}
         type="search"
         value={query}
         onChange={(e) => setParam('q', e.target.value)}
-        placeholder="Caută titlu sau versuri…"
+        placeholder={t('library.search')}
+        aria-label={t('library.search')}
         autoComplete="off"
         className="w-full rounded-lg border border-(--color-line) bg-transparent px-4 py-3 text-base outline-none focus:border-(--color-chord)"
       />
@@ -162,7 +188,7 @@ export function Library() {
       {facets && (
         <div className="mt-3 flex flex-wrap gap-1.5 text-sm">
           <Chip active={!collection} onClick={() => setParam('collection', '')}>
-            Toate ({facets.collections.reduce((n, c) => n + c.count, 0)})
+            {t('library.all')} ({facets.collections.reduce((n, c) => n + c.count, 0)})
           </Chip>
           {facets.collections.map((c) => (
             <Chip
@@ -188,23 +214,23 @@ export function Library() {
 
       {error && (
         <p className="mt-6 rounded-md border border-(--color-line) p-3 text-sm text-(--color-muted)">
-          Nu pot încărca biblioteca: {error}
+          {t('library.loadError', { error })}
         </p>
       )}
 
-      <p className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)">
+      <p className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)" role="status">
         <span>
-          {results.length} {results.length === 1 ? 'cântare' : 'cântări'}
-          {hits && ' găsite'}
+          {t('library.count', { count: results.length })}
+          {hits && ` ${t('library.found')}`}
         </span>
         {reach === 'offline' && mirror && (
           <span className="rounded-full bg-(--color-line) px-2 py-0.5">
-            offline · {mirror.songs} salvate local
+            {t('library.offlineBadge', { count: mirror.songs })}
           </span>
         )}
       </p>
 
-      <ul className="divide-y divide-(--color-line)">
+      <ul id="main" className="divide-y divide-(--color-line)">
         {results.map((song) => (
           <li key={song.id}>
             <Link
@@ -212,7 +238,7 @@ export function Library() {
               className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{song.title || '(fără titlu)'}</span>
+                <span className="block truncate font-medium">{song.title || t('app.untitled')}</span>
                 {hits && 'snippet' in song && (
                   <span className="block truncate text-xs">
                     <Snippet text={(song as SearchHit).snippet} />
@@ -231,9 +257,22 @@ export function Library() {
       </ul>
 
       {results.length === 0 && !error && (
-        <p className="mt-8 text-center text-sm text-(--color-muted)">
-          {query ? `Nimic pentru „${query}”` : 'Biblioteca este goală.'}
-        </p>
+        <div className="mt-10 text-center text-sm text-(--color-muted)">
+          {query ? (
+            <p>{t('library.nothingFor', { query })}</p>
+          ) : (
+            <>
+              <p>{t('library.empty')}</p>
+              <p className="mt-1">{t('library.emptyHint')}</p>
+              <Link
+                to="/import"
+                className="mt-3 inline-block rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 font-medium text-white"
+              >
+                {t('import.title')}
+              </Link>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

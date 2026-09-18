@@ -9,6 +9,7 @@ import {
   type Line,
   type Song,
 } from '@worship/core';
+import { useT } from '../lib/i18n.js';
 
 /** Block types that are cues rather than lyrics — rendered differently. */
 const CUE_TYPES = new Set(['Intro', 'Instrumental', 'Solo', 'Note']);
@@ -166,12 +167,16 @@ function BlockView({
   semitones: number;
   targetKey: string | null;
 }) {
+  // Block types and singers are stored in English — that is the file format — but this
+  // heading sits directly above the words on a stage display, and a Romanian song with
+  // an English "CHORUS" over it reads as someone else's software.
+  const { blockName, singerName } = useT();
   const isCue = CUE_TYPES.has(block.type);
   const label = [
-    block.type,
+    blockName(block.type),
     block.label ? `— ${block.label}` : null,
     block.repeat ? `×${block.repeat}` : null,
-    block.singers ? `· ${block.singers}` : null,
+    block.singers ? `· ${singerName(block.singers)}` : null,
   ]
     .filter(Boolean)
     .join(' ');

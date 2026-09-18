@@ -124,7 +124,7 @@ describe('joining', () => {
     const frame = await waitFor(
       b,
       'devices',
-      (m) => m.devices.length === 2 && m.devices.every((d) => d.name !== 'dispozitiv'),
+      (m) => m.devices.length === 2 && m.devices.every((d) => d.name !== ''),
     );
     expect(frame.devices.map((d) => d.name).sort()).toEqual(['Ecran', 'Lider']);
     a.ws.close();
