@@ -351,20 +351,19 @@ export function SetPage() {
           </div>
 
           {tab === 'program' ? (
-            <ol className="scroll-slim min-h-0 flex-1 overflow-y-auto py-1">
+            <ol className="scroll-slim min-h-0 flex-1 overflow-y-auto px-1.5 py-1">
+              {/* The horizontal padding is for the lifted row: it is outlined and scaled up
+                  slightly while dragging, and a list with no inset clips both against
+                  its own overflow. */}
               {set.items.map((item, index) => (
                 <li
                   key={index}
                   {...drag.rowProps(index)}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition-colors ${
-                    drag.dragging === index ? 'opacity-40' : ''
-                  } ${
-                    drag.target === index && drag.dragging !== null && drag.dragging !== index
-                      ? 'border-t-2 border-(--color-chord)'
-                      : 'border-t-2 border-transparent'
-                  } ${
-                    selection?.kind === 'item' && selection.index === index
-                      ? 'bg-(--color-chord)/15'
+                  className={`group flex items-center gap-1 px-2 py-1.5 text-sm ${
+                    drag.dragging !== index &&
+                    selection?.kind === 'item' &&
+                    selection.index === index
+                      ? 'rounded-md bg-(--color-chord)/15'
                       : ''
                   }`}
                 >
@@ -374,7 +373,7 @@ export function SetPage() {
                     tabIndex={-1}
                     aria-label={t('set.dragHandle')}
                     title={t('set.dragHandle')}
-                    className="shrink-0 select-none px-1 text-(--color-muted)"
+                    className="-my-1.5 shrink-0 select-none py-1.5 pl-0.5 pr-1.5 text-base leading-none text-(--color-muted) opacity-50 transition-opacity group-hover:opacity-100"
                   >
                     ⠿
                   </span>

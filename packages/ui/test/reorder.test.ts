@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { indexAtPoint, moveItem } from '../src/lib/reorder.js';
+import { indexAtPoint, moveItem, shiftFor } from '../src/lib/reorder.js';
 
 describe('moving an item', () => {
   const list = ['a', 'b', 'c', 'd'];
@@ -80,5 +80,43 @@ describe('finding the row under the pointer', () => {
 
   it('returns 0 for an empty list rather than -1', () => {
     expect(indexAtPoint([], 100)).toBe(0);
+  });
+});
+
+describe('making room for the dragged row', () => {
+  const H = 40;
+
+  it('pushes the rows it passes upwards when dragging down', () => {
+    // Dragging row 0 to position 2: rows 1 and 2 slide up, row 3 is untouched.
+    expect(shiftFor(0, 0, 2, H)).toBe(0);
+    expect(shiftFor(1, 0, 2, H)).toBe(-H);
+    expect(shiftFor(2, 0, 2, H)).toBe(-H);
+    expect(shiftFor(3, 0, 2, H)).toBe(0);
+  });
+
+  it('pushes the rows it passes downwards when dragging up', () => {
+    // Dragging row 3 to position 1: rows 1 and 2 slide down, row 0 is untouched.
+    expect(shiftFor(0, 3, 1, H)).toBe(0);
+    expect(shiftFor(1, 3, 1, H)).toBe(H);
+    expect(shiftFor(2, 3, 1, H)).toBe(H);
+    expect(shiftFor(3, 3, 1, H)).toBe(0);
+  });
+
+  it('moves nothing when the target is where it started', () => {
+    for (let i = 0; i < 4; i++) expect(shiftFor(i, 2, 2, H)).toBe(0);
+  });
+
+  it('leaves exactly one row-sized gap, wherever it is going', () => {
+    // The invariant that makes the gap land in the right place: the shifted rows always
+    // free up precisely one row of space at the target.
+    for (const [from, to] of [
+      [0, 3],
+      [3, 0],
+      [1, 2],
+      [2, 1],
+    ] as const) {
+      const shifted = [0, 1, 2, 3].filter((i) => shiftFor(i, from, to, H) !== 0);
+      expect(shifted).toHaveLength(Math.abs(to - from));
+    }
   });
 });
