@@ -5,6 +5,7 @@ import { repo } from '../lib/repo.js';
 import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Button as UiButton } from '../components/ui.js';
 import {
   confirmAction,
   desktop,
@@ -332,6 +333,7 @@ function Toggle({
   );
 }
 
+/** The settings page's buttons, which are the shared control with a shorter name. */
 function Button({
   onClick,
   children,
@@ -344,17 +346,13 @@ function Button({
   danger?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <UiButton
+      size="sm"
+      variant={danger ? 'danger' : 'default'}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-md border px-2.5 py-1.5 text-sm disabled:opacity-40 ${
-        danger
-          ? 'border-(--color-line) text-red-500 hover:bg-red-500/10'
-          : 'border-(--color-line) hover:bg-(--color-line)'
-      }`}
     >
       {children}
-    </button>
+    </UiButton>
   );
 }

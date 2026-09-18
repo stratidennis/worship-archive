@@ -38,6 +38,29 @@ export function createServer(options: ApiOptions): FastifyInstance {
   // would be inexplicable. 64 MB is far past any plausible text library.
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 * 1024 });
 
+  /*
+    An empty body is not a malformed one.
+
+    Fastify's built-in JSON parser rejects `content-type: application/json` with nothing
+    after it, which is what a `fetch` DELETE that sets its headers uniformly sends — and
+    a 400 there is both confusing and, for a DELETE, meaningless: the request carried
+    everything it needed in the URL. Being strict here bought nothing and cost every
+    delete in the app.
+  */
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_request, body, done) => {
+      const text = String(body).trim();
+      if (text === '') return done(null, undefined);
+      try {
+        done(null, JSON.parse(text));
+      } catch (error) {
+        done(error as Error, undefined);
+      }
+    },
+  );
+
   // The LAN is the trust boundary here, not the browser origin — band devices load the
   // app from this same server. CORS is open so a Vite dev server on another port works.
   app.addHook('onSend', async (_req, reply) => {

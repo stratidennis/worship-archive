@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { SetSummary } from '../lib/api.js';
 import { api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
-import { rememberSet } from '../lib/lastSet.js';
+import { forgetSet, rememberSet } from '../lib/lastSet.js';
+import { confirmAction } from '../lib/desktop.js';
 import { useT } from '../lib/i18n.js';
 import { setName } from '../lib/setName.js';
 import { AppHeader } from '../components/AppHeader.js';
-import { IconPlus } from '../components/icons.js';
+import { IconPlus, IconTrash } from '../components/icons.js';
+import { Button, IconButton } from '../components/ui.js';
 
 /** The next Sunday, as an ISO date — the default for a new service. */
 function nextSunday(): string {
@@ -57,14 +59,10 @@ export function SetsPage() {
   return (
     <>
       <AppHeader current="sets">
-        <button
-          type="button"
-          onClick={create}
-          className="flex h-9 items-center gap-1.5 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 text-sm font-medium text-white"
-        >
+        <Button variant="primary" onClick={create}>
           <IconPlus size={16} />
           <span className="hidden sm:inline">{t('sets.new')}</span>
-        </button>
+        </Button>
       </AppHeader>
 
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-5">
@@ -82,8 +80,8 @@ export function SetsPage() {
                   {t('library.count', { count: set.songCount })}
                 </span>
               </Link>
-              <button
-                type="button"
+              <Button
+                size="sm"
                 onClick={() => {
                   void api
                     .duplicateSet(set.id, { date: nextSunday() })
@@ -93,11 +91,33 @@ export function SetsPage() {
                     })
                     .catch((e: unknown) => setError(String(e)));
                 }}
-                className="shrink-0 rounded-md border border-(--color-line) px-2 py-1 text-xs hover:bg-(--color-line)"
                 title={t('sets.duplicateHint')}
+                className="shrink-0"
               >
                 {t('sets.duplicate')}
-              </button>
+              </Button>
+              <IconButton
+                size="sm"
+                variant="danger"
+                label={t('app.delete')}
+                className="shrink-0"
+                onClick={() => {
+                  void confirmAction({
+                    message: t('sets.deleteConfirm', { title: setName(set, date) }),
+                    confirmLabel: t('app.delete'),
+                  }).then((ok) => {
+                    if (!ok) return;
+                    // Forget it first: this device must not reopen a set that is gone.
+                    forgetSet(set.id);
+                    void api
+                      .deleteSet(set.id)
+                      .then(load)
+                      .catch((e: unknown) => setError(String(e)));
+                  });
+                }}
+              >
+                <IconTrash size={14} />
+              </IconButton>
             </li>
           ))}
         </ul>

@@ -13,9 +13,10 @@ import { confirmAction } from '../lib/desktop.js';
 import { SongBody } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
 import { ResizeHandle } from '../components/ResizeHandle.js';
+import { DatePicker } from '../components/DatePicker.js';
+import { Button, IconButton, Input, Textarea } from '../components/ui.js';
 import { setName } from '../lib/setName.js';
 import {
-  IconCalendar,
   IconCheck,
   IconChevronDown,
   IconChevronUp,
@@ -281,7 +282,7 @@ export function SetPage() {
             free-text title beside a date was two fields that had to agree — they did
             not, and "Program nou" sat at the top of a set for a whole Sunday.
           */
-          <DateField
+          <DatePicker
             value={set.date}
             onChange={(date) => update((s) => ({ ...s, date, title: titleForDate(date) }))}
             label={t('sets.noDate')}
@@ -289,16 +290,13 @@ export function SetPage() {
         }
       >
         <SaveBadge state={saveState} />
-        <button
-          type="button"
+        <IconButton
+          label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
           onClick={() => setPrefs({ setHeaderExpanded: !expanded })}
           aria-expanded={expanded}
-          aria-label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
-          title={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
-          className="grid h-9 w-9 place-items-center rounded-lg border border-(--color-line) hover:bg-(--color-line)"
         >
           {expanded ? <IconChevronUp size={17} /> : <IconChevronDown size={17} />}
-        </button>
+        </IconButton>
       </AppHeader>
 
       {expanded && (
@@ -450,14 +448,14 @@ export function SetPage() {
             </ol>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
-              <input
+              <Input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('sets.searchSong')}
                 aria-label={t('sets.searchSong')}
                 autoComplete="off"
-                className="m-2 shrink-0 rounded-lg border border-(--color-line) bg-transparent px-3 py-2 text-sm outline-none focus:border-(--color-chord)"
+                className="m-2 w-[calc(100%-1rem)] shrink-0"
               />
               <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
                 {hits.map((song) => (
@@ -556,7 +554,7 @@ export function SetPage() {
               <label className="block text-xs uppercase tracking-wide text-(--color-muted)">
                 {t('set.noteBody')}
               </label>
-              <textarea
+              <Textarea
                 value={selectedItem.text}
                 onChange={(e) =>
                   selection?.kind === 'item' &&
@@ -564,7 +562,7 @@ export function SetPage() {
                 }
                 rows={4}
                 placeholder={t('sets.notePlaceholder')}
-                className="mt-1 w-full rounded-lg border border-(--color-line) bg-transparent px-3 py-2 outline-none focus:border-(--color-chord)"
+                className="mt-1"
               />
             </div>
           ) : selectedItem?.kind === 'gap' ? (
@@ -573,21 +571,21 @@ export function SetPage() {
                 <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
                   {t('set.gapLabel')}
                 </span>
-                <input
+                <Input
                   value={selectedItem.label}
                   onChange={(e) =>
                     selection?.kind === 'item' &&
                     replaceItem(selection.index, { ...selectedItem, label: e.target.value })
                   }
                   placeholder={t('sets.gapPlaceholder')}
-                  className="mt-1 w-full rounded border border-(--color-line) bg-transparent px-2 py-1.5 outline-none focus:border-(--color-chord)"
+                  className="mt-1"
                 />
               </label>
               <label className="block">
                 <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
                   {t('set.gapMinutes')}
                 </span>
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={selectedItem.minutes ?? ''}
@@ -598,7 +596,7 @@ export function SetPage() {
                       minutes: e.target.value ? Number(e.target.value) : null,
                     })
                   }
-                  className="mt-1 w-full rounded border border-(--color-line) bg-transparent px-2 py-1.5"
+                  className="mt-1"
                 />
               </label>
             </div>
@@ -653,36 +651,6 @@ function AddButton({
     >
       <IconPlus size={16} />
     </button>
-  );
-}
-
-/**
- * The set's date, which is also its name.
- *
- * The leading icon is ours; the browser draws its own picker button beside it. That one
- * used to be invisible on a dark background — `color-scheme` in `index.css` is what
- * fixes it, globally, for every native control rather than this one field.
- */
-function DateField({
-  value,
-  onChange,
-  label,
-}: {
-  value: string | null;
-  onChange: (value: string | null) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex h-9 items-center gap-2 rounded-lg border border-(--color-line) px-2.5">
-      <IconCalendar size={16} className="shrink-0 text-(--color-muted)" />
-      <input
-        type="date"
-        value={value ?? ''}
-        onChange={(event) => onChange(event.target.value || null)}
-        aria-label={label}
-        className="bg-transparent text-sm font-semibold outline-none"
-      />
-    </label>
   );
 }
 
@@ -853,6 +821,7 @@ function SongControls({
   );
 }
 
+/** The tools row's buttons, which are just the shared control with a shorter name. */
 function Action({
   onClick,
   children,
@@ -865,15 +834,14 @@ function Action({
   className?: string;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      size="sm"
+      variant={danger ? 'danger' : 'default'}
       onClick={onClick}
-      className={`rounded-md border border-(--color-line) px-2.5 py-1 hover:bg-(--color-line) ${
-        danger ? 'text-red-500 hover:bg-red-500/10' : ''
-      } ${className}`}
+      className={className}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

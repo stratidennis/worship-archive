@@ -57,10 +57,19 @@ async function get<T>(path: string): Promise<T> {
 }
 
 async function send<T>(path: string, method: string, body?: unknown): Promise<T> {
+  /*
+    No `content-type` without a body.
+
+    Declaring `application/json` and then sending nothing makes Fastify try to parse an
+    empty body and answer 400 — so every DELETE this helper made was rejected, and
+    deleting a song or a set had never once worked from the interface. It failed
+    quietly: the row stayed, and the error went to a state nobody was showing.
+  */
   const response = await fetch(path, {
     method,
-    headers: { 'content-type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(body === undefined
+      ? {}
+      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${path}`);
   if (response.status === 204) return undefined as T;

@@ -6,6 +6,7 @@ import { adminApi } from '../lib/api.js';
 import { pickTextFiles } from '../lib/desktop.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Button, Textarea } from '../components/ui.js';
 import { IconClose } from '../components/icons.js';
 
 /**
@@ -122,43 +123,42 @@ export function ImportPage() {
           }`}
         >
           <p className="text-sm text-(--color-muted)">{t('import.dropHere')}</p>
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            className="mt-3"
             onClick={() => {
               void pickTextFiles('.chopro,.cho,.chordpro,.pro,.song,.xml,.txt,text/*').then(
                 add,
               );
             }}
-            className="mt-3 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
           >
             {t('import.pickFiles')}
-          </button>
+          </Button>
         </div>
 
         <div className="mt-5">
           <label className="block text-sm font-medium" htmlFor="paste">
             {t('import.pasteLabel')}
           </label>
-          <textarea
+          <Textarea
             id="paste"
             value={paste}
             onChange={(event) => setPaste(event.target.value)}
             placeholder={t('import.pastePlaceholder')}
             rows={6}
             spellCheck={false}
-            className="mt-1 w-full rounded-lg border border-(--color-line) bg-transparent px-3 py-2 font-mono text-xs outline-none focus:border-(--color-chord)"
+            className="mt-1 font-mono text-xs"
           />
-          <button
-            type="button"
+          <Button
+            className="mt-1"
             disabled={paste.trim() === ''}
             onClick={() => {
               add([{ name: '', text: paste }]);
               setPaste('');
             }}
-            className="mt-1 rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm disabled:opacity-40 hover:bg-(--color-line)"
           >
             {t('import.pasteButton')}
-          </button>
+          </Button>
         </div>
 
         {result && (

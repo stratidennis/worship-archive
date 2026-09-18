@@ -28,6 +28,7 @@ import { confirmAction } from '../lib/desktop.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Button, Field as UiField, Input } from '../components/ui.js';
 import {
   IconClose,
   IconDown,
@@ -46,6 +47,9 @@ const TYPE_KEYS: Record<string, BlockType> = {
 };
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+
+/** The same four the reading view tints — a cue is not a verse, in either place. */
+const CUE_TYPES = new Set<BlockType>(['Intro', 'Instrumental', 'Solo', 'Note']);
 
 /**
  * What is compared to decide whether there is anything to save.
@@ -214,14 +218,28 @@ export function EditPage() {
       </AppHeader>
 
       <div className="flex min-h-0 flex-1">
-        <div id="main" className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <div className="mx-auto max-w-3xl">
-            <Metadata song={current} edit={edit} t={t} />
+        <div id="main" className="scroll-slim min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+          {/*
+            No narrow measure and no centring.
+            
+            This is the same song a musician reads on the same screen; editing it in a
+            768px column in the middle of a 1600px window made it a different document,
+            and every line wrapped in a different place from where it will actually
+            wrap. The text size matches the reading view for the same reason.
+          */}
+          <div className="mx-auto w-full max-w-[min(100%,90rem)] text-[17px] leading-snug">
+            <div className="text-base">
+              <Metadata song={current} edit={edit} t={t} />
+            </div>
 
             {current.blocks.map((block, blockIndex) => (
               <section
                 key={block.id}
-                className="mb-4 rounded-lg border border-(--color-line) p-3"
+                className={`group/block mb-4 rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-(--color-line) ${
+                  CUE_TYPES.has(block.type)
+                    ? 'border-l-2 border-l-(--color-cue) bg-(--color-cue-bg)'
+                    : ''
+                }`}
                 onKeyDown={(event) => {
                   const type = TYPE_KEYS[event.key];
                   if (type) {
@@ -230,7 +248,12 @@ export function EditPage() {
                   }
                 }}
               >
-                <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
+                {/*
+                  The controls fade back until the section is touched. A song being read
+                  is words and chords; a song being edited was words, chords and nine
+                  form fields per section competing with them.
+                */}
+                <div className="mb-1 flex flex-wrap items-center gap-1.5 text-xs opacity-45 transition-opacity focus-within:opacity-100 group-hover/block:opacity-100">
                   <select
                     value={block.type}
                     onChange={(e) =>
@@ -238,7 +261,7 @@ export function EditPage() {
                         updateBlock(s, block.id, { type: e.target.value as BlockType }),
                       )
                     }
-                    className="rounded border border-(--color-line) bg-transparent px-1.5 py-1 font-semibold uppercase tracking-wide"
+                    className="cursor-pointer rounded border border-transparent bg-transparent px-1 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wider text-(--color-muted) hover:border-(--color-line)"
                     aria-label={t('edit.sectionType')}
                   >
                     {BLOCK_TYPES.map((type) => (
@@ -619,17 +642,13 @@ function Field({
   placeholder?: string;
 }) {
   return (
-    <label className="block">
-      <span className="block text-[0.65rem] uppercase tracking-wide text-(--color-muted)">
-        {label}
-      </span>
-      <input
+    <UiField label={label}>
+      <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded border border-(--color-line) bg-transparent px-2 py-1 text-sm outline-none focus:border-(--color-chord)"
       />
-    </label>
+    </UiField>
   );
 }
 
@@ -653,6 +672,7 @@ function SaveBadge({ state }: { state: SaveState }) {
   );
 }
 
+/** The editor's buttons, which are the shared control with a shorter name. */
 function Btn({
   onClick,
   children,
@@ -669,20 +689,14 @@ function Btn({
   title?: string;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      size={small ? 'sm' : 'md'}
       onClick={onClick}
       disabled={disabled}
-      title={title}
-      className={`rounded-md border font-medium transition-colors disabled:opacity-30 ${
-        small ? 'px-1.5 py-0.5 text-xs' : 'px-2.5 py-1.5 text-sm'
-      } ${
-        active
-          ? 'border-(--color-chord) bg-(--color-chord) text-white'
-          : 'border-(--color-line) hover:bg-(--color-line)'
-      }`}
+      {...(title ? { title, 'aria-label': title } : {})}
+      {...(active === undefined ? {} : { active })}
     >
       {children}
-    </button>
+    </Button>
   );
 }

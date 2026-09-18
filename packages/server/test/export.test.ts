@@ -154,6 +154,50 @@ describe('exporting the library', () => {
   });
 });
 
+describe('deleting', () => {
+  /*
+    The UI used to send `content-type: application/json` on every request, body or not.
+    Fastify then tried to parse an empty body and answered 400, so deleting a song or a
+    set never worked — quietly, because the row simply stayed put. These pin the
+    contract from the server's side: a DELETE carries no body, and must not need one.
+  */
+  it('accepts a DELETE with no body at all', async () => {
+    writeSong('a.chopro', SONG('id-a', 'Una'));
+    library.reindex();
+
+    const response = await app.inject({ method: 'DELETE', url: '/api/songs/id-a' });
+    expect(response.statusCode).toBe(204);
+    expect(library.stats().songs).toBe(0);
+  });
+
+  it('accepts a DELETE that declares JSON and sends nothing', async () => {
+    writeSong('b.chopro', SONG('id-b', 'Două'));
+    library.reindex();
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/songs/id-b',
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(response.statusCode).toBe(204);
+  });
+
+  it('deletes a set the same way', async () => {
+    sets.save({
+      id: 'set-1',
+      title: '2026-01-04',
+      date: '2026-01-04',
+      items: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      rev: 0,
+    });
+    const response = await app.inject({ method: 'DELETE', url: '/api/sets/set-1' });
+    expect(response.statusCode).toBe(204);
+    expect(sets.list()).toHaveLength(0);
+  });
+});
+
 describe('asking for something that is not there', () => {
   it('404s a missing set, so a client can tell gone from unreachable', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/sets/nope/full' });

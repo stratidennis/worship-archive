@@ -4,7 +4,8 @@ import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '..
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
 import { AppHeader } from '../components/AppHeader.js';
-import { IconPlus } from '../components/icons.js';
+import { IconPlus, IconSearch } from '../components/icons.js';
+import { Button, Input } from '../components/ui.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
@@ -144,33 +145,35 @@ export function Library() {
       <AppHeader current="library">
         <Link
           to="/import"
-          className="flex h-9 items-center rounded-lg border border-(--color-line) px-3 text-sm font-medium hover:bg-(--color-line)"
+          className="inline-flex h-9 items-center rounded-lg border border-(--color-line) bg-(--color-surface) px-3 text-sm font-medium transition-colors hover:bg-(--color-line)"
         >
           {t('app.import')}
         </Link>
-        <button
-          type="button"
-          onClick={() => void createSong()}
-          className="flex h-9 items-center gap-1.5 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 text-sm font-medium text-white"
-        >
+        <Button variant="primary" onClick={() => void createSong()}>
           <IconPlus size={16} />
           <span className="hidden sm:inline">{t('library.new')}</span>
-        </button>
+        </Button>
       </AppHeader>
 
       <div className="mx-auto max-w-4xl px-4 pb-16 pt-5">
         {/* Every page carries one, so a screen reader announces where it landed. */}
         <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
-        <input
-          ref={search}
-          type="search"
-          value={query}
-          onChange={(e) => setParam('q', e.target.value)}
-          placeholder={t('library.search')}
-          aria-label={t('library.search')}
-          autoComplete="off"
-          className="w-full rounded-lg border border-(--color-line) bg-transparent px-4 py-3 text-base outline-none focus:border-(--color-chord)"
-        />
+        <div className="relative">
+          <IconSearch
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-(--color-muted)"
+          />
+          <Input
+            ref={search}
+            type="search"
+            value={query}
+            onChange={(e) => setParam('q', e.target.value)}
+            placeholder={t('library.search')}
+            aria-label={t('library.search')}
+            autoComplete="off"
+            className="h-11 pl-9 text-base"
+          />
+        </div>
 
         {facets && (
           <div className="mt-3 flex flex-wrap gap-1.5 text-sm">

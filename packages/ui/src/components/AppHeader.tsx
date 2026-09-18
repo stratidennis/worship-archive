@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { ThemeToggle } from './ThemeToggle.js';
+import { IconButton } from './ui.js';
 import {
   IconBack,
   IconHome,
@@ -78,30 +79,38 @@ export function AppHeader({
   };
 
   return (
-    <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
+    /*
+      A raised bar, not a page that happens to start with links.
+
+      `--color-surface` sits one step off the page colour and a shadow lifts it, so the
+      chrome reads as a fixed thing the content scrolls under rather than as the first
+      row of the content. The navigation itself is one grouped segment — a single
+      bordered strip with the current page filled in — which says "these five are the
+      same kind of thing" far faster than five separate buttons did.
+    */
+    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-(--color-line) bg-(--color-surface) px-3 py-2 shadow-[0_1px_0_0_var(--color-line),0_6px_16px_-12px_rgb(0_0_0/0.5)] print:hidden sm:px-4">
       {back && (
-        <button
-          type="button"
-          onClick={goBack}
-          aria-label={backLabel}
-          title={backLabel}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-(--color-line) hover:bg-(--color-line)"
-        >
+        <IconButton label={backLabel} onClick={goBack} className="shrink-0">
           <IconBack size={17} />
-        </button>
+        </IconButton>
       )}
 
-      <nav aria-label={t('nav.where')} className="flex shrink-0 items-center gap-1">
-        {DESTINATIONS.map(({ key, to, label, Icon }) => (
+      <nav
+        aria-label={t('nav.where')}
+        className="flex shrink-0 items-center overflow-hidden rounded-lg border border-(--color-line) bg-(--color-raised)"
+      >
+        {DESTINATIONS.map(({ key, to, label, Icon }, index) => (
           <Link
             key={key}
             to={to}
             aria-current={current === key ? 'page' : undefined}
             title={t(label)}
-            className={`flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium ${
+            className={`flex h-9 items-center gap-1.5 px-2.5 text-sm font-medium transition-colors ${
+              index > 0 ? 'border-l border-(--color-line)' : ''
+            } ${
               current === key
-                ? 'border-(--color-chord) bg-(--color-chord)/15 text-(--color-chord)'
-                : 'border-(--color-line) hover:bg-(--color-line)'
+                ? 'bg-(--color-chord) text-white'
+                : 'text-(--color-muted) hover:bg-(--color-line) hover:text-(--color-stage-fg)'
             }`}
           >
             <Icon size={16} />
@@ -123,10 +132,10 @@ export function AppHeader({
           aria-current={current === 'settings' ? 'page' : undefined}
           aria-label={t('settings.title')}
           title={t('settings.title')}
-          className={`grid h-9 w-9 place-items-center rounded-lg border ${
+          className={`grid h-9 w-9 place-items-center rounded-lg border transition-colors ${
             current === 'settings'
-              ? 'border-(--color-chord) bg-(--color-chord)/15 text-(--color-chord)'
-              : 'border-(--color-line) hover:bg-(--color-line)'
+              ? 'border-(--color-chord) bg-(--color-chord) text-white'
+              : 'border-(--color-line) bg-(--color-surface) hover:bg-(--color-line)'
           }`}
         >
           <IconSettings size={17} />

@@ -109,7 +109,10 @@ export function LineEditor({
   return (
     <div className="group relative">
       {showChords && (
-        <div className="flex h-[1.45em] items-end text-[0.8em] leading-none" aria-hidden>
+        <div
+          className="flex h-[1.15em] items-end text-[0.72em] font-semibold leading-[1.1]"
+          aria-hidden
+        >
           {segments.map((segment, i) => (
             <span key={i} className="relative whitespace-pre">
               {/* Invisible spacer: identical metrics to the lyric below. */}
@@ -177,7 +180,7 @@ export function LineEditor({
           }}
           onKeyDown={handleKeyDown}
           spellCheck={false}
-          className="w-full bg-transparent leading-[1.35] outline-none focus:bg-(--color-chord)/5"
+          className="w-full bg-transparent leading-[1.25] outline-none focus:bg-(--color-chord)/5"
           placeholder="…"
         />
         {showChords && (
