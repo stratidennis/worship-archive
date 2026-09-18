@@ -64,7 +64,7 @@ export function SongPage() {
   if (error) {
     return (
       <div className="p-6">
-        <Link to="/" className="text-sm underline">
+        <Link to="/library" className="text-sm underline">
           ← {t('app.library')}
         </Link>
         <p className="mt-4 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>
@@ -81,7 +81,7 @@ export function SongPage() {
       <header className="shrink-0 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <Link
-            to="/"
+            to="/library"
             className="text-sm text-(--color-muted) hover:underline"
             aria-label={t('app.library')}
           >

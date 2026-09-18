@@ -1,5 +1,5 @@
 import type { ServiceSet, Song } from '@worship/core';
-import { api, type SearchHit, type SongSummary } from './api.js';
+import { api, NotFound, type SearchHit, type SongSummary } from './api.js';
 import { store } from './store.js';
 
 /**
@@ -34,13 +34,22 @@ export function reachability(): Reachability {
   return reachable;
 }
 
-/** Run a network call, recording whether the host answered. */
-async function probe<T>(run: () => Promise<T>): Promise<T | null> {
+/**
+ * Run a network call, recording whether the host answered.
+ *
+ * A 404 counts as the host answering. It comes back as `'gone'` rather than `null` so
+ * callers can tell "the host says this does not exist" from "there is no host".
+ */
+async function probe<T>(run: () => Promise<T>): Promise<T | null | 'gone'> {
   try {
     const result = await run();
     setReachable('online');
     return result;
-  } catch {
+  } catch (error) {
+    if (error instanceof NotFound) {
+      setReachable('online');
+      return 'gone';
+    }
     setReachable('offline');
     return null;
   }
@@ -66,18 +75,22 @@ export const repo = {
   /**
    * Pull the whole library into the mirror.
    *
-   * Sends the last-known timestamp so an unchanged library costs a 204 rather than a
-   * megabyte — the usual case on arriving at church with last week's songs.
+   * Sends the fingerprint already held, so an unchanged library costs a 204 rather than
+   * a megabyte — the usual case on arriving at church with last week's songs. A
+   * fingerprint rather than a timestamp because a deletion lowers the newest
+   * `updatedAt` and so could never be noticed.
    */
   async sync(): Promise<{ synced: boolean; songs: number } | null> {
-    const since = await store.latest();
+    const since = await store.fingerprint();
     const result = await probe(() => api.libraryExport(since));
-    if (result === null) return null;
+    // `'gone'` cannot happen here — the export endpoint always exists — but narrowing
+    // it explicitly is cheaper than an assertion that could quietly become untrue.
+    if (result === null || result === 'gone') return null;
     if (result === 'unchanged') {
       const status = await store.status();
       return { synced: false, songs: status.songs };
     }
-    await store.replaceAll(result.songs, result.sets, result.latest);
+    await store.replaceAll(result.songs, result.sets, result.fingerprint);
     return { synced: true, songs: result.songs.length };
   },
 
@@ -91,14 +104,15 @@ export const repo = {
     if (local) return local;
     // Not mirrored yet — a song added since the last sync.
     const remote = await probe(() => api.song(id));
-    if (remote) await store.putSong(remote);
+    if (remote === null || remote === 'gone') return null;
+    await store.putSong(remote);
     return remote;
   },
 
   async search(query: string): Promise<SearchHit[]> {
     // The server's FTS5 ranking is better, so prefer it when the host answers.
     const remote = await probe(() => api.search(query));
-    if (remote) return remote;
+    if (remote && remote !== 'gone') return remote;
     const local = await store.search(query);
     return local.map(({ song, snippet }) => ({ ...summarise(song), snippet, rank: 0 }));
   },
@@ -108,11 +122,16 @@ export const repo = {
   },
 
   async set(id: string): Promise<ServiceSet | null> {
-    const local = await store.set(id);
-    if (local) return local;
     const remote = await probe(() => api.set(id));
-    if (remote) await store.putSet(remote);
-    return remote;
+    if (remote === 'gone') {
+      await store.deleteSet(id);
+      return null;
+    }
+    if (remote) {
+      await store.putSet(remote);
+      return remote;
+    }
+    return store.set(id);
   },
 
   /**
@@ -124,6 +143,12 @@ export const repo = {
    */
   async setFull(id: string): Promise<{ set: ServiceSet; songs: Record<string, Song> } | null> {
     const remote = await probe(() => api.setFull(id));
+    if (remote === 'gone') {
+      // Deleted on the host. Drop the local copy rather than letting someone keep
+      // working in a set that no longer exists.
+      await store.deleteSet(id);
+      return null;
+    }
     if (remote) {
       await store.putSet(remote.set);
       for (const song of Object.values(remote.songs)) await store.putSong(song);

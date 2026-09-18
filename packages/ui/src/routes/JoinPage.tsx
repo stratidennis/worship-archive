@@ -64,7 +64,7 @@ export function JoinPage() {
           [
             ['/band', t('app.band')],
             ['/stage', t('app.stage')],
-            ['/', t('app.library')],
+            ['/library', t('app.library')],
           ] as const
         ).map(([value, label]) => (
           <button

@@ -29,6 +29,8 @@ export interface Prefs {
    * across a room with the house lights down.
    */
   theme: 'auto' | 'light' | 'dark' | 'stage';
+  /** The set workspace's tools row. Collapsed during a service, expanded while building one. */
+  setHeaderExpanded: boolean;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -39,6 +41,7 @@ export const DEFAULT_PREFS: Prefs = {
   maxFontPx: 26,
   language: 'ro',
   theme: 'auto',
+  setHeaderExpanded: true,
 };
 
 const KEY = 'worship-archive:prefs';

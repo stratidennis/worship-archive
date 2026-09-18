@@ -93,7 +93,7 @@ export function ImportPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
       <header className="mb-4">
-        <Link to="/" className="text-xs uppercase tracking-widest text-(--color-muted)">
+        <Link to="/library" className="text-xs uppercase tracking-widest text-(--color-muted)">
           {t('app.library')}
         </Link>
         <h1 className="text-2xl font-bold">{t('import.title')}</h1>

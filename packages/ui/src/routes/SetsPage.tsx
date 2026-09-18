@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { SetSummary } from '../lib/api.js';
 import { api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
+import { rememberSet } from '../lib/lastSet.js';
 import { useT } from '../lib/i18n.js';
 
 /** The next Sunday, as an ISO date — the default for a new service. */
@@ -43,7 +44,10 @@ export function SetsPage() {
   const create = (): void => {
     void api
       .createSet({ title: t('sets.newTitle'), date: nextSunday() })
-      .then((created) => navigate(`/sets/${encodeURIComponent(created.id)}`))
+      .then((created) => {
+        rememberSet(created.id);
+        navigate(`/sets/${encodeURIComponent(created.id)}`);
+      })
       .catch((e: unknown) => setError(String(e)));
   };
 
@@ -51,7 +55,10 @@ export function SetsPage() {
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
       <header className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <Link to="/" className="text-xs uppercase tracking-widest text-(--color-muted)">
+          <Link
+            to="/library"
+            className="text-xs uppercase tracking-widest text-(--color-muted)"
+          >
             {t('app.name')}
           </Link>
           <h1 className="text-2xl font-bold">{t('app.sets')}</h1>
@@ -81,7 +88,10 @@ export function SetsPage() {
               onClick={() => {
                 void api
                   .duplicateSet(set.id, { date: nextSunday() })
-                  .then((copy) => navigate(`/sets/${encodeURIComponent(copy.id)}`))
+                  .then((copy) => {
+                    rememberSet(copy.id);
+                    navigate(`/sets/${encodeURIComponent(copy.id)}`);
+                  })
                   .catch((e: unknown) => setError(String(e)));
               }}
               className="shrink-0 rounded-md border border-(--color-line) px-2 py-1 text-xs hover:bg-(--color-line)"

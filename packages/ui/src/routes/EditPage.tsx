@@ -117,7 +117,7 @@ export function EditPage() {
   if (error && !current) {
     return (
       <div className="p-6">
-        <Link to="/" className="text-sm underline">
+        <Link to="/library" className="text-sm underline">
           ← {t('app.library')}
         </Link>
         <p className="mt-4 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>

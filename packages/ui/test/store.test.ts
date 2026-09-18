@@ -66,8 +66,23 @@ describe('the offline mirror', () => {
     expect((await store.allSongs()).map((s) => s.id)).toEqual(['a']);
   });
 
-  it('remembers the sync watermark, so an unchanged library costs nothing', async () => {
-    expect(await store.latest()).toBe('2026-01-01T00:00:00.000Z');
+  it('remembers the fingerprint, so an unchanged library costs nothing', async () => {
+    expect(await store.fingerprint()).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('drops a single set, for one deleted on the host', async () => {
+    await store.putSet({
+      id: 'set-1',
+      title: 'Duminică',
+      date: null,
+      items: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      rev: 0,
+    });
+    expect(await store.set('set-1')).not.toBeNull();
+    await store.deleteSet('set-1');
+    expect(await store.set('set-1')).toBeNull();
   });
 });
 

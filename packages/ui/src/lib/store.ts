@@ -57,7 +57,7 @@ export const store = {
    * A full replace rather than a merge: the server's copy is authoritative, and a merge
    * would quietly resurrect songs that were deleted while this device was away.
    */
-  async replaceAll(songs: Song[], sets: ServiceSet[], latest: string): Promise<void> {
+  async replaceAll(songs: Song[], sets: ServiceSet[], fingerprint: string): Promise<void> {
     await db.transaction('rw', db.songs, db.sets, db.meta, async () => {
       await db.songs.clear();
       await db.sets.clear();
@@ -65,13 +65,17 @@ export const store = {
       await db.sets.bulkPut(sets);
       await db.meta.bulkPut([
         { key: 'lastSync', value: new Date().toISOString() },
-        { key: 'latest', value: latest },
+        { key: 'fingerprint', value: fingerprint },
       ]);
     });
   },
 
-  async latest(): Promise<string | null> {
-    return (await db.meta.get('latest'))?.value ?? null;
+  async fingerprint(): Promise<string | null> {
+    return (await db.meta.get('fingerprint'))?.value ?? null;
+  },
+
+  async deleteSet(id: string): Promise<void> {
+    await db.sets.delete(id);
   },
 
   async allSongs(): Promise<Song[]> {

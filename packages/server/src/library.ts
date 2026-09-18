@@ -483,6 +483,29 @@ export class Library {
 }
 
 /** Filesystem-safe, readable, stable file name. */
+/**
+ * A fingerprint of exactly what the library contains.
+ *
+ * This replaced a "newest updatedAt" timestamp, which was **silently wrong about
+ * deletions**: removing an item can only ever lower that maximum, so the server kept
+ * answering "nothing has changed" and every device held on to songs and sets that no
+ * longer existed — forever, since nothing would ever raise the timestamp back. A device
+ * could then open a deleted set and edit it back into existence.
+ *
+ * Every id and its `updatedAt`, sorted and hashed: a delete, an edit and an add all
+ * change it, and it costs a few hundred string concatenations.
+ */
+export function libraryFingerprint(
+  songs: readonly { id: string; updatedAt: string }[],
+  sets: readonly { id: string; updatedAt: string }[],
+): string {
+  const lines = [
+    ...songs.map((s) => `s:${s.id}:${s.updatedAt}`),
+    ...sets.map((s) => `p:${s.id}:${s.updatedAt}`),
+  ].sort();
+  return createHash('sha256').update(lines.join('\n')).digest('hex').slice(0, 32);
+}
+
 export function slug(title: string, fallback: string): string {
   const s = title
     .normalize('NFD')

@@ -12,7 +12,7 @@ import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import type { ServiceSet, Song } from '@worship/core';
-import type { Library } from './library.js';
+import { libraryFingerprint, type Library } from './library.js';
 import type { SetStore } from './sets.js';
 import type { SessionHub } from './hub.js';
 import { auditLibrary, applyFixes, type Fix } from './cleanup.js';
@@ -221,21 +221,18 @@ export function createServer(options: ApiOptions): FastifyInstance {
   /**
    * The whole library in one response, for clients to mirror.
    *
-   * `since` lets a client skip the transfer entirely when nothing has changed, which is
-   * the usual case on arriving at church with the same songs as last week.
+   * `since` carries the fingerprint the client already holds, and an exact match skips
+   * the transfer — the usual case on arriving at church with last week's songs.
    */
   app.get('/api/library/export', async (request, reply) => {
     const q = request.query as Record<string, string | undefined>;
     const songs = library.all();
     const allSets = sets.all();
-    const latest = [...songs, ...allSets].reduce(
-      (max, item) => (item.updatedAt > max ? item.updatedAt : max),
-      '',
-    );
-    if (q['since'] && latest && q['since'] >= latest) {
+    const fingerprint = libraryFingerprint(songs, allSets);
+    if (q['since'] && q['since'] === fingerprint) {
       return reply.code(204).send();
     }
-    return { songs, sets: allSets, latest, exportedAt: new Date().toISOString() };
+    return { songs, sets: allSets, fingerprint, exportedAt: new Date().toISOString() };
   });
 
   /**

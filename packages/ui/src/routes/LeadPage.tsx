@@ -132,7 +132,11 @@ export function LeadPage() {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-(--color-line) px-3 py-2">
-        <Link to="/" className="text-sm text-(--color-muted)" aria-label={t('app.library')}>
+        <Link
+          to="/library"
+          className="text-sm text-(--color-muted)"
+          aria-label={t('app.library')}
+        >
           ←
         </Link>
         <select

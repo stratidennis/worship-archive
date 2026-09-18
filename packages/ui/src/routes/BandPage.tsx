@@ -127,7 +127,11 @@ export function BandPage() {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--color-line) px-3 py-1.5">
-        <Link to="/" className="text-sm text-(--color-muted)" aria-label={t('app.library')}>
+        <Link
+          to="/library"
+          className="text-sm text-(--color-muted)"
+          aria-label={t('app.library')}
+        >
           ←
         </Link>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">

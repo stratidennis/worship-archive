@@ -34,8 +34,24 @@ export interface SetSummary {
   updatedAt: string;
 }
 
+/**
+ * The host answered, and the thing is not there.
+ *
+ * Distinct from a network failure on purpose: "gone" and "unreachable" call for
+ * opposite responses. Unreachable means fall back to the local copy; gone means throw
+ * the local copy away, or a device goes on working inside a set that no longer exists
+ * and edits it back into existence on the next save.
+ */
+export class NotFound extends Error {
+  constructor(readonly path: string) {
+    super(`not found: ${path}`);
+    this.name = 'NotFound';
+  }
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: { accept: 'application/json' } });
+  if (response.status === 404) throw new NotFound(path);
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${path}`);
   return (await response.json()) as T;
 }
@@ -62,7 +78,7 @@ export const api = {
   song: (id: string) => get<Song>(`/api/songs/${encodeURIComponent(id)}`),
   search: (query: string) => get<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`),
 
-  /** The whole library in one call. `204` means nothing changed since `since`. */
+  /** The whole library in one call. `204` means the fingerprint still matches. */
   libraryExport: async (since: string | null) => {
     const q = since ? `?since=${encodeURIComponent(since)}` : '';
     const response = await fetch(`/api/library/export${q}`, {
@@ -73,7 +89,7 @@ export const api = {
     return (await response.json()) as {
       songs: Song[];
       sets: ServiceSet[];
-      latest: string;
+      fingerprint: string;
       exportedAt: string;
     };
   },

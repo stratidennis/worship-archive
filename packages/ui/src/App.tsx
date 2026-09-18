@@ -5,7 +5,8 @@ import { Library } from './routes/Library.js';
 import { SongPage } from './routes/SongPage.js';
 import { EditPage } from './routes/EditPage.js';
 import { SetsPage } from './routes/SetsPage.js';
-import { SetEditPage } from './routes/SetEditPage.js';
+import { SetPage } from './routes/SetPage.js';
+import { Home } from './routes/Home.js';
 import { LeadPage } from './routes/LeadPage.js';
 import { BandPage } from './routes/BandPage.js';
 import { StagePage } from './routes/StagePage.js';
@@ -36,11 +37,16 @@ function Shell() {
     <>
       <SkipLink />
       <Routes>
-        <Route path="/" element={<Library />} />
+        {/*
+          `/` is a set, not the library. The set is the thing being worked on; the
+          library is where you go to find a song for it.
+        */}
+        <Route path="/" element={<Home />} />
+        <Route path="/library" element={<Library />} />
         <Route path="/song/:id" element={<SongPage />} />
         <Route path="/edit/:id" element={<EditPage />} />
         <Route path="/sets" element={<SetsPage />} />
-        <Route path="/sets/:id" element={<SetEditPage />} />
+        <Route path="/sets/:id" element={<SetPage />} />
         <Route path="/lead" element={<LeadPage />} />
         <Route path="/band" element={<BandPage />} />
         <Route path="/stage" element={<StagePage />} />
