@@ -183,6 +183,45 @@ def simplify(points: list[tuple[float, float]], epsilon: float) -> list[tuple[fl
     return [p for p, k in zip(points, keep) if k]
 
 
+def gradient(path: Path) -> tuple[tuple[float, float], tuple[float, float], str, str]:
+    """
+    The art's diagonal gradient, read back out of it.
+
+    The mark is not one colour: it runs from the light theme's accent to the dark
+    theme's, so that it belongs on a browser tab or a dock whose background nobody can
+    predict. The favicon has to carry that, and hard-coding two hexes here would mean
+    the art and the icon drifting apart the first time the art changed.
+
+    Colour is fit as a linear function of position, per channel, over the opaque pixels.
+    The averaged slope is the gradient's axis; the ends are the mean colour of the first
+    and last percentile along it.
+    """
+    image = Image.open(path).convert("RGBA")
+    pixels = np.asarray(image).astype(float)
+    rgb, alpha = pixels[:, :, :3], pixels[:, :, 3]
+    solid = alpha > 200
+    ys, xs = np.nonzero(solid)
+
+    basis = np.stack([np.ones(xs.size), xs, ys], axis=1)
+    slopes = [np.linalg.lstsq(basis, rgb[:, :, c][solid], rcond=None)[0] for c in range(3)]
+    gx = float(np.mean([s[1] for s in slopes]))
+    gy = float(np.mean([s[2] for s in slopes]))
+    length = (gx * gx + gy * gy) ** 0.5
+    axis = (gx / length, gy / length)
+
+    along = xs * axis[0] + ys * axis[1]
+    low, high = np.percentile(along, 1), np.percentile(along, 99)
+    start = rgb[ys[along <= low], xs[along <= low]].mean(axis=0)
+    end = rgb[ys[along >= high], xs[along >= high]].mean(axis=0)
+    as_hex = lambda c: "#%02x%02x%02x" % tuple(int(round(v)) for v in c)
+    return (
+        (low * axis[0], low * axis[1]),
+        (high * axis[0], high * axis[1]),
+        as_hex(start),
+        as_hex(end),
+    )
+
+
 def trace(path: Path) -> tuple[list[str], int, int]:
     grid = alpha_grid(path)
     rings = loops(segments(grid))
@@ -230,14 +269,21 @@ def main() -> None:
         encoding="utf8",
     )
 
-    # A favicon that is also the outlines. A new URL as well as a better format: browsers
-    # hold on to a favicon far past any reload, and an .ico that changed under the same
-    # name can go on showing the old one for days.
+    # A favicon that is also the outlines, carrying the art's own gradient — a tab strip
+    # can be light or dark and this one reads on both. A new URL as well as a better
+    # format: browsers hold on to a favicon far past any reload, and an .ico that
+    # changed under the same name can go on showing the old one for days.
+    (x1, y1), (x2, y2), start, end = gradient(BRAND / "logo-mark.png")
     square = max(mark_w, mark_h)
     dx, dy = (square - mark_w) / 2, (square - mark_h) / 2
     OUT_FAVICON.write_text(
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {square} {square}">'
-        f'<g transform="translate({dx:.1f} {dy:.1f})" fill="#65b9fc" fill-rule="evenodd">'
+        "<defs>"
+        f'<linearGradient id="g" gradientUnits="userSpaceOnUse" '
+        f'x1="{x1:.0f}" y1="{y1:.0f}" x2="{x2:.0f}" y2="{y2:.0f}">'
+        f'<stop offset="0" stop-color="{start}"/><stop offset="1" stop-color="{end}"/>'
+        "</linearGradient></defs>"
+        f'<g transform="translate({dx:.1f} {dy:.1f})" fill="url(#g)" fill-rule="evenodd">'
         + "".join(f'<path d="{d}"/>' for d in mark)
         + "</g></svg>",
         encoding="utf8",
@@ -245,7 +291,7 @@ def main() -> None:
 
     print(f"mark: {len(mark)} paths, wordmark: {len(word)} paths")
     print(f"  {OUT_TS.relative_to(ROOT)} — {OUT_TS.stat().st_size // 1024}KB")
-    print(f"  {OUT_FAVICON.relative_to(ROOT)} — {OUT_FAVICON.stat().st_size // 1024}KB")
+    print(f"  {OUT_FAVICON.relative_to(ROOT)} — {start} to {end}")
 
 
 if __name__ == "__main__":

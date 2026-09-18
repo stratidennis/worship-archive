@@ -1,5 +1,7 @@
+import { useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT, type TranslationKey } from '../lib/i18n.js';
+import { useHeaderSlots } from './header-slots.js';
 import { Logo } from './Logo.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { ButtonLink, IconButton } from './ui.js';
@@ -57,36 +59,33 @@ const DESTINATIONS: {
 const HERE = 'bg-(--color-chord)/15 text-(--color-chord)';
 const QUIET = 'text-(--color-muted) hover:bg-(--color-line) hover:text-(--color-stage-fg)';
 
-export function AppHeader({
-  current,
-  back,
-  title,
-  children,
-}: {
-  current?: Destination;
-  /**
-   * A way back out. Without `to` it returns through history, which is what "where I
-   * came from" actually means — a song opened from a set goes back to that set, and the
-   * same song opened from the library goes back to the library.
-   */
-  back?: { to?: string; label?: string } | true;
-  /** Shown beside the navigation rather than as a separate heading row. */
-  title?: React.ReactNode;
-  /** Page actions, kept to the right so they never compete with navigation. */
-  children?: React.ReactNode;
-}) {
+/**
+ * Mounted once, by the layout route, and never again.
+ *
+ * It takes no props: pages say where they are with `useHeader` and put their own
+ * controls in through `<HeaderTitle>` and `<HeaderActions>`. That is the whole reason
+ * this moved — see `header-slots.tsx`.
+ */
+export function AppHeader() {
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
+  const { placement, setHosts } = useHeaderSlots();
+  const { current, back } = placement;
 
-  const backTo = back === true ? undefined : back?.to;
-  const backLabel = (back === true ? undefined : back?.label) ?? t('app.back');
+  // Callback refs, updating one field each: React calls them when it attaches and
+  // detaches the node, and the functional form means neither has to know the other's
+  // current value to leave it alone.
+  const titleRef = useCallback(
+    (node: HTMLDivElement | null) => setHosts((current) => ({ ...current, title: node })),
+    [setHosts],
+  );
+  const actionsRef = useCallback(
+    (node: HTMLDivElement | null) => setHosts((current) => ({ ...current, actions: node })),
+    [setHosts],
+  );
 
   const goBack = (): void => {
-    if (backTo) {
-      navigate(backTo);
-      return;
-    }
     // `idx` is React Router's position in its own history stack. At zero there is
     // nothing of ours behind us — a deep link, or a fresh tab — and going back would
     // leave the app entirely.
@@ -108,7 +107,7 @@ export function AppHeader({
     */
     <header className="relative z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-(--color-line) bg-(--color-surface) px-2 py-1.5 shadow-[0_1px_0_0_var(--color-line),0_6px_16px_-12px_rgb(0_0_0/0.5)] print:hidden sm:px-3">
       {back && (
-        <IconButton variant="ghost" label={backLabel} onClick={goBack} className="shrink-0">
+        <IconButton variant="ghost" label={t('app.back')} onClick={goBack} className="shrink-0">
           <IconBack size={17} />
         </IconButton>
       )}
@@ -135,19 +134,20 @@ export function AppHeader({
         ))}
       </nav>
 
-      {title && (
-        <div className="order-last min-w-0 basis-full sm:order-none sm:basis-auto sm:pl-1">
-          {title}
-        </div>
-      )}
+      {/* `empty:hidden` matters: `basis-full` on an empty box would still claim a whole
+          second row on every page that contributes no title. */}
+      <div
+        ref={titleRef}
+        className="order-last min-w-0 basis-full empty:hidden sm:order-none sm:basis-auto sm:pl-1"
+      />
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        {children}
-
-        {/* What the page does, then what the app does. */}
-        {children != null && children !== false && (
-          <span aria-hidden className="mx-0.5 h-5 w-px bg-(--color-line)" />
-        )}
+        {/* What the page does, then what the app does — with a hairline between them,
+            drawn by the actions themselves so it cannot appear beside nothing. */}
+        <div
+          ref={actionsRef}
+          className="flex items-center gap-1.5 [&:not(:empty)]:mr-1 [&:not(:empty)]:border-r [&:not(:empty)]:border-(--color-line) [&:not(:empty)]:pr-2.5"
+        />
 
         <ThemeToggle />
         {/*

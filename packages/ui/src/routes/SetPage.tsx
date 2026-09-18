@@ -19,8 +19,8 @@ import { useSession } from '../lib/useSession.js';
 import { useT, type TranslationKey, type Translator } from '../lib/i18n.js';
 import { nextSunday } from '../lib/setName.js';
 import { SongBody } from '../components/SongBody.js';
-import { AppHeader } from '../components/AppHeader.js';
-import { Page, Scroll } from '../components/Page.js';
+import { Scroll } from '../components/Scroll.js';
+import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
 import { ResizeHandle } from '../components/ResizeHandle.js';
 import { DatePicker } from '../components/DatePicker.js';
 import { BeatLed } from '../components/BeatLed.js';
@@ -127,6 +127,8 @@ export function SetPage() {
   const [auto, setAuto] = useState(true);
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [help, setHelp] = useState(false);
+
+  useHeader({ current: 'home' });
 
   /*
     The socket only exists while the switch is on.
@@ -517,20 +519,17 @@ export function SetPage() {
     /*
       A set that is gone — deleted from another device, most likely.
 
-      The full header, not a bare link: this is the one screen you can land on straight
-      from launch, because it is where the app opens, and a dead end with nothing but
-      "← Library" on it is the worst possible first thing to see.
+      It keeps the header, which it gets for free now: this is the one screen you can
+      land on straight from launch, because it is where the app opens, and a dead end
+      with no way out of it is the worst possible first thing to see.
     */
     return (
-      <Page>
-        <AppHeader current="home" />
-        <Scroll className="p-6">
-          <p className="text-sm text-(--color-muted)">{error}</p>
-          <ButtonLink to="/sets" className="mt-4">
-            {t('app.sets')}
-          </ButtonLink>
-        </Scroll>
-      </Page>
+      <Scroll className="p-6">
+        <p className="text-sm text-(--color-muted)">{error}</p>
+        <ButtonLink to="/sets" className="mt-4">
+          {t('app.sets')}
+        </ButtonLink>
+      </Scroll>
     );
   }
   if (!set) return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
@@ -542,24 +541,23 @@ export function SetPage() {
   const behind = live && !auto && cursorIndex !== null && cursorIndex !== state.itemIndex;
 
   return (
-    <div className="flex h-dvh flex-col print:h-auto">
+    <>
       <PrintableSet set={set} songs={songs} t={t} formatDate={formatDate} />
 
-      <AppHeader
-        current="home"
-        title={
-          /*
-            The date *is* the name. A service is identified by when it happens, and a
-            free-text title beside a date was two fields that had to agree — they did
-            not, and "Program nou" sat at the top of a set for a whole Sunday.
-          */
-          <DatePicker
-            value={set.date}
-            onChange={(date) => update((s) => ({ ...s, date, title: titleForDate(date) }))}
-            label={t('sets.noDate')}
-          />
-        }
-      >
+      <HeaderTitle>
+        {/*
+          The date *is* the name. A service is identified by when it happens, and a
+          free-text title beside a date was two fields that had to agree — they did
+          not, and "Program nou" sat at the top of a set for a whole Sunday.
+        */}
+        <DatePicker
+          value={set.date}
+          onChange={(date) => update((s) => ({ ...s, date, title: titleForDate(date) }))}
+          label={t('sets.noDate')}
+        />
+      </HeaderTitle>
+
+      <HeaderActions>
         <Button
           active={leading}
           onClick={toggleLead}
@@ -576,7 +574,7 @@ export function SetPage() {
         >
           {expanded ? <IconChevronUp size={17} /> : <IconChevronDown size={17} />}
         </IconButton>
-      </AppHeader>
+      </HeaderActions>
 
       {expanded && (
         <div className="shrink-0 border-b border-(--color-line) bg-(--color-raised) px-3 py-2 print:hidden sm:px-4">
@@ -938,7 +936,7 @@ export function SetPage() {
       </div>
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
-    </div>
+    </>
   );
 }
 

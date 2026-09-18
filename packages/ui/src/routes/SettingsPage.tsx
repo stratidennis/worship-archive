@@ -4,8 +4,8 @@ import { adminApi, type Backup } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
-import { AppHeader } from '../components/AppHeader.js';
-import { Page, Scroll } from '../components/Page.js';
+import { Scroll } from '../components/Scroll.js';
+import { useHeader } from '../components/header-slots.js';
 import { IconCheck } from '../components/icons.js';
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
@@ -29,6 +29,8 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useHeader({ current: 'settings', back: true });
 
   useEffect(() => {
     void native?.state().then(setState);
@@ -79,29 +81,32 @@ export function SettingsPage() {
   };
 
   return (
-    <Page>
-      <AppHeader current="settings" back />
-      <Scroll>
-        <div className="mx-auto max-w-2xl px-4 pb-16 pt-5">
-          <h1 className="mb-5 text-2xl font-bold">{t('settings.title')}</h1>
+    <Scroll>
+      <div className="mx-auto max-w-[100rem] px-4 pb-10 pt-5">
+        <h1 className="mb-4 text-2xl font-bold">{t('settings.title')}</h1>
 
-          {message && (
-            <p
-              className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm"
-              role="status"
-            >
-              {message}
-            </p>
-          )}
-          {error && (
-            <p
-              className="mb-4 rounded-lg border border-red-500/40 p-3 text-sm text-red-500"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
+        {message && (
+          <p className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm" role="status">
+            {message}
+          </p>
+        )}
+        {error && (
+          <p
+            className="mb-4 rounded-lg border border-red-500/40 p-3 text-sm text-red-500"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
 
+        {/*
+          Columns rather than one narrow stack. These are a dozen small, unrelated
+          panels, and stacked in a 672px measure they ran well past the fold on a
+          laptop — so you scrolled to find a thing that would have fit on the screen.
+          `columns` rather than a grid because the panels are different heights and
+          nothing here needs to line up in rows.
+        */}
+        <div className="gap-4 lg:columns-2 xl:columns-3">
           <Section title={t('settings.language')}>
             <Choice<Lang>
               value={lang}
@@ -264,8 +269,8 @@ export function SettingsPage() {
             </Section>
           )}
         </div>
-      </Scroll>
-    </Page>
+      </div>
+    </Scroll>
   );
 }
 
@@ -386,7 +391,7 @@ function Swatch({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-6 rounded-xl border border-(--color-line) p-4">
+    <section className="mb-4 break-inside-avoid rounded-xl border border-(--color-line) p-4">
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
         {title}
       </h2>

@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
-import { AppHeader } from '../components/AppHeader.js';
-import { Page, Scroll } from '../components/Page.js';
+import { Scroll } from '../components/Scroll.js';
+import { HeaderActions, useHeader } from '../components/header-slots.js';
 import { IconPlus, IconSearch } from '../components/icons.js';
 import { Button, ButtonLink, Input } from '../components/ui.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -67,6 +67,8 @@ export function Library() {
   const [reach, setReach] = useState<Reachability>('unknown');
   const [mirror, setMirror] = useState<{ songs: number; lastSync: string | null } | null>(null);
   const search = useRef<HTMLInputElement>(null);
+
+  useHeader({ current: 'library' });
 
   useEffect(() => onReachabilityChange(setReach), []);
 
@@ -142,14 +144,14 @@ export function Library() {
   const results: SongSummary[] = useMemo(() => hits ?? songs, [hits, songs]);
 
   return (
-    <Page>
-      <AppHeader current="library">
+    <>
+      <HeaderActions>
         <ButtonLink to="/import">{t('app.import')}</ButtonLink>
         <Button variant="primary" onClick={() => void createSong()}>
           <IconPlus size={16} />
           <span className="hidden sm:inline">{t('library.new')}</span>
         </Button>
-      </AppHeader>
+      </HeaderActions>
       <Scroll>
         <div className="mx-auto max-w-4xl px-4 pb-16 pt-5">
           {/* Every page carries one, so a screen reader announces where it landed. */}
@@ -264,7 +266,7 @@ export function Library() {
           )}
         </div>
       </Scroll>
-    </Page>
+    </>
   );
 }
 

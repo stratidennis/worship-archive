@@ -218,6 +218,54 @@ body {
 }
 
 /*
+  Range inputs.
+
+  The native control draws a bordered, inset track that belongs to an operating system
+  rather than to this page. `appearance: none` takes it away — and takes the thumb with
+  it, which is why both halves are drawn here rather than only the track.
+*/
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.25rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  /* Half the thumb, less half the track: what centres it on the line. */
+  margin-top: -6px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-chord);
+}
+
+input[type='range']::-moz-range-track {
+  height: 4px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+
+input[type='range']::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-chord);
+}
+
+/*
   A visible focus ring, everywhere, on keyboard focus only.
 
   The leader's hands are on an instrument and the keyboard is the primary interface;

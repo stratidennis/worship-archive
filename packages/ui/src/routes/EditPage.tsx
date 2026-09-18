@@ -27,7 +27,7 @@ import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
-import { AppHeader } from '../components/AppHeader.js';
+import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
 import { Modal } from '../components/Modal.js';
 import { SaveBadge, type SaveState } from '../components/SaveBadge.js';
 import { Button, Checkbox, Field as UiField, Input, Select } from '../components/ui.js';
@@ -72,6 +72,8 @@ export function EditPage() {
   const song = useUndoable<Song | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [preview, setPreview] = useState(false);
+
+  useHeader({ back: true });
   const [error, setError] = useState<string | null>(null);
   const savedRef = useRef<string>('');
 
@@ -170,34 +172,28 @@ export function EditPage() {
   }, [song, save]);
 
   if (error && !current) {
-    return (
-      <>
-        <AppHeader back />
-        <p className="p-6 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>
-      </>
-    );
+    return <p className="p-6 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>;
   }
   if (!current)
     return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   return (
-    <div className="flex h-dvh flex-col print:block print:h-auto">
-      <AppHeader
-        back
-        title={
-          <input
-            value={current.title}
-            onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}
-            placeholder={t('edit.title')}
-            aria-label={t('edit.title')}
-            /* Not the boxed `Input`: this is the document's title, and a form field in
+    <>
+      <HeaderTitle>
+        <input
+          value={current.title}
+          onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}
+          placeholder={t('edit.title')}
+          aria-label={t('edit.title')}
+          /* Not the boxed `Input`: this is the document's title, and a form field in
                the header would read as one control among many rather than as the name
                of the thing. It still takes the same height and focus colour, so it
                lines up with everything beside it. */
-            className="h-9 w-full min-w-40 rounded-lg border border-transparent bg-transparent px-2 text-base font-bold outline-none transition-colors placeholder:font-normal placeholder:text-(--color-muted) hover:border-(--color-line) focus:border-(--color-chord) sm:w-64"
-          />
-        }
-      >
+          className="h-9 w-full min-w-40 rounded-lg border border-transparent bg-transparent px-2 text-base font-bold outline-none transition-colors placeholder:font-normal placeholder:text-(--color-muted) hover:border-(--color-line) focus:border-(--color-chord) sm:w-64"
+        />
+      </HeaderTitle>
+
+      <HeaderActions>
         <div className="flex items-center gap-1.5 text-sm">
           <SaveBadge state={saveState} />
           <Btn onClick={song.undo} disabled={!song.canUndo} title={t('edit.undo')}>
@@ -219,7 +215,7 @@ export function EditPage() {
             {t('edit.save')}
           </Button>
         </div>
-      </AppHeader>
+      </HeaderActions>
 
       <div className="flex min-h-0 flex-1">
         <div id="main" className="scroll-slim min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
@@ -524,7 +520,7 @@ export function EditPage() {
           </aside>
         )}
       </div>
-    </div>
+    </>
   );
 }
 

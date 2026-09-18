@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
-import { AppHeader } from '../components/AppHeader.js';
-import { Page, Scroll } from '../components/Page.js';
+import { Scroll } from '../components/Scroll.js';
+import { useHeader } from '../components/header-slots.js';
 import { Segment, Segmented } from '../components/ui.js';
 import { Wordmark } from '../components/Logo.js';
 
@@ -32,6 +32,8 @@ export function JoinPage() {
   const [qr, setQr] = useState<string | null>(null);
   const [path, setPath] = useState('/band');
 
+  useHeader({ back: true });
+
   useEffect(() => {
     api
       .host()
@@ -59,90 +61,83 @@ export function JoinPage() {
   }, [url]);
 
   return (
-    <Page>
-      <AppHeader back />
-      <Scroll>
-        <div className="mx-auto max-w-2xl px-4 py-8">
-          {/* The one screen someone sees before they have any idea what this is: they
+    <Scroll>
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        {/* The one screen someone sees before they have any idea what this is: they
               are standing in a room being handed a QR code. */}
-          <Wordmark className="mb-5 h-8 text-(--color-chord)" label={t('app.name')} />
-          <h1 className="text-2xl font-bold">{t('join.title')}</h1>
-          <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
+        <Wordmark className="mb-5 h-8 text-(--color-chord)" label={t('app.name')} />
+        <h1 className="text-2xl font-bold">{t('join.title')}</h1>
+        <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
 
-          <Segmented label={t('join.title')} className="mt-5">
-            {(
-              [
-                ['/band', t('app.band')],
-                ['/stage', t('app.stage')],
-                ['/archive', t('app.library')],
-              ] as const
-            ).map(([value, label]) => (
-              <Segment
-                key={value}
-                active={path === value}
-                aria-pressed={path === value}
-                onClick={() => setPath(value)}
-              >
-                {label}
-              </Segment>
-            ))}
-          </Segmented>
+        <Segmented label={t('join.title')} className="mt-5">
+          {(
+            [
+              ['/band', t('app.band')],
+              ['/stage', t('app.stage')],
+              ['/archive', t('app.library')],
+            ] as const
+          ).map(([value, label]) => (
+            <Segment
+              key={value}
+              active={path === value}
+              aria-pressed={path === value}
+              onClick={() => setPath(value)}
+            >
+              {label}
+            </Segment>
+          ))}
+        </Segmented>
 
-          {qr && (
-            <div className="mt-5 flex flex-col items-center gap-3">
-              {/* White plate: a QR on a dark background is unreadable to many cameras. */}
-              <img
-                src={qr}
-                alt={t('join.qrAlt', { url: url ?? '' })}
-                className="rounded-lg bg-white p-3"
-                width={280}
-                height={280}
-              />
-              <code className="text-sm">{url}</code>
-            </div>
-          )}
+        {qr && (
+          <div className="mt-5 flex flex-col items-center gap-3">
+            {/* White plate: a QR on a dark background is unreadable to many cameras. */}
+            <img
+              src={qr}
+              alt={t('join.qrAlt', { url: url ?? '' })}
+              className="rounded-lg bg-white p-3"
+              width={280}
+              height={280}
+            />
+            <code className="text-sm">{url}</code>
+          </div>
+        )}
 
-          {host && (
-            <div className="mt-8">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
-                {t('join.orType')}
-              </h2>
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>
+        {host && (
+          <div className="mt-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
+              {t('join.orType')}
+            </h2>
+            <ul className="mt-2 space-y-1 text-sm">
+              <li>
+                <code className="rounded bg-(--color-line) px-1.5 py-0.5">
+                  http://{host.hostname}:{host.port}
+                  {path}
+                </code>{' '}
+                <span className="text-(--color-muted)">— {t('join.usuallyWorks')}</span>
+              </li>
+              {host.addresses.map((address) => (
+                <li key={address}>
                   <code className="rounded bg-(--color-line) px-1.5 py-0.5">
-                    http://{host.hostname}:{host.port}
+                    http://{address}:{host.port}
                     {path}
                   </code>{' '}
-                  <span className="text-(--color-muted)">— {t('join.usuallyWorks')}</span>
+                  <span className="text-(--color-muted)">— {t('join.alwaysWorks')}</span>
                 </li>
-                {host.addresses.map((address) => (
-                  <li key={address}>
-                    <code className="rounded bg-(--color-line) px-1.5 py-0.5">
-                      http://{address}:{host.port}
-                      {path}
-                    </code>{' '}
-                    <span className="text-(--color-muted)">— {t('join.alwaysWorks')}</span>
-                  </li>
-                ))}
-              </ul>
-              {host.addresses.length > 1 && (
-                <p className="mt-2 text-xs text-(--color-muted)">
-                  {t('join.multipleNetworks')}
-                </p>
-              )}
-              {host.addresses.length === 0 && (
-                <p className="mt-2 text-xs text-(--color-muted)">{t('join.noNetwork')}</p>
-              )}
-            </div>
-          )}
+              ))}
+            </ul>
+            {host.addresses.length > 1 && (
+              <p className="mt-2 text-xs text-(--color-muted)">{t('join.multipleNetworks')}</p>
+            )}
+            {host.addresses.length === 0 && (
+              <p className="mt-2 text-xs text-(--color-muted)">{t('join.noNetwork')}</p>
+            )}
+          </div>
+        )}
 
-          {error && (
-            <p className="mt-6 text-sm text-(--color-muted)">
-              {t('join.readError', { error })}
-            </p>
-          )}
-        </div>
-      </Scroll>
-    </Page>
+        {error && (
+          <p className="mt-6 text-sm text-(--color-muted)">{t('join.readError', { error })}</p>
+        )}
+      </div>
+    </Scroll>
   );
 }

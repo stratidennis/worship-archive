@@ -76,7 +76,7 @@ export function Home() {
   // A moment, usually — but a blank page with one grey line on it looks like a failure,
   // and this is the very first thing the app shows.
   return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-4 px-4">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4">
       <Logo className="h-12 animate-pulse text-(--color-chord)" label={t('app.name')} />
       <p className="text-center text-sm text-(--color-muted)">
         {creating ? t('set.creatingFirst') : t('set.opening')}

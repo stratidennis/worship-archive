@@ -7,7 +7,7 @@ import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody, resolveKey } from '../components/SongBody.js';
-import { AppHeader } from '../components/AppHeader.js';
+import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
 import { Button, ButtonLink, IconButton, Stepper } from '../components/ui.js';
 import { IconEdit, IconPrint } from '../components/icons.js';
 import { Shortcuts } from '../components/Shortcuts.js';
@@ -30,6 +30,8 @@ export function SongPage() {
 
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+
+  useHeader({ back: true });
 
   useEffect(() => {
     setSong(null);
@@ -79,30 +81,33 @@ export function SongPage() {
   const soundingKey = key ?? '—';
 
   return (
-    <div className="flex h-dvh flex-col print:block print:h-auto">
-      <AppHeader
-        back
-        title={
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-bold leading-tight">{song.title}</h1>
-            <p className="truncate text-xs text-(--color-muted)">
-              {song.writtenKey && song.performanceKey && song.writtenKey !== song.performanceKey
-                ? t('song.writtenPlayed', {
-                    written: song.writtenKey,
-                    performance: song.performanceKey,
-                  })
-                : t('song.key', { key: soundingKey })}
-              {prefs.transpose !== 0 &&
-                ` · ${t('song.transposed', {
-                  amount: `${prefs.transpose > 0 ? '+' : ''}${prefs.transpose}`,
-                })}`}
-              {prefs.capo > 0 && ` · ${t('song.capo', { fret: prefs.capo })}`}
-              {song.tempo && ` · ${song.tempo} bpm`}
-              {song.timeSignature && ` · ${song.timeSignature}`}
-            </p>
-          </div>
-        }
-      >
+    /*
+      No shell of its own: the header and the viewport-height box belong to the layout
+      route now, and this is simply what goes under them.
+    */
+    <>
+      <HeaderTitle>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-bold leading-tight">{song.title}</h1>
+          <p className="truncate text-xs text-(--color-muted)">
+            {song.writtenKey && song.performanceKey && song.writtenKey !== song.performanceKey
+              ? t('song.writtenPlayed', {
+                  written: song.writtenKey,
+                  performance: song.performanceKey,
+                })
+              : t('song.key', { key: soundingKey })}
+            {prefs.transpose !== 0 &&
+              ` · ${t('song.transposed', {
+                amount: `${prefs.transpose > 0 ? '+' : ''}${prefs.transpose}`,
+              })}`}
+            {prefs.capo > 0 && ` · ${t('song.capo', { fret: prefs.capo })}`}
+            {song.tempo && ` · ${song.tempo} bpm`}
+            {song.timeSignature && ` · ${song.timeSignature}`}
+          </p>
+        </div>
+      </HeaderTitle>
+
+      <HeaderActions>
         <div className="flex flex-wrap items-center gap-1.5">
           <Stepper
             caption={t('song.pitch')}
@@ -149,7 +154,7 @@ export function SongPage() {
             <span className="hidden lg:inline">{t('song.edit')}</span>
           </ButtonLink>
         </div>
-      </AppHeader>
+      </HeaderActions>
 
       {/*
         The container is the measuring frame: exactly the space a song must fit into.
@@ -193,6 +198,6 @@ export function SongPage() {
       )}
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
-    </div>
+    </>
   );
 }

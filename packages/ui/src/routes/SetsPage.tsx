@@ -7,8 +7,8 @@ import { forgetSet, rememberSet } from '../lib/lastSet.js';
 import { confirmAction } from '../lib/confirm.js';
 import { useT } from '../lib/i18n.js';
 import { nextSunday, setName } from '../lib/setName.js';
-import { AppHeader } from '../components/AppHeader.js';
-import { Page, Scroll } from '../components/Page.js';
+import { Scroll } from '../components/Scroll.js';
+import { HeaderActions, useHeader } from '../components/header-slots.js';
 import { IconPlus, IconTrash } from '../components/icons.js';
 import { Button, IconButton } from '../components/ui.js';
 
@@ -17,6 +17,8 @@ export function SetsPage() {
   const navigate = useNavigate();
   const [sets, setSets] = useState<SetSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useHeader({ current: 'sets' });
 
   const load = (): void => {
     api
@@ -51,13 +53,13 @@ export function SetsPage() {
   };
 
   return (
-    <Page>
-      <AppHeader current="sets">
+    <>
+      <HeaderActions>
         <Button variant="primary" onClick={create}>
           <IconPlus size={16} />
           <span className="hidden sm:inline">{t('sets.new')}</span>
         </Button>
-      </AppHeader>
+      </HeaderActions>
       <Scroll>
         <div className="mx-auto max-w-3xl px-4 pb-16 pt-5">
           <h1 className="mb-4 text-2xl font-bold">{t('app.sets')}</h1>
@@ -122,6 +124,6 @@ export function SetsPage() {
           )}
         </div>
       </Scroll>
-    </Page>
+    </>
   );
 }
