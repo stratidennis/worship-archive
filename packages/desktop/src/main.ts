@@ -46,7 +46,11 @@ let startupError: Error | null = null;
  * Without this the second instance fails to bind, silently moves to port 7375, and the
  * band's QR code from ten minutes ago now points at the wrong one.
  */
-if (!app.requestSingleInstanceLock()) {
+const isPrimaryInstance = app.requestSingleInstanceLock();
+if (!isPrimaryInstance) {
+  // `app.quit()` is a request, not a return: without the guard below, this instance
+  // would keep going and try to bind a port and open the library before the quit
+  // lands. Two servers over one SQLite file, briefly, is not a race worth having.
   app.quit();
 }
 
@@ -455,7 +459,7 @@ async function bootstrap(): Promise<void> {
   createWindow();
 }
 
-void app.whenReady().then(bootstrap);
+if (isPrimaryInstance) void app.whenReady().then(bootstrap);
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
