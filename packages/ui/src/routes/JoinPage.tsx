@@ -4,7 +4,9 @@ import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
-import { Segment, Segmented } from '../components/ui.js';
+import { Button, Segment, Segmented } from '../components/ui.js';
+import { IconCheck, IconCopy } from '../components/icons.js';
+import { copyText } from '../lib/clipboard.js';
 import { Wordmark } from '../components/Logo.js';
 
 /**
@@ -82,12 +84,36 @@ export function JoinPage() {
       .catch(() => setQr(null));
   }, [url]);
 
+  /*
+    Every address, once.
+
+    The `.local` name and the raw IPs are usually different routes to the same machine
+    but occasionally not, so all of them are worth printing — the same *string* twice is
+    not. The QR's own address used to be captioned under the code and then listed again
+    below it, which on a one-address network meant the page offered you the same link
+    twice and looked like it was offering a choice.
+  */
+  const links = useMemo(() => {
+    if (!host) return [];
+    const rows: { url: string; hint: string }[] = [];
+    const seen = new Set<string>();
+    const add = (hostname: string, hint: string): void => {
+      const full = `${address(hostname)}${path}`;
+      if (seen.has(full)) return;
+      seen.add(full);
+      rows.push({ url: full, hint });
+    };
+    add(host.hostname, t('join.usuallyWorks'));
+    for (const ip of host.addresses) add(ip, t('join.alwaysWorks'));
+    return rows;
+  }, [host, address, path, t]);
+
   return (
     <Scroll>
       <div className="mx-auto max-w-2xl px-4 py-8">
         {/* The one screen someone sees before they have any idea what this is: they
               are standing in a room being handed a QR code. */}
-        <Wordmark className="mb-5 h-8 text-(--color-chord)" label={t('app.name')} />
+        <Wordmark className="mb-6 h-12 text-(--color-chord) sm:h-16" label={t('app.name')} />
         <h1 className="text-2xl font-bold">{t('join.title')}</h1>
         <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
 
@@ -120,7 +146,6 @@ export function JoinPage() {
               width={280}
               height={280}
             />
-            <code className="text-sm">{url}</code>
           </div>
         )}
 
@@ -129,21 +154,20 @@ export function JoinPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
               {t('join.orType')}
             </h2>
-            <ul className="mt-2 space-y-1 text-sm">
-              <li>
-                <code className="rounded bg-(--color-line) px-1.5 py-0.5">
-                  {address(host.hostname)}
-                  {path}
-                </code>{' '}
-                <span className="text-(--color-muted)">— {t('join.usuallyWorks')}</span>
-              </li>
-              {host.addresses.map((ip) => (
-                <li key={ip}>
-                  <code className="rounded bg-(--color-line) px-1.5 py-0.5">
-                    {address(ip)}
-                    {path}
-                  </code>{' '}
-                  <span className="text-(--color-muted)">— {t('join.alwaysWorks')}</span>
+            <ul className="mt-2 space-y-1.5">
+              {links.map((link) => (
+                <li
+                  key={link.url}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+                >
+                  <code className="rounded bg-(--color-line) px-1.5 py-1">{link.url}</code>
+                  <CopyLink url={link.url} />
+                  <span className="text-(--color-muted)">— {link.hint}</span>
+                  {link.url === url && (
+                    <span className="rounded-full bg-(--color-chord)/15 px-2 py-0.5 text-xs text-(--color-chord)">
+                      {t('join.qrTag')}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -161,5 +185,39 @@ export function JoinPage() {
         )}
       </div>
     </Scroll>
+  );
+}
+
+/**
+ * Copy one address.
+ *
+ * The tick is the whole point: a copy button that looks identical before and after is
+ * indistinguishable from a copy button that did not work, and this one is pressed in a
+ * room where the next thing that happens is someone typing the address by hand instead.
+ */
+function CopyLink({ url }: { url: string }) {
+  const { t } = useT();
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      aria-label={copied ? t('join.copied') : t('join.copy')}
+      title={copied ? t('join.copied') : t('join.copy')}
+      onClick={() => void copyText(url).then(setCopied)}
+      className={copied ? 'text-(--color-ok)' : 'text-(--color-muted)'}
+    >
+      {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+      <span className="sr-only sm:not-sr-only">
+        {copied ? t('join.copied') : t('app.copy')}
+      </span>
+    </Button>
   );
 }

@@ -1,11 +1,19 @@
 import { useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT, type TranslationKey } from '../lib/i18n.js';
+import { useLeading } from '../lib/leading.js';
 import { useHeaderSlots } from './header-slots.js';
 import { Logo } from './Logo.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { ButtonLink, IconButton } from './ui.js';
-import { IconBack, IconLibrary, IconSets, IconSettings, type IconProps } from './icons.js';
+import {
+  IconBack,
+  IconLead,
+  IconLibrary,
+  IconSets,
+  IconSettings,
+  type IconProps,
+} from './icons.js';
 
 /**
  * The one header, on every page.
@@ -72,6 +80,11 @@ export function AppHeader() {
   const location = useLocation();
   const { placement, setHosts } = useHeaderSlots();
   const { current, back } = placement;
+  const { setId: leadingSetId } = useLeading();
+  // Leading, but looking at something else. On the set itself the switch says so
+  // already; anywhere else this is the only sign that the screens are following you.
+  const leadingElsewhere =
+    leadingSetId !== null && location.pathname !== `/sets/${encodeURIComponent(leadingSetId)}`;
 
   // Callback refs, updating one field each: React calls them when it attaches and
   // detaches the node, and the functional form means neither has to know the other's
@@ -142,6 +155,26 @@ export function AppHeader() {
           ref={actionsRef}
           className="flex items-center gap-1.5 [&:not(:empty)]:mr-1 [&:not(:empty)]:border-r [&:not(:empty)]:border-(--color-line) [&:not(:empty)]:pr-2.5"
         />
+
+        {/*
+          A service is running and you are not looking at it.
+
+          Leading now survives navigating away, which is the point — but state that
+          reaches a congregation's screens and leaves no trace on the page you are on is
+          the kind of thing that gets discovered at the wrong moment. So it says so, and
+          the way back is the same control.
+        */}
+        {leadingElsewhere && (
+          <ButtonLink
+            to={`/sets/${encodeURIComponent(leadingSetId)}`}
+            variant="primary"
+            size="sm"
+            title={t('lead.stillLeading')}
+          >
+            <IconLead size={14} />
+            <span className="hidden sm:inline">{t('app.lead')}</span>
+          </ButtonLink>
+        )}
 
         {/*
           Back lives with the app's own controls, on the right.

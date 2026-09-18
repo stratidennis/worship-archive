@@ -3,6 +3,7 @@ import { I18nProvider, useT } from './lib/i18n.js';
 import { useTheme } from './lib/theme.js';
 import { Chrome } from './components/Chrome.js';
 import { ConfirmDialog } from './components/ConfirmDialog.js';
+import { LeaderSessionProvider } from './components/LeaderSession.js';
 import { Library } from './routes/Library.js';
 import { SongPage } from './routes/SongPage.js';
 import { EditPage } from './routes/EditPage.js';
@@ -75,10 +76,14 @@ export function App() {
   useTheme();
   return (
     <I18nProvider>
-      <SkipLink />
-      <RouterProvider router={router} />
-      {/* One dialog for the whole app, so any page can ask a question by awaiting one. */}
-      <ConfirmDialog />
+      {/* Above the router: leading survives navigating, and only ends when it is
+          switched off. */}
+      <LeaderSessionProvider>
+        <SkipLink />
+        <RouterProvider router={router} />
+        {/* One dialog for the whole app, so any page can ask a question by awaiting one. */}
+        <ConfirmDialog />
+      </LeaderSessionProvider>
     </I18nProvider>
   );
 }

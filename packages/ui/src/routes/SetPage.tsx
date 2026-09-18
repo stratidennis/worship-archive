@@ -15,7 +15,7 @@ import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
-import { useSession } from '../lib/useSession.js';
+import { setLeading, useLeading } from '../lib/leading.js';
 import { useT, type TranslationKey, type Translator } from '../lib/i18n.js';
 import { nextSunday } from '../lib/setName.js';
 import { SongBody } from '../components/SongBody.js';
@@ -26,6 +26,7 @@ import { DatePicker } from '../components/DatePicker.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
+import { useLeaderSession } from '../components/LeaderSession.js';
 import { SaveBadge, type SaveState } from '../components/SaveBadge.js';
 import {
   Button,
@@ -122,24 +123,23 @@ export function SetPage() {
   });
   const savedRef = useRef('');
 
-  /** Leading, or merely working on the set. Never restored from storage — see below. */
-  const [leading, setLeading] = useState(false);
-  const [auto, setAuto] = useState(true);
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [help, setHelp] = useState(false);
 
   useHeader({ current: 'home' });
 
   /*
-    The socket only exists while the switch is on.
+    Leading lives above the router, not here.
 
-    Not persisted across reloads on purpose. A device that came back leading would
-    immediately claim whichever set it happened to reopen and move every screen in the
-    building to song one of it — a silent, remote, hard-to-undo action to recover from a
-    refresh. Pressing Lead again is one click and is unambiguous.
+    It used to be this component's state, which meant opening the QR screen to connect
+    one more phone ended the session — the socket closed, the leader vanished from
+    everyone's device list, and the switch was off again on the way back. Leading is not
+    a property of the page you happen to be looking at. See `lib/leading.ts`.
   */
-  const session = useSession('leader', t('lead.roleLeader'), leading);
-  const { state, devices, status, clockOffset, patch, synced } = session;
+  const { setId: leadingSetId, auto } = useLeading();
+  const leading = leadingSetId === id;
+  const { state, devices, status, clockOffset, patch, synced } = useLeaderSession();
+  const setAuto = useCallback((value: boolean) => setLeading({ auto: value }), []);
 
   // This device came back here, so this is the set it reopens next time.
   useEffect(() => {
@@ -397,7 +397,7 @@ export function SetPage() {
       },
       b: () => patch({ output: state.output === 'black' ? 'live' : 'black' }),
       c: () => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' }),
-      m: () => setAuto((v) => !v),
+      m: () => setAuto(!auto),
       '?': () => setHelp((open) => !open),
       Escape: () => setHelp(false),
     },
@@ -497,7 +497,7 @@ export function SetPage() {
   /** Turning the switch on also opens the tools, because that is where the controls are. */
   const toggleLead = (): void => {
     const next = !leading;
-    setLeading(next);
+    setLeading({ setId: next ? id : null });
     if (next) {
       setPrefs({ setHeaderExpanded: true });
       setTab('program');

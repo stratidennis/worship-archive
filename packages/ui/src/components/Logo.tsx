@@ -9,8 +9,11 @@ import { MARK_PATHS, MARK_VIEWBOX, WORDMARK_PATHS, WORDMARK_VIEWBOX } from './lo
  * between — and a PNG cannot do that. The paths come from `brand/` via
  * `pnpm trace:logo`; see `logo-paths.ts`.
  *
- * `fill-rule="evenodd"` is load-bearing on the wordmark: the counters in the letters
- * are separate rings, and without it every `o` fills in solid.
+ * The rings are concatenated into **one** `<path>`, and this is the part that is easy
+ * to get wrong: `fill-rule="evenodd"` decides how the subpaths of a *single* path
+ * combine. Drawn as one `<path>` each, a counter's ring is simply a second filled shape
+ * on top of the first — which is exactly how this shipped for an afternoon, with every
+ * `o` and `e` in the wordmark a solid blob.
  *
  * `alt`/`aria-label` are deliberately absent by default. Wherever these appear the name
  * is already on the page or in the window title, and a screen reader announcing
@@ -36,9 +39,7 @@ function Svg({
       className={className}
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
     >
-      {paths.map((d) => (
-        <path key={d} d={d} />
-      ))}
+      <path d={paths.join('')} />
     </svg>
   );
 }

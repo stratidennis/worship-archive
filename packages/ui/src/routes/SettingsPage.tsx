@@ -30,10 +30,7 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // No back arrow: inside the settings area the gear *is* the way out — it is
-  // lit to say you are here, and pressing it again closes what it opened and
-  // returns you where you were. Two controls doing one thing, side by side.
-  useHeader({ current: 'settings' });
+  useHeader({ current: 'settings', back: true });
 
   useEffect(() => {
     void native?.state().then(setState);

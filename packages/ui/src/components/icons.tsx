@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Copy,
   Disc3,
   Filter,
   GripVertical,
@@ -103,3 +104,4 @@ export const IconPeople = make(Users);
 export const IconAlert = make(TriangleAlert);
 export const IconFilter = make(Filter);
 export const IconSpinner = make(LoaderCircle);
+export const IconCopy = make(Copy);

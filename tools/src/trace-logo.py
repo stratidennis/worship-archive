@@ -283,9 +283,11 @@ def main() -> None:
         f'x1="{x1:.0f}" y1="{y1:.0f}" x2="{x2:.0f}" y2="{y2:.0f}">'
         f'<stop offset="0" stop-color="{start}"/><stop offset="1" stop-color="{end}"/>'
         "</linearGradient></defs>"
-        f'<g transform="translate({dx:.1f} {dy:.1f})" fill="url(#g)" fill-rule="evenodd">'
-        + "".join(f'<path d="{d}"/>' for d in mark)
-        + "</g></svg>",
+        f'<g transform="translate({dx:.1f} {dy:.1f})">'
+        # One path, not one per ring: `fill-rule` combines the subpaths of a single
+        # path, and separate paths just stack, so any hole would fill in solid.
+        f'<path fill="url(#g)" fill-rule="evenodd" d="{"".join(mark)}"/>'
+        "</g></svg>",
         encoding="utf8",
     )
 
