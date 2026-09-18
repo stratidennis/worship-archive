@@ -168,10 +168,13 @@ export function AppHeader() {
           <ButtonLink
             to={`/sets/${encodeURIComponent(leadingSetId)}`}
             variant="primary"
-            size="sm"
             title={t('lead.stillLeading')}
           >
-            <IconLead size={14} />
+            {/* The same size and the same icon as the switch on the set itself. The
+                header does not remount between pages, so a control that changed shape
+                as you navigated read as a different control rather than as the same one
+                following you. */}
+            <IconLead size={16} />
             <span className="hidden sm:inline">{t('app.lead')}</span>
           </ButtonLink>
         )}
