@@ -349,6 +349,30 @@ export function SetPage() {
   const replaceItem = (index: number, item: SetItem): void =>
     update((s) => ({ ...s, items: s.items.map((it, i) => (i === index ? item : it)) }));
 
+  /**
+   * Take a song out of the set, from the archive list rather than the running order.
+   *
+   * Every occurrence, not the last one: the list shows one row per song with one tick,
+   * so leaving a second copy behind would leave the tick on and the button doing
+   * nothing the next time it was pressed.
+   */
+  const removeSong = (songId: string): void => {
+    const gone = (set?.items ?? []).flatMap((item, index) =>
+      item.kind === 'song' && item.songId === songId ? [index] : [],
+    );
+    if (gone.length === 0) return;
+    update((s) => ({
+      ...s,
+      items: s.items.filter((item) => !(item.kind === 'song' && item.songId === songId)),
+    }));
+    setSelection((current) => {
+      if (current?.kind !== 'item') return current;
+      if (gone.includes(current.index)) return null;
+      const before = gone.filter((index) => index < current.index).length;
+      return before === 0 ? current : { kind: 'item', index: current.index - before };
+    });
+  };
+
   const removeAt = (index: number): void => {
     update((s) => ({ ...s, items: s.items.filter((_, i) => i !== index) }));
     setSelection((current) => {
@@ -677,8 +701,10 @@ export function SetPage() {
                       <AddButton
                         added={inSet.has(song.id)}
                         onAdd={() => addSong(song.id, { stay: true })}
+                        onRemove={() => removeSong(song.id)}
                         addLabel={t('set.addToSet')}
                         addedLabel={t('set.alreadyInSet')}
+                        removeLabel={t('set.removeFromSet')}
                       />
                     </div>
                   </li>
@@ -973,33 +999,44 @@ function DevicesPanel({
 }
 
 /**
- * Add a song to the set, from the list.
+ * Put a song in the set, or take it back out, without leaving the archive.
  *
- * Three states in one control: faint while idle so a long list does not become a column
- * of buttons, solid on hover, and a tick once the song is in the set. The tick is not a
- * button — there is nothing useful to do with a second press, and a disabled plus would
- * have looked like a failure rather than a success.
+ * Faint while idle so a long list reads as titles rather than a column of buttons,
+ * solid on hover, and a tick once the song is in — which answers "did that work" in the
+ * same place the question was asked.
+ *
+ * The tick used to be inert, on the reasoning that a second press had nothing useful to
+ * do. It did: undoing the press you just made. Hovering the row turns it into an ✕, so
+ * adding and removing are the same gesture in the same place — and the icon only
+ * changes under the pointer, so a list of ticks still reads as "these are in".
  */
 function AddButton({
   added,
   onAdd,
+  onRemove,
   addLabel,
   addedLabel,
+  removeLabel,
 }: {
   added: boolean;
   onAdd: () => void;
+  onRemove: () => void;
   addLabel: string;
   addedLabel: string;
+  removeLabel: string;
 }) {
   if (added) {
     return (
-      <span
-        aria-label={addedLabel}
-        title={addedLabel}
-        className="grid h-7 w-7 shrink-0 place-items-center text-(--color-chord)"
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={removeLabel}
+        title={removeLabel}
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-transparent text-(--color-chord) transition hover:border-red-500 hover:bg-red-500 hover:text-white focus-visible:border-red-500"
       >
-        <IconCheck size={16} />
-      </span>
+        <IconCheck size={16} className="group-hover:hidden" aria-label={addedLabel} />
+        <IconClose size={16} className="hidden group-hover:block" />
+      </button>
     );
   }
   return (

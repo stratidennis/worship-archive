@@ -25,17 +25,17 @@
 
 @media (prefers-color-scheme: dark) {
   @theme {
-    --color-stage-bg: oklch(17% 0.008 260);
-    --color-stage-fg: oklch(94% 0.005 260);
+    --color-stage-bg: oklch(23% 0.005 265);
+    --color-stage-fg: oklch(93% 0.004 265);
     --color-chord: oklch(78% 0.13 245);
     --color-bass: oklch(76% 0.12 155);
-    --color-muted: oklch(64% 0.012 260);
-    --color-line: oklch(27% 0.008 260);
-    --color-cue: oklch(70% 0.12 70);
-    --color-cue-bg: oklch(24% 0.02 70);
+    --color-muted: oklch(69% 0.008 265);
+    --color-line: oklch(33% 0.005 265);
+    --color-cue: oklch(72% 0.12 70);
+    --color-cue-bg: oklch(29% 0.02 70);
     --color-focus: oklch(78% 0.15 245);
-    --color-surface: oklch(21% 0.008 260);
-    --color-raised: oklch(20% 0.008 260);
+    --color-surface: oklch(27% 0.005 265);
+    --color-raised: oklch(25.5% 0.005 265);
   }
 }
 
@@ -53,18 +53,27 @@
   --color-raised: oklch(97.5% 0.003 260);
 }
 
+/*
+  Dark.
+
+  Not as dark as it can go — that is what the stage theme is for. This one is read for
+  an hour at a time, on a laptop on a music stand in a lit room, and near-black behind
+  white text makes the letters glare and the edges shimmer. A grey around 23% lightness
+  with almost no colour in it holds the same contrast without the halation, and the
+  surfaces above it stay a few points apart so a header still reads as a header.
+*/
 :root[data-theme='dark'] {
-  --color-stage-bg: oklch(17% 0.008 260);
-  --color-stage-fg: oklch(94% 0.005 260);
+  --color-stage-bg: oklch(23% 0.005 265);
+  --color-stage-fg: oklch(93% 0.004 265);
   --color-chord: oklch(78% 0.13 245);
   --color-bass: oklch(76% 0.12 155);
-  --color-muted: oklch(64% 0.012 260);
-  --color-line: oklch(27% 0.008 260);
-  --color-cue: oklch(70% 0.12 70);
-  --color-cue-bg: oklch(24% 0.02 70);
+  --color-muted: oklch(69% 0.008 265);
+  --color-line: oklch(33% 0.005 265);
+  --color-cue: oklch(72% 0.12 70);
+  --color-cue-bg: oklch(29% 0.02 70);
   --color-focus: oklch(78% 0.15 245);
-  --color-surface: oklch(21% 0.008 260);
-  --color-raised: oklch(20% 0.008 260);
+  --color-surface: oklch(27% 0.005 265);
+  --color-raised: oklch(25.5% 0.005 265);
 }
 
 /*

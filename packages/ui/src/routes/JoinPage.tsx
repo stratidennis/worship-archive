@@ -70,7 +70,7 @@ export function JoinPage() {
               [
                 ['/band', t('app.band')],
                 ['/stage', t('app.stage')],
-                ['/library', t('app.library')],
+                ['/archive', t('app.library')],
               ] as const
             ).map(([value, label]) => (
               <Segment

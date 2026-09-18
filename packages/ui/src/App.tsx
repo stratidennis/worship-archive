@@ -55,7 +55,9 @@ const page = (element: React.ReactNode): React.ReactElement => <Shell>{element}<
 */
 const router = createBrowserRouter([
   { path: '/', element: page(<Home />) },
-  { path: '/library', element: page(<Library />) },
+  { path: '/archive', element: page(<Library />) },
+  // The archive used to be called the library; old QR codes and bookmarks still work.
+  { path: '/library', element: <Navigate to="/archive" replace /> },
   { path: '/song/:id', element: page(<SongPage />) },
   { path: '/edit/:id', element: page(<EditPage />) },
   { path: '/sets', element: page(<SetsPage />) },

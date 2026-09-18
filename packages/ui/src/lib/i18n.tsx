@@ -31,7 +31,7 @@ type Entry = string | Plural;
 const ro = {
   // --- shared ---------------------------------------------------------------
   'app.name': 'Worship Archive',
-  'app.library': 'Biblioteca',
+  'app.library': 'Arhiva',
   'app.sets': 'Programe',
   'app.lead': 'Condu',
   'app.band': 'Trupă',
@@ -66,7 +66,7 @@ const ro = {
 
   // --- library --------------------------------------------------------------
   'library.search': 'Caută titlu sau versuri…',
-  'library.new': '+ Cântare nouă',
+  'library.new': 'Cântare nouă',
   'library.all': 'Toate',
   'library.count': {
     one: '{count} cântare',
@@ -75,14 +75,14 @@ const ro = {
   },
   'library.found': 'găsite',
   'library.offlineBadge': 'offline · {count} salvate local',
-  'library.empty': 'Biblioteca este goală.',
+  'library.empty': 'Arhiva este goală.',
   'library.emptyHint': 'Importă cântările existente, sau scrie prima.',
   'library.nothingFor': 'Nimic pentru „{query}”',
-  'library.loadError': 'Nu pot încărca biblioteca: {error}',
+  'library.loadError': 'Nu pot încărca arhiva: {error}',
   'library.writtenPlayed': 'scrisă în {written}, cântată în {performance}',
 
   // --- song view ------------------------------------------------------------
-  'song.notLocal': 'Cântarea nu e în biblioteca salvată local.',
+  'song.notLocal': 'Cântarea nu e în arhiva salvată local.',
   'song.loadError': 'Nu pot încărca cântarea: {error}',
   'song.key': 'tonalitate {key}',
   'song.writtenPlayed': 'scrisă în {written} · cântată în {performance}',
@@ -140,7 +140,7 @@ const ro = {
   'edit.addChord': 'Adaugă acord la cursor (F9)',
 
   // --- sets -----------------------------------------------------------------
-  'sets.new': '+ Program nou',
+  'sets.new': 'Program nou',
   'sets.noDate': 'fără dată',
   'sets.duplicate': 'Duplică',
   'sets.duplicateHint': 'Pornește de la acest program',
@@ -161,13 +161,13 @@ const ro = {
   'sets.key': 'ton',
   'sets.capo': 'capo',
   'sets.removeFromSet': 'Scoate din program',
-  'sets.keyShifted':
-    'în bibliotecă {native}, în acest program {override} ({semitones} semitonuri)',
+  'sets.keyShifted': 'în arhivă {native}, în acest program {override} ({semitones} semitonuri)',
 
   // --- the set workspace ----------------------------------------------------
   'set.tabProgram': 'Program',
-  'set.tabLibrary': 'Bibliotecă',
+  'set.tabLibrary': 'Arhiva',
   'set.addToSet': 'Adaugă în program',
+  'set.removeFromSet': 'Scoate din program',
   'set.alreadyInSet': 'Deja în program',
   'set.pickSomething': 'Alege o cântare din stânga.',
   'set.searchToAdd': 'Caută o cântare ca să o vezi înainte de a o adăuga.',
@@ -282,7 +282,8 @@ const ro = {
   'settings.maxFontHint':
     'O limită, nu o comandă — textul se micșorează singur până când cântarea încape pe un ecran.',
   'settings.showChords': 'Arată acordurile',
-  'settings.library': 'Bibliotecă',
+  'settings.library': 'Arhiva',
+  'settings.close': 'Închide setările',
   'settings.dataDir': 'Dosarul cu cântări',
   'settings.chooseDataDir': 'Schimbă dosarul…',
   'settings.revealDataDir': 'Deschide dosarul',
@@ -295,7 +296,7 @@ const ro = {
   'settings.restoreMerge': 'Adaugă la ce există',
   'settings.restoreReplace': 'Înlocuiește tot',
   'settings.restoreConfirm':
-    'Se înlocuiește întreaga bibliotecă cu ce e în fișier. Cântările care nu sunt în copie se șterg.',
+    'Se înlocuiește întreaga arhivă cu ce e în fișier. Cântările care nu sunt în copie se șterg.',
   'settings.restored': '{songs} cântări și {sets} programe restaurate.',
   'settings.restoreFailed': 'Nu am putut restaura: {error}',
   'settings.cleanup': 'Îndreptarea acordurilor',
@@ -387,7 +388,7 @@ export type TranslationKey = keyof typeof ro;
 
 const en: Record<TranslationKey, Entry> = {
   'app.name': 'Worship Archive',
-  'app.library': 'Library',
+  'app.library': 'Archive',
   'app.sets': 'Sets',
   'app.lead': 'Lead',
   'app.band': 'Band',
@@ -421,15 +422,15 @@ const en: Record<TranslationKey, Entry> = {
   'status.reconnecting': 'reconnecting…',
 
   'library.search': 'Search titles or lyrics…',
-  'library.new': '+ New song',
+  'library.new': 'New song',
   'library.all': 'All',
   'library.count': { one: '{count} song', few: '{count} songs', other: '{count} songs' },
   'library.found': 'found',
   'library.offlineBadge': 'offline · {count} stored on this device',
-  'library.empty': 'The library is empty.',
+  'library.empty': 'The archive is empty.',
   'library.emptyHint': 'Import the songs you already have, or write the first one.',
   'library.nothingFor': 'Nothing for “{query}”',
-  'library.loadError': 'Could not load the library: {error}',
+  'library.loadError': 'Could not load the archive: {error}',
   'library.writtenPlayed': 'written in {written}, played in {performance}',
 
   'song.notLocal': 'This song is not in the copy stored on this device.',
@@ -488,7 +489,7 @@ const en: Record<TranslationKey, Entry> = {
   'edit.editChord': 'Edit this chord',
   'edit.addChord': 'Add a chord at the cursor (F9)',
 
-  'sets.new': '+ New set',
+  'sets.new': 'New set',
   'sets.noDate': 'no date',
   'sets.duplicate': 'Duplicate',
   'sets.duplicateHint': 'Start from this set',
@@ -509,11 +510,12 @@ const en: Record<TranslationKey, Entry> = {
   'sets.key': 'key',
   'sets.capo': 'capo',
   'sets.removeFromSet': 'Remove from the set',
-  'sets.keyShifted': '{native} in the library, {override} in this set ({semitones} semitones)',
+  'sets.keyShifted': '{native} in the archive, {override} in this set ({semitones} semitones)',
 
   'set.tabProgram': 'Set',
-  'set.tabLibrary': 'Library',
+  'set.tabLibrary': 'Archive',
   'set.addToSet': 'Add to the set',
+  'set.removeFromSet': 'Remove from the set',
   'set.alreadyInSet': 'Already in the set',
   'set.pickSomething': 'Choose a song on the left.',
   'set.searchToAdd': 'Search for a song to see it before adding it.',
@@ -614,7 +616,8 @@ const en: Record<TranslationKey, Entry> = {
   'settings.maxFontHint':
     'A ceiling, not a command — the text shrinks by itself until the song fits one screen.',
   'settings.showChords': 'Show chords',
-  'settings.library': 'Library',
+  'settings.library': 'Archive',
+  'settings.close': 'Close settings',
   'settings.dataDir': 'Song folder',
   'settings.chooseDataDir': 'Change folder…',
   'settings.revealDataDir': 'Open the folder',
@@ -627,7 +630,7 @@ const en: Record<TranslationKey, Entry> = {
   'settings.restoreMerge': 'Add to what is here',
   'settings.restoreReplace': 'Replace everything',
   'settings.restoreConfirm':
-    'This replaces the whole library with what is in the file. Songs not in the backup are deleted.',
+    'This replaces the whole archive with what is in the file. Songs not in the backup are deleted.',
   'settings.restored': '{songs} songs and {sets} sets restored.',
   'settings.restoreFailed': 'Could not restore: {error}',
   'settings.cleanup': 'Tidy up the chords',

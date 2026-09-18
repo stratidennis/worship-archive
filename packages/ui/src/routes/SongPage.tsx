@@ -66,7 +66,7 @@ export function SongPage() {
   if (error) {
     return (
       <div className="p-6">
-        <Link to="/library" className="text-sm underline">
+        <Link to="/archive" className="text-sm underline">
           ← {t('app.library')}
         </Link>
         <p className="mt-4 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>

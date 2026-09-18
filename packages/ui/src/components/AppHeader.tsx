@@ -37,7 +37,7 @@ const DESTINATIONS: {
   Icon: (props: IconProps) => React.JSX.Element;
 }[] = [
   { key: 'home', to: '/', label: 'nav.home', Icon: IconHome },
-  { key: 'library', to: '/library', label: 'app.library', Icon: IconLibrary },
+  { key: 'library', to: '/archive', label: 'app.library', Icon: IconLibrary },
   { key: 'sets', to: '/sets', label: 'app.sets', Icon: IconSets },
 ];
 
@@ -120,16 +120,25 @@ export function AppHeader({
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {children}
         <ThemeToggle />
-        <ButtonLink
-          to="/settings"
-          {...(current === 'settings' ? { variant: 'primary' as const } : {})}
-          aria-current={current === 'settings' ? 'page' : undefined}
-          aria-label={t('settings.title')}
-          title={t('settings.title')}
-          icon
-        >
-          <IconSettings size={17} />
-        </ButtonLink>
+        {/*
+          Settings is a detour, not a destination, so the same button gets you back out
+          of it. Pressing it again to close what it opened is what a toggle is, and
+          there is nothing else in this header that means "I am done here".
+        */}
+        {current === 'settings' ? (
+          <IconButton label={t('settings.close')} active onClick={goBack}>
+            <IconSettings size={17} />
+          </IconButton>
+        ) : (
+          <ButtonLink
+            to="/settings"
+            aria-label={t('settings.title')}
+            title={t('settings.title')}
+            icon
+          >
+            <IconSettings size={17} />
+          </ButtonLink>
+        )}
       </div>
     </header>
   );

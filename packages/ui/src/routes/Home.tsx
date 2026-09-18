@@ -65,7 +65,7 @@ export function Home() {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <p className="text-sm text-(--color-muted)">{error}</p>
-        <a href="/library" className="mt-4 inline-block text-sm underline">
+        <a href="/archive" className="mt-4 inline-block text-sm underline">
           {t('app.library')}
         </a>
       </div>

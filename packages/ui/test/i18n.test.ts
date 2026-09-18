@@ -70,7 +70,7 @@ describe('interpolation', () => {
   it('handles several values in one string', () => {
     expect(
       translate('en', 'sets.keyShifted', { native: 'G', override: 'Bb', semitones: 3 }),
-    ).toBe('G in the library, Bb in this set (3 semitones)');
+    ).toBe('G in the archive, Bb in this set (3 semitones)');
   });
 });
 

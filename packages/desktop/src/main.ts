@@ -226,7 +226,7 @@ function buildMenu(): void {
         // Leading is a switch on the current programme, not a destination, so there is
         // no menu entry that takes you to it any more.
         { label: 'Programul curent', accelerator: 'CmdOrCtrl+1', click: go('/') },
-        { label: 'Bibliotecă', accelerator: 'CmdOrCtrl+2', click: go('/library') },
+        { label: 'Arhiva', accelerator: 'CmdOrCtrl+2', click: go('/archive') },
         { label: 'Programe', accelerator: 'CmdOrCtrl+3', click: go('/sets') },
         { type: 'separator' },
         { label: 'Importă cântări…', accelerator: 'CmdOrCtrl+I', click: go('/import') },
