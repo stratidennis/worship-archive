@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_STAGE_DISPLAY,
   INITIAL_SESSION,
   beatAt,
   estimateClockOffset,
+  isStageDisplayEmpty,
   msToNextBeat,
+  patchStageDisplay,
+  resolveStageDisplay,
   type SessionState,
 } from '../src/session.js';
 
@@ -96,5 +100,69 @@ describe('clock offset estimation', () => {
 
   it('is negative when the client runs ahead of the server', () => {
     expect(estimateClockOffset(5000, 1100, 5200)).toBeLessThan(0);
+  });
+});
+
+describe('how a stage screen should look', () => {
+  it('starts out saying nothing, so every screen keeps its own', () => {
+    expect(isStageDisplayEmpty(DEFAULT_STAGE_DISPLAY)).toBe(true);
+    expect(resolveStageDisplay(session(), 'Left')).toEqual(DEFAULT_STAGE_DISPLAY);
+  });
+
+  /*
+    Absent and null are different requests, and the easy implementation conflates them:
+    `patch.theme ?? current.theme` reads an explicit null as "not mentioned", which
+    leaves no way to undo a choice once it has been made.
+  */
+  it('leaves alone a field the patch does not mention', () => {
+    const patched = patchStageDisplay(
+      { ...DEFAULT_STAGE_DISPLAY, theme: 'dark' },
+      {
+        maxFontPx: 40,
+      },
+    );
+    expect(patched).toEqual({ theme: 'dark', language: null, maxFontPx: 40, chordColor: null });
+  });
+
+  it('clears a field the patch sets to null', () => {
+    const patched = patchStageDisplay(
+      { ...DEFAULT_STAGE_DISPLAY, theme: 'dark' },
+      {
+        theme: null,
+      },
+    );
+    expect(patched.theme).toBeNull();
+    expect(isStageDisplayEmpty(patched)).toBe(true);
+  });
+
+  it('gives an unnamed screen the shared settings', () => {
+    const state = session({ stage: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 60 } });
+    expect(resolveStageDisplay(state, null).maxFontPx).toBe(60);
+    expect(resolveStageDisplay(state, 'Anything').maxFontPx).toBe(60);
+  });
+
+  /*
+    The point of the whole feature: the monitor by the drums and the television at the
+    back of the hall are not asking for the same number, and setting one must not move
+    the other.
+  */
+  it('lets one screen differ without disturbing the rest', () => {
+    const state = session({
+      stage: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 60, chordColor: '#f59e0b' },
+      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 28 } },
+    });
+    expect(resolveStageDisplay(state, 'Drums')).toEqual({
+      theme: null,
+      language: null,
+      maxFontPx: 28,
+      // Only what it actually overrides; the rest still follows everyone else.
+      chordColor: '#f59e0b',
+    });
+    expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
+  });
+
+  it('is unchanged by settings belonging to a screen that is not this one', () => {
+    const state = session({ stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } } });
+    expect(resolveStageDisplay(state, 'Back')).toBe(state.stage);
   });
 });

@@ -14,6 +14,7 @@ import {
   ThemeChoice,
 } from '../components/DisplaySettings.js';
 import { useStageDisplay } from '../lib/stageDisplay.js';
+import { DEFAULT_STAGE_DISPLAY, type StageDisplay } from '@worship/core';
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
 import { desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
@@ -41,7 +42,27 @@ export function SettingsPage() {
 
   /** Whose screen these settings are about: this one, or the ones on the wall. */
   const [target, setTarget] = useState<'device' | 'stage'>('device');
-  const { stage, save: saveStage, reachable: stageReachable } = useStageDisplay();
+  /** Within the screens: all of them together, or one in particular. */
+  const [screen, setScreen] = useState<string | null>(null);
+  const {
+    shared,
+    byScreen,
+    screens,
+    unnamed,
+    save: saveStage,
+    reachable: stageReachable,
+  } = useStageDisplay();
+
+  /*
+    A screen that has been switched off and never had settings of its own drops out of
+    the list, and the selection has to drop with it — otherwise the controls would be
+    editing a screen that no longer appears anywhere above them.
+  */
+  const selected = screen !== null && screens.some((s) => s.name === screen) ? screen : null;
+  const stage = selected ? (byScreen[selected] ?? DEFAULT_STAGE_DISPLAY) : shared;
+  /** One screen inherits from all screens; all screens inherit from each screen itself. */
+  const inherit = selected ? t('settings.asAllScreens') : t('settings.asTheScreen');
+  const setStage = (patch: Partial<StageDisplay>): void => saveStage(selected, patch);
 
   useEffect(() => {
     void native?.state().then(setState);
@@ -169,32 +190,95 @@ export function SettingsPage() {
               </>
             ) : (
               <>
+                {/*
+                  Which of them, when there is more than one.
+
+                  A hall with a screen at the back and a monitor by the drums does not
+                  want one answer: "large enough to read from thirty metres" and "large
+                  enough for the bass player" are different numbers. Screens are listed
+                  by the name in their own address — the same name the leader sees in
+                  the connected list — because a connection id means nothing to anyone
+                  and is forgotten the moment the television is switched off.
+                */}
+                {screens.length > 0 && (
+                  <div
+                    role="group"
+                    aria-label={t('settings.whichScreen')}
+                    className="mb-3 flex flex-wrap gap-1.5"
+                  >
+                    <UiButton
+                      size="sm"
+                      active={selected === null}
+                      onClick={() => setScreen(null)}
+                    >
+                      {t('settings.allScreens')}
+                    </UiButton>
+                    {screens.map((one) => (
+                      <UiButton
+                        key={one.name}
+                        size="sm"
+                        active={selected === one.name}
+                        onClick={() => setScreen(one.name)}
+                      >
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{
+                            background:
+                              one.connected > 0 ? 'var(--color-ok)' : 'var(--color-line)',
+                          }}
+                        />
+                        {one.name}
+                        {one.connected > 1 && (
+                          <span className="tabular-nums opacity-60">×{one.connected}</span>
+                        )}
+                        {one.connected === 0 && (
+                          <span className="opacity-60">{t('settings.screenOff')}</span>
+                        )}
+                      </UiButton>
+                    ))}
+                  </div>
+                )}
+
                 <p className="mb-3 text-xs text-(--color-muted)">
-                  {stageReachable ? t('settings.stageHint') : t('settings.stageOffline')}
+                  {!stageReachable
+                    ? t('settings.stageOffline')
+                    : selected
+                      ? t('settings.screenHint')
+                      : t('settings.stageHint')}
                 </p>
+                {stageReachable && selected === null && unnamed > 0 && (
+                  <p className="mb-3 text-xs text-(--color-muted)">
+                    {t('settings.unnamedScreens')}
+                  </p>
+                )}
+
                 <ThemeChoice
                   label={t('settings.theme')}
                   value={stage.theme}
-                  onChange={(theme) => saveStage({ theme })}
-                  inherit={t('settings.asTheScreen')}
+                  onChange={(theme) => setStage({ theme })}
+                  inherit={inherit}
                 />
                 <LanguageChoice
                   label={t('settings.language')}
                   value={stage.language}
-                  onChange={(language) => saveStage({ language })}
-                  inherit={t('settings.asTheScreen')}
+                  onChange={(language) => setStage({ language })}
+                  inherit={inherit}
                 />
                 <FontSize
                   value={stage.maxFontPx}
-                  onChange={(maxFontPx) => saveStage({ maxFontPx })}
-                  fallback={72}
+                  onChange={(maxFontPx) => setStage({ maxFontPx })}
+                  onClear={() => setStage({ maxFontPx: null })}
+                  clearLabel={inherit}
+                  fallback={(selected ? shared.maxFontPx : null) ?? 72}
                 />
                 <ChordColour
                   value={stage.chordColor}
-                  onChange={(chordColor) => saveStage({ chordColor })}
-                  defaultLabel={t('settings.asTheScreen')}
+                  onChange={(chordColor) => setStage({ chordColor })}
+                  defaultLabel={inherit}
                 />
-                <ChordSample colour={stage.chordColor} />
+                <ChordSample
+                  colour={stage.chordColor ?? (selected ? shared.chordColor : null)}
+                />
               </>
             )}
           </Section>

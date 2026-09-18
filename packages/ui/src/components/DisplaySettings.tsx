@@ -46,7 +46,9 @@ export function LanguageChoice<T extends LanguageName | null>({
   const { t } = useT();
   return (
     <Field label={label}>
-      <Segmented label={t('settings.language')}>
+      {/* Wraps rather than clips: with an extra "as the screen" segment in front,
+          these strips are one option wider than the settings column is. */}
+      <Segmented label={t('settings.language')} className="max-w-full flex-wrap">
         {inherit && (
           <Segment active={value === null} onClick={() => onChange(null as T)}>
             {inherit}
@@ -81,7 +83,7 @@ export function ThemeChoice<T extends ThemeName | null>({
   const { t } = useT();
   return (
     <Field label={label}>
-      <Segmented label={t('settings.theme')}>
+      <Segmented label={t('settings.theme')} className="max-w-full flex-wrap">
         {inherit && (
           <Segment active={value === null} onClick={() => onChange(null as T)}>
             {inherit}
@@ -107,10 +109,21 @@ export function ThemeChoice<T extends ThemeName | null>({
 export function FontSize({
   value,
   onChange,
+  onClear,
+  clearLabel,
   fallback,
 }: {
   value: number | null;
   onChange: (value: number) => void;
+  /**
+   * Give the size back to whoever owned it before.
+   *
+   * A slider cannot express "unset" by itself — every position is a number — so the
+   * three other controls could be handed back and this one could not, and a text size
+   * chosen once for one screen could never be undone.
+   */
+  onClear?: (() => void) | undefined;
+  clearLabel?: string | undefined;
   /** Shown when nothing has been chosen — the size that screen would use anyway. */
   fallback?: number;
 }) {
@@ -118,9 +131,20 @@ export function FontSize({
   const shown = value ?? fallback ?? 26;
   return (
     <label className="mt-4 block">
-      <span className="flex items-baseline justify-between text-sm">
+      <span className="flex items-baseline justify-between gap-2 text-sm">
         {t('settings.maxFont')}
-        <span className="font-mono text-xs text-(--color-muted)">{shown}px</span>
+        <span className="flex items-baseline gap-2">
+          {onClear && clearLabel && value !== null && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded text-xs text-(--color-chord) hover:underline"
+            >
+              {clearLabel}
+            </button>
+          )}
+          <span className="font-mono text-xs text-(--color-muted)">{shown}px</span>
+        </span>
       </span>
       <input
         type="range"

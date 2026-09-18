@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
@@ -20,7 +19,9 @@ import {
   LanguageChoice,
   ThemeChoice,
 } from '../components/DisplaySettings.js';
-import { IconHome, IconMusic, IconSets, IconSettings } from '../components/icons.js';
+import { IconMusic, IconSets, IconSettings } from '../components/icons.js';
+import { Logo } from '../components/Logo.js';
+import { WaitingForLeader } from '../components/Waiting.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -144,14 +145,15 @@ export function BandPage() {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-(--color-line) bg-(--color-surface) px-3 py-1.5">
-        <Link
-          to="/"
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-(--color-line) hover:bg-(--color-line)"
-          aria-label={t('nav.homeHint')}
-          title={t('nav.homeHint')}
-        >
-          <IconHome size={15} />
-        </Link>
+        {/*
+          The mark, and nothing behind it.
+
+          Not a link, on purpose — this view has no way out and should not have one. A
+          musician two bars into a song who taps the corner of their phone must not
+          find themselves on the archive, with the service still running on the screen
+          they can no longer see. It says whose app this is; that is its whole job.
+        */}
+        <Logo className="h-[17px] shrink-0 text-(--color-chord)" label={t('app.name')} />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {viewing?.song.title ?? (live.set ? '—' : t('band.noLiveSet'))}
         </span>
@@ -216,7 +218,7 @@ export function BandPage() {
             labels={{
               down: t('song.capoDown'),
               up: t('song.capoUp'),
-              reset: t('song.capoLabel'),
+              reset: t('song.capoReset'),
             }}
           />
           <IconButton
@@ -266,8 +268,12 @@ export function BandPage() {
                   onClick={() => {
                     // Choosing one is choosing to read on your own; the leader is not
                     // told, and nobody else's screen moves.
+                    //
+                    // The list stays open. It used to close itself, which is the right
+                    // reflex for a menu and the wrong one for a running order: looking
+                    // ahead is rarely one glance, and having to reopen the list for
+                    // every song made the one thing this panel is for feel like work.
                     setLocal(index);
-                    setListOpen(false);
                   }}
                   aria-current={index === itemIndex ? 'true' : undefined}
                   className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm ${
@@ -334,10 +340,14 @@ export function BandPage() {
                 }}
               />
             </div>
-          ) : (
+          ) : live.set ? (
             <p className="mt-10 text-center text-sm text-(--color-muted)">
-              {live.set ? t('band.leaderNotOnSong') : t('band.waiting')}
+              {t('band.leaderNotOnSong')}
             </p>
+          ) : (
+            <div className="mt-[18vh] flex justify-center">
+              <WaitingForLeader compact />
+            </div>
           )}
         </main>
       </div>

@@ -1274,28 +1274,44 @@ function DevicesPanel({
       </div>
       <ul className="space-y-1 text-sm">
         {devices.map((device) => (
-          <li key={device.id} className="flex items-center gap-1.5">
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: 'var(--color-ok)' }}
-            />
-            <span className="min-w-0 flex-1 truncate">
-              {device.name || t('lead.unnamedDevice')}
-            </span>
-            <span className="shrink-0 text-[0.7rem] text-(--color-muted)">
-              {device.role === 'stage'
-                ? t('lead.roleStage')
-                : device.role === 'leader'
-                  ? t('lead.roleLeader')
-                  : t('lead.roleBand')}
-            </span>
-          </li>
+          <DeviceRow key={device.id} name={device.name} role={device.role} />
         ))}
       </ul>
       <ButtonLink to="/join" size="sm" className="mt-3 w-full">
         {t('lead.qr')}
       </ButtonLink>
     </aside>
+  );
+}
+
+/**
+ * One connected device.
+ *
+ * The role is a tag beside the name, except where it *is* the name: a screen that was
+ * never given one of its own has nothing better to be called than "Screen", and
+ * "Screen — Screen" is a row that says one thing twice. The same goes for the leader's
+ * own entry.
+ */
+function DeviceRow({ name, role }: { name: string; role: string }) {
+  const { t } = useT();
+  const roleLabel =
+    role === 'stage'
+      ? t('lead.roleStage')
+      : role === 'leader'
+        ? t('lead.roleLeader')
+        : t('lead.roleBand');
+  const shown = name.trim() || roleLabel;
+  return (
+    <li className="flex items-center gap-1.5">
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: 'var(--color-ok)' }}
+      />
+      <span className="min-w-0 flex-1 truncate">{shown}</span>
+      {shown !== roleLabel && (
+        <span className="shrink-0 text-[0.7rem] text-(--color-muted)">{roleLabel}</span>
+      )}
+    </li>
   );
 }
 

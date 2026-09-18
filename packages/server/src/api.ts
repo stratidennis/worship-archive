@@ -11,7 +11,14 @@ import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
-import type { ServiceSet, Song, StageDisplay } from '@worship/core';
+import {
+  DEFAULT_STAGE_DISPLAY,
+  isStageDisplayEmpty,
+  patchStageDisplay,
+  type ServiceSet,
+  type Song,
+  type StageDisplay,
+} from '@worship/core';
 import { libraryFingerprint, type Library } from './library.js';
 import type { SetStore } from './sets.js';
 import type { SessionHub } from './hub.js';
@@ -332,15 +339,31 @@ export function createServer(options: ApiOptions): FastifyInstance {
   */
   app.put('/api/session/stage', async (request, reply) => {
     if (!options.hub) return reply.code(503).send({ error: 'no session' });
-    const body = request.body as Partial<StageDisplay> | undefined;
+    const body = request.body as (Partial<StageDisplay> & { screen?: unknown }) | undefined;
     if (!body || typeof body !== 'object') return reply.code(400).send({ error: 'bad body' });
-    const current = options.hub.getState().stage;
-    const stage: StageDisplay = {
-      theme: body.theme ?? (body.theme === null ? null : current.theme),
-      language: body.language ?? (body.language === null ? null : current.language),
-      maxFontPx: body.maxFontPx ?? (body.maxFontPx === null ? null : current.maxFontPx),
-      chordColor: body.chordColor ?? (body.chordColor === null ? null : current.chordColor),
-    };
+
+    /*
+      With a `screen`, this is about that one television; without one, about all of them.
+
+      Named screens only. The name is the one in the screen's own address, which is
+      also what the leader sees in the connected list — a connection id would be
+      neither, and would be forgotten the moment the screen was switched off.
+    */
+    const screen = typeof body.screen === 'string' ? body.screen.trim().slice(0, 60) : '';
+    const state = options.hub.getState();
+
+    if (screen) {
+      const next = patchStageDisplay(state.stageBy[screen] ?? DEFAULT_STAGE_DISPLAY, body);
+      const stageBy = { ...state.stageBy };
+      // A screen back to saying nothing is forgotten rather than stored as four nulls,
+      // so the list of screens with settings of their own stays honest.
+      if (isStageDisplayEmpty(next)) delete stageBy[screen];
+      else stageBy[screen] = next;
+      options.hub.patch({ stageBy });
+      return { screen, stage: next };
+    }
+
+    const stage = patchStageDisplay(state.stage, body);
     options.hub.patch({ stage });
     return { stage };
   });

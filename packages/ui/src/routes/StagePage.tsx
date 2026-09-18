@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { semitonesBetween } from '@worship/core';
+import { resolveStageDisplay, semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
@@ -10,6 +10,7 @@ import { usePrefs } from '../lib/settings.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Logo } from '../components/Logo.js';
+import { WaitingForLeader } from '../components/Waiting.js';
 
 /** What a screen uses when nobody has said otherwise: big, because it is read far away. */
 export const STAGE_DEFAULT_FONT = 72;
@@ -30,9 +31,23 @@ export function StagePage() {
   const [params] = useSearchParams();
   const showChords = params.get('chords') !== '0';
   const showBass = params.get('bass') === '1';
-  const name = params.get('name') ?? t('app.stage');
+  /*
+    What this screen is called, if anything.
 
-  const { state, status, clockOffset, libraryRev } = useSession('stage', name);
+    Empty is a real answer and the common one — a hall with a single television has no
+    reason to name it. The name matters when there are two: it is how the leader tells
+    them apart in the connected list, and how a setting can be made for one of them
+    without touching the other.
+
+    Deliberately *not* a translated default. The leader can set a screen's language,
+    which changes what `t('app.stage')` returns, which would change the name this screen
+    reports, which would change which settings it matches — a screen flipping between
+    two languages for ever. The name has to be a fact about the address, not about the
+    interface.
+  */
+  const screen = params.get('name')?.trim() ?? '';
+
+  const { state, status, clockOffset, libraryRev } = useSession('stage', screen);
   const live = useLiveSet(state.setId, libraryRev);
   const [prefs] = usePrefs();
 
@@ -44,7 +59,7 @@ export function StagePage() {
     laptop. So the session carries these, and anything left unset here falls back to
     what this screen would have done on its own.
   */
-  const stage = state.stage;
+  const stage = resolveStageDisplay(state, screen || null);
   useEffect(() => {
     applyTheme(stage.theme ?? prefs.theme);
     return () => applyTheme(prefs.theme);
@@ -134,13 +149,14 @@ export function StagePage() {
             />
           </div>
         ) : (
-          /* A screen at the front of a room with nothing on it yet. Better that it look
-             like a thing that is on and waiting than like a thing that failed. */
-          <div className="mt-[22vh] flex flex-col items-center gap-6">
-            <Logo className="h-20 text-(--color-chord) opacity-25" />
-            <p className="text-center text-lg text-(--color-muted)">
-              {live.set ? '' : t('band.waiting')}
-            </p>
+          <div className="mt-[20vh] flex justify-center">
+            {live.set ? (
+              /* A service is running and the leader is between songs. The mark alone:
+                 naming the state would be a caption on a wall about nothing. */
+              <Logo className="h-20 text-(--color-chord) opacity-25" />
+            ) : (
+              <WaitingForLeader />
+            )}
           </div>
         )}
       </div>

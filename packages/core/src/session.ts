@@ -52,6 +52,57 @@ export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   chordColor: null,
 };
 
+/** True when a screen's settings say nothing at all, and can be forgotten entirely. */
+export function isStageDisplayEmpty(display: StageDisplay): boolean {
+  return (
+    display.theme === null &&
+    display.language === null &&
+    display.maxFontPx === null &&
+    display.chordColor === null
+  );
+}
+
+/**
+ * Apply a partial change.
+ *
+ * Three states, not two: a field that is absent means "leave it", and a field that is
+ * explicitly `null` means "give that screen its own back". Collapsing those two is the
+ * easy mistake, and it leaves no way to undo a choice once made.
+ */
+export function patchStageDisplay(
+  current: StageDisplay,
+  patch: Partial<StageDisplay>,
+): StageDisplay {
+  return {
+    theme: patch.theme !== undefined ? patch.theme : current.theme,
+    language: patch.language !== undefined ? patch.language : current.language,
+    maxFontPx: patch.maxFontPx !== undefined ? patch.maxFontPx : current.maxFontPx,
+    chordColor: patch.chordColor !== undefined ? patch.chordColor : current.chordColor,
+  };
+}
+
+/**
+ * What one screen should actually look like: its own settings over the shared ones.
+ *
+ * `screen` is the name that screen was given in its address (`/stage?name=Left`), not
+ * its connection id and not a translated default. It has to survive the television
+ * being switched off overnight, and it has to be something the leader can recognise in
+ * a list — and those are the same requirement.
+ *
+ * A screen with no name of its own is not a mistake; it simply takes the shared
+ * settings, which is the right answer for the overwhelmingly common case of one screen.
+ */
+export function resolveStageDisplay(state: SessionState, screen: string | null): StageDisplay {
+  const own = (screen && state.stageBy[screen]) || null;
+  if (!own) return state.stage;
+  return {
+    theme: own.theme ?? state.stage.theme,
+    language: own.language ?? state.stage.language,
+    maxFontPx: own.maxFontPx ?? state.stage.maxFontPx,
+    chordColor: own.chordColor ?? state.stage.chordColor,
+  };
+}
+
 export interface SessionState {
   /** The set being led, or null when no service is running. */
   setId: string | null;
@@ -69,6 +120,15 @@ export interface SessionState {
 
   /** How the stage screens should look. See {@link StageDisplay}. */
   stage: StageDisplay;
+  /**
+   * Overrides for one named screen, keyed by the name in its address.
+   *
+   * Empty in a normal installation, and that is the intent: one hall with one screen
+   * should never meet this. It exists for the room with a screen at the back and a
+   * monitor by the drums, where "large enough to read from thirty metres" and "large
+   * enough for the bass player" are not the same number.
+   */
+  stageBy: Record<string, StageDisplay>;
 
   /** Beats per minute, or null when the metronome is off. */
   tempo: number | null;
@@ -93,6 +153,7 @@ export const INITIAL_SESSION: SessionState = {
   itemIndex: 0,
   output: 'live',
   stage: DEFAULT_STAGE_DISPLAY,
+  stageBy: {},
   tempo: null,
   beatsPerBar: 4,
   beatEpoch: null,

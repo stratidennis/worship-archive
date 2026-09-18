@@ -4,7 +4,7 @@ import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
-import { Button, Segment, Segmented } from '../components/ui.js';
+import { Button, Field, Input, Segment, Segmented } from '../components/ui.js';
 import { IconCheck, IconCopy } from '../components/icons.js';
 import { copyText } from '../lib/clipboard.js';
 import { Wordmark } from '../components/Logo.js';
@@ -42,7 +42,24 @@ export function JoinPage() {
    * screen is being pointed at something.
    */
   const [stageChords, setStageChords] = useState(true);
-  const query = path === '/stage' && !stageChords ? '?chords=0' : '';
+  /**
+   * What to call this screen, for the rooms that have two.
+   *
+   * Optional, and most installations will leave it. It earns its place when there is a
+   * screen at the back and a monitor by the drums: the name is what tells them apart in
+   * the leader's connected list, and it is what lets one of them be given a text size
+   * or a theme of its own in Settings without touching the other.
+   */
+  const [stageName, setStageName] = useState('');
+
+  const query = useMemo(() => {
+    if (path !== '/stage') return '';
+    const params = new URLSearchParams();
+    if (!stageChords) params.set('chords', '0');
+    if (stageName.trim()) params.set('name', stageName.trim().slice(0, 60));
+    const encoded = params.toString();
+    return encoded ? `?${encoded}` : '';
+  }, [path, stageChords, stageName]);
 
   useHeader({ back: true });
 
@@ -148,14 +165,29 @@ export function JoinPage() {
         </Segmented>
 
         {path === '/stage' && (
-          <Segmented label={t('song.chords')} className="ml-2 mt-5">
-            <Segment active={stageChords} onClick={() => setStageChords(true)}>
-              {t('join.stageWithChords')}
-            </Segment>
-            <Segment active={!stageChords} onClick={() => setStageChords(false)}>
-              {t('join.stageWordsOnly')}
-            </Segment>
-          </Segmented>
+          <>
+            <Segmented label={t('song.chords')} className="ml-2 mt-5">
+              <Segment active={stageChords} onClick={() => setStageChords(true)}>
+                {t('join.stageWithChords')}
+              </Segment>
+              <Segment active={!stageChords} onClick={() => setStageChords(false)}>
+                {t('join.stageWordsOnly')}
+              </Segment>
+            </Segmented>
+
+            <Field
+              label={t('join.screenName')}
+              hint={t('join.screenNameHint')}
+              className="mt-5 max-w-sm"
+            >
+              <Input
+                value={stageName}
+                onChange={(event) => setStageName(event.target.value)}
+                placeholder={t('app.stage')}
+                maxLength={60}
+              />
+            </Field>
+          </>
         )}
 
         {qr && (

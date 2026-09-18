@@ -133,7 +133,7 @@ export function SongPage() {
             labels={{
               down: t('song.capoDown'),
               up: t('song.capoUp'),
-              reset: t('song.capoLabel'),
+              reset: t('song.capoReset'),
             }}
           />
           <Button
