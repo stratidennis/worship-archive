@@ -29,24 +29,17 @@ const TONES: Record<Tone, { ring: string; Icon: typeof IconAlert }> = {
   danger: { ring: 'bg-red-500/15 text-red-500', Icon: IconTrash },
 };
 
-export function Modal({
-  title,
-  detail,
-  tone = 'warn',
-  children,
-  onDismiss,
-}: {
-  title: string;
-  detail?: string | undefined;
-  tone?: Tone;
-  /** The buttons, least destructive first. */
-  children: React.ReactNode;
-  onDismiss: () => void;
-}) {
+/**
+ * The behaviour every overlay owes the keyboard, in one place.
+ *
+ * Shared because it is exactly the part that rots when it is copied: the capture phase
+ * on Escape, focusing something inside on open, and putting focus back where it came
+ * from on close. Returns the ref to put on the panel.
+ */
+export function useOverlay(onDismiss: () => void): React.RefObject<HTMLDivElement | null> {
   const panel = useRef<HTMLDivElement>(null);
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
-  const { ring, Icon } = TONES[tone];
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -64,6 +57,26 @@ export function Modal({
       previous?.focus?.();
     };
   }, []);
+
+  return panel;
+}
+
+export function Modal({
+  title,
+  detail,
+  tone = 'warn',
+  children,
+  onDismiss,
+}: {
+  title: string;
+  detail?: string | undefined;
+  tone?: Tone;
+  /** The buttons, least destructive first. */
+  children: React.ReactNode;
+  onDismiss: () => void;
+}) {
+  const panel = useOverlay(onDismiss);
+  const { ring, Icon } = TONES[tone];
 
   return (
     <div

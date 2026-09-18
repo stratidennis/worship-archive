@@ -17,6 +17,40 @@
  */
 export type OutputMode = 'live' | 'cleared';
 export type DeviceRole = 'leader' | 'band' | 'stage';
+export type ThemeName = 'auto' | 'light' | 'dark' | 'stage';
+export type LanguageName = 'ro' | 'en';
+
+/**
+ * How the stage screens should look, decided once for all of them.
+ *
+ * A stage display has nobody standing at it. It is a television on a bracket, and the
+ * person who needs to change how it looks — the text is too small at the back, the
+ * chords are washed out under the lights — is the one at the laptop, who cannot reach
+ * it and should not have to. So these live with the session, which the host owns and
+ * pushes to every device, rather than in each screen's own storage.
+ *
+ * `null` means "whatever that screen would do on its own", which is what an
+ * untouched installation should be: one setting to change, not four to keep in step.
+ *
+ * Whether chords are shown is deliberately *not* here. That one is genuinely per
+ * screen — the monitor facing the band wants them and the one facing the room does
+ * not — so it stays a query parameter on the address you set that screen up with.
+ */
+export interface StageDisplay {
+  theme: ThemeName | null;
+  language: LanguageName | null;
+  /** A ceiling for the fit, in pixels. Null leaves the stage's own generous default. */
+  maxFontPx: number | null;
+  /** Any CSS colour, or null for the theme's own accent. */
+  chordColor: string | null;
+}
+
+export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
+  theme: null,
+  language: null,
+  maxFontPx: null,
+  chordColor: null,
+};
 
 export interface SessionState {
   /** The set being led, or null when no service is running. */
@@ -32,6 +66,9 @@ export interface SessionState {
    */
   itemIndex: number;
   output: OutputMode;
+
+  /** How the stage screens should look. See {@link StageDisplay}. */
+  stage: StageDisplay;
 
   /** Beats per minute, or null when the metronome is off. */
   tempo: number | null;
@@ -55,6 +92,7 @@ export const INITIAL_SESSION: SessionState = {
   setId: null,
   itemIndex: 0,
   output: 'live',
+  stage: DEFAULT_STAGE_DISPLAY,
   tempo: null,
   beatsPerBar: 4,
   beatEpoch: null,

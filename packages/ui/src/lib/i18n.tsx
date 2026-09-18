@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import type { BlockType, Singers } from '@worship/core';
 import { usePrefs } from './settings.js';
 
@@ -301,6 +308,13 @@ const ro = {
   'settings.showChords': 'Arată acordurile',
   'settings.library': 'Arhiva',
   'settings.close': 'Închide setările',
+  'settings.displayTarget': 'Pentru ce ecran',
+  'settings.thisDevice': 'Acest dispozitiv',
+  'settings.theScreens': 'Ecranele',
+  'settings.asTheScreen': 'Ca ecranul',
+  'settings.stageHint':
+    'Se aplică pe toate ecranele conectate, imediat. „Ca ecranul” lasă fiecare ecran cu setarea lui.',
+  'settings.stageOffline': 'Fără gazdă — setările ecranelor nu pot fi citite acum.',
   'settings.chordColor': 'Culoarea acordurilor',
   'settings.chordColorDefault': 'Implicită',
   'settings.chordColorCustom': 'Alege altă culoare',
@@ -656,6 +670,13 @@ const en: Record<TranslationKey, Entry> = {
   'settings.showChords': 'Show chords',
   'settings.library': 'Archive',
   'settings.close': 'Close settings',
+  'settings.displayTarget': 'Which screen',
+  'settings.thisDevice': 'This device',
+  'settings.theScreens': 'The screens',
+  'settings.asTheScreen': 'As the screen',
+  'settings.stageHint':
+    'Applies to every connected screen, at once. "As the screen" leaves each one with its own setting.',
+  'settings.stageOffline': 'No host — the screens\u2019 settings cannot be read right now.',
   'settings.chordColor': 'Chord colour',
   'settings.chordColorDefault': 'Default',
   'settings.chordColorCustom': 'Pick another colour',
@@ -791,9 +812,37 @@ const LANG_TAG: Record<Lang, string> = { ro: 'ro-RO', en: 'en-GB' };
 
 const I18nContext = createContext<Translator | null>(null);
 
+/*
+  A language imposed from outside, for one screen.
+
+  The stage displays are configured centrally — see `StageDisplay` — and a television on
+  a bracket has no one standing at it to change its own preference. So it can be told
+  which language to speak without that being written into the device's own settings,
+  which would then be wrong the next time somebody used that laptop for something else.
+*/
+let override: Lang | null = null;
+const overrideListeners = new Set<() => void>();
+
+export function setLanguageOverride(next: Lang | null): void {
+  if (override === next) return;
+  override = next;
+  for (const listener of overrideListeners) listener();
+}
+
+function useLanguageOverride(): Lang | null {
+  return useSyncExternalStore(
+    (listener) => {
+      overrideListeners.add(listener);
+      return () => overrideListeners.delete(listener);
+    },
+    () => override,
+    () => null,
+  );
+}
+
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = usePrefs();
-  const lang = prefs.language;
+  const lang = useLanguageOverride() ?? prefs.language;
 
   const setLang = useCallback((next: Lang) => setPrefs({ language: next }), [setPrefs]);
 

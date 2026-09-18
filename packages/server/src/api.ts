@@ -11,7 +11,7 @@ import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
-import type { ServiceSet, Song } from '@worship/core';
+import type { ServiceSet, Song, StageDisplay } from '@worship/core';
 import { libraryFingerprint, type Library } from './library.js';
 import type { SetStore } from './sets.js';
 import type { SessionHub } from './hub.js';
@@ -320,6 +320,29 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const result = applyFixes(library, body.fixes);
     options.hub?.notifyLibraryChanged();
     return result;
+  });
+
+  /*
+    How the stage screens look, set from anywhere.
+
+    Not over the session socket: the person adjusting this is at the settings page, and
+    making them start leading a service in order to make the text bigger would be an
+    odd price for it. The hub still broadcasts the change, so every screen picks it up
+    at once.
+  */
+  app.put('/api/session/stage', async (request, reply) => {
+    if (!options.hub) return reply.code(503).send({ error: 'no session' });
+    const body = request.body as Partial<StageDisplay> | undefined;
+    if (!body || typeof body !== 'object') return reply.code(400).send({ error: 'bad body' });
+    const current = options.hub.getState().stage;
+    const stage: StageDisplay = {
+      theme: body.theme ?? (body.theme === null ? null : current.theme),
+      language: body.language ?? (body.language === null ? null : current.language),
+      maxFontPx: body.maxFontPx ?? (body.maxFontPx === null ? null : current.maxFontPx),
+      chordColor: body.chordColor ?? (body.chordColor === null ? null : current.chordColor),
+    };
+    options.hub.patch({ stage });
+    return { stage };
   });
 
   app.get('/api/session', async () => ({

@@ -4,10 +4,15 @@ import { semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
-import { useT } from '../lib/i18n.js';
+import { setLanguageOverride, useT } from '../lib/i18n.js';
+import { applyChordColor, applyTheme } from '../lib/theme.js';
+import { usePrefs } from '../lib/settings.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Logo } from '../components/Logo.js';
+
+/** What a screen uses when nobody has said otherwise: big, because it is read far away. */
+export const STAGE_DEFAULT_FONT = 72;
 
 /**
  * The stage display.
@@ -29,6 +34,31 @@ export function StagePage() {
 
   const { state, status, clockOffset, libraryRev } = useSession('stage', name);
   const live = useLiveSet(state.setId, libraryRev);
+  const [prefs] = usePrefs();
+
+  /*
+    How this screen looks, as the leader set it.
+
+    A stage display has nobody standing at it — it is a television on a bracket, and
+    the person who can see that the text is too small from the back row is at the
+    laptop. So the session carries these, and anything left unset here falls back to
+    what this screen would have done on its own.
+  */
+  const stage = state.stage;
+  useEffect(() => {
+    applyTheme(stage.theme ?? prefs.theme);
+    return () => applyTheme(prefs.theme);
+  }, [stage.theme, prefs.theme]);
+
+  useEffect(() => {
+    applyChordColor(stage.chordColor ?? prefs.chordColor);
+    return () => applyChordColor(prefs.chordColor);
+  }, [stage.chordColor, prefs.chordColor]);
+
+  useEffect(() => {
+    setLanguageOverride(stage.language);
+    return () => setLanguageOverride(null);
+  }, [stage.language]);
 
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -48,10 +78,11 @@ export function StagePage() {
 
   const fit = useFitToScreen(container, content, {
     // A stage display is read at a distance, so it is allowed to go much larger than a
-    // handheld device would.
-    maxFontPx: 72,
+    // handheld device would — and the leader can raise or lower that ceiling for every
+    // screen at once.
+    maxFontPx: stage.maxFontPx ?? STAGE_DEFAULT_FONT,
     minFontPx: 14,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}`,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${stage.maxFontPx}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.

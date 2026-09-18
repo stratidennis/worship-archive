@@ -12,7 +12,15 @@ import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
 import { Button, IconButton, Input, Stepper } from '../components/ui.js';
-import { IconHome, IconMusic, IconSets } from '../components/icons.js';
+import { Sheet } from '../components/Sheet.js';
+import {
+  ChordColour,
+  ChordSample,
+  FontSize,
+  LanguageChoice,
+  ThemeChoice,
+} from '../components/DisplaySettings.js';
+import { IconHome, IconMusic, IconSets, IconSettings } from '../components/icons.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -37,7 +45,7 @@ const NAME_KEY = 'worship-archive:device-name';
  * view diverges, so nobody is ever confused about why they are seeing a different verse.
  */
 export function BandPage() {
-  const { t } = useT();
+  const { t, lang, setLang } = useT();
   const [name, setName] = useState(() => {
     try {
       return localStorage.getItem(NAME_KEY) ?? '';
@@ -52,6 +60,7 @@ export function BandPage() {
 
   const [local, setLocal] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -156,6 +165,22 @@ export function BandPage() {
           onClick={() => setListOpen((open) => !open)}
         >
           <IconSets size={14} />
+        </IconButton>
+        {/*
+          Settings, here rather than through the settings page.
+
+          This view has no navigation on purpose — a musician following the leader
+          should not be one stray tap from somewhere else mid-service — and leaving to
+          change the theme would drop the session. So the handful that matter on a
+          phone in a dark room come to it: how it looks, and how big.
+        */}
+        <IconButton
+          size="sm"
+          label={t('settings.title')}
+          active={settingsOpen}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <IconSettings size={14} />
         </IconButton>
 
         {/*
@@ -335,6 +360,23 @@ export function BandPage() {
         >
           <Input name="name" placeholder={t('band.yourName')} aria-label={t('band.yourName')} />
         </form>
+      )}
+
+      {settingsOpen && (
+        <Sheet title={t('settings.title')} onClose={() => setSettingsOpen(false)}>
+          <ThemeChoice
+            label={t('settings.theme')}
+            value={prefs.theme}
+            onChange={(theme) => setPrefs({ theme })}
+          />
+          <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
+          <FontSize value={prefs.maxFontPx} onChange={(maxFontPx) => setPrefs({ maxFontPx })} />
+          <ChordColour
+            value={prefs.chordColor}
+            onChange={(chordColor) => setPrefs({ chordColor })}
+          />
+          <ChordSample />
+        </Sheet>
       )}
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
