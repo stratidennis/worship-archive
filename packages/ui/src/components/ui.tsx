@@ -36,17 +36,34 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
-  sm: 'h-7 px-2 text-xs',
-  md: 'h-9 px-3 text-sm',
+  sm: 'h-7 text-xs',
+  md: 'h-9 text-sm',
 };
+
+/*
+  Padding and width are separate from the size, and a square button picks the width.
+
+  They used to be one string — `h-9 px-3` — with `IconButton` appending `w-9 px-0` to
+  cancel the padding. It never did: two padding utilities in one class list are resolved
+  by the order Tailwind emits them, not the order they are written, so `px-3` won and a
+  36px button kept 24px of padding. The icon inside is a flex item, so instead of
+  overflowing it quietly shrank — every square icon button in the app was drawing a
+  17px icon at 10px. Nothing looked broken, it just looked wrong.
+*/
+const PADDING: Record<Size, string> = { sm: 'px-2', md: 'px-3' };
+const SQUARE: Record<Size, string> = { sm: 'w-7', md: 'w-9' };
 
 /** The button look, for the few places that need it on something that is not a button. */
 export function buttonClasses(
   variant: Variant = 'default',
   size: Size = 'md',
   className = '',
+  /** Square and unpadded, for a button whose whole content is one icon. */
+  icon = false,
 ): string {
-  return `${BASE} ${VARIANTS[variant]} ${SIZES[size]} ${className}`;
+  return `${BASE} ${VARIANTS[variant]} ${SIZES[size]} ${
+    icon ? SQUARE[size] : PADDING[size]
+  } ${className}`;
 }
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -54,10 +71,20 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: Size;
   /** Pressed state for toggles — styled as primary and announced to a screen reader. */
   active?: boolean;
+  /** Square and unpadded. Set by {@link IconButton}; rarely worth passing by hand. */
+  icon?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'default', size = 'md', active, className = '', type = 'button', ...rest },
+  {
+    variant = 'default',
+    size = 'md',
+    active,
+    icon = false,
+    className = '',
+    type = 'button',
+    ...rest
+  },
   ref,
 ) {
   const chosen: Variant = active ? 'primary' : variant;
@@ -66,7 +93,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       aria-pressed={active === undefined ? undefined : active}
-      className={buttonClasses(chosen, size, className)}
+      className={buttonClasses(chosen, size, className, icon)}
       {...rest}
     />
   );
@@ -80,10 +107,11 @@ export const IconButton = forwardRef<
   return (
     <Button
       ref={ref}
+      icon
       size={size}
       aria-label={label}
       title={label}
-      className={`${size === 'sm' ? 'w-7 px-0' : 'w-9 px-0'} ${className}`}
+      className={className}
       {...rest}
     />
   );
@@ -98,10 +126,11 @@ export const IconButton = forwardRef<
 export function ButtonLink({
   variant = 'default',
   size = 'md',
+  icon = false,
   className = '',
   ...rest
-}: LinkProps & { variant?: Variant; size?: Size }) {
-  return <Link className={buttonClasses(variant, size, className)} {...rest} />;
+}: LinkProps & { variant?: Variant; size?: Size; icon?: boolean }) {
+  return <Link className={buttonClasses(variant, size, className, icon)} {...rest} />;
 }
 
 const FIELD =

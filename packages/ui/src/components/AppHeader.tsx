@@ -126,7 +126,7 @@ export function AppHeader({
           aria-current={current === 'settings' ? 'page' : undefined}
           aria-label={t('settings.title')}
           title={t('settings.title')}
-          className="w-9 px-0"
+          icon
         >
           <IconSettings size={17} />
         </ButtonLink>

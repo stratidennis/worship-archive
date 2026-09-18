@@ -52,8 +52,19 @@ export type IconProps = Omit<LucideProps, 'ref'> & { size?: number };
 const WEIGHT = 2.25;
 
 function make(Component: React.ComponentType<LucideProps>) {
-  return function Icon({ size = 16, strokeWidth = WEIGHT, ...rest }: IconProps) {
-    return <Component size={size} strokeWidth={strokeWidth} aria-hidden {...rest} />;
+  // `shrink-0` because an icon is a flex item almost everywhere it appears, and a flex
+  // item whose container is a few pixels short shrinks silently rather than overflowing
+  // — which is how a row of 17px icons spent a while being drawn at 10px.
+  return function Icon({ size = 16, strokeWidth = WEIGHT, className, ...rest }: IconProps) {
+    return (
+      <Component
+        size={size}
+        strokeWidth={strokeWidth}
+        aria-hidden
+        className={`shrink-0 ${className ?? ''}`}
+        {...rest}
+      />
+    );
   };
 }
 
