@@ -6,14 +6,9 @@ import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
 import { AppHeader } from '../components/AppHeader.js';
 import { Page, Scroll } from '../components/Page.js';
+import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
-import {
-  confirmAction,
-  desktop,
-  pickTextFiles,
-  saveTextFile,
-  type DesktopState,
-} from '../lib/desktop.js';
+import { desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
 
 /**
  * Everything that is a setting, in one place.
@@ -59,6 +54,7 @@ export function SettingsPage() {
         message: t('settings.restore'),
         detail: t('settings.restoreConfirm'),
         confirmLabel: t('settings.restoreReplace'),
+        danger: true,
       });
       if (!ok) return;
     }

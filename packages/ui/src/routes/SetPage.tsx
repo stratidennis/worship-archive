@@ -486,22 +486,33 @@ export function SetPage() {
               {t('set.itemCount', { count: set.items.length })}
             </span>
 
-            {leading && (
-              <LeadControls
-                className="ml-auto"
-                state={state}
-                patch={patch}
-                clockOffset={clockOffset}
-                status={status}
-                auto={auto}
-                onAuto={setAuto}
-                showChords={prefs.showChords}
-                onChords={(showChords) => setPrefs({ showChords })}
-                devices={devices.length}
-                devicesOpen={devicesOpen}
-                onDevices={() => setDevicesOpen((open) => !open)}
-              />
-            )}
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+              {/* Whether chords are showing is a view preference, not a leading
+                  control. It used to appear only once the switch was on, which left a
+                  guitarist reading through Sunday's set on a Tuesday with no way to
+                  turn them off. */}
+              <Button
+                size="sm"
+                active={prefs.showChords}
+                onClick={() => setPrefs({ showChords: !prefs.showChords })}
+              >
+                {t('song.chords')}
+              </Button>
+
+              {leading && (
+                <LeadControls
+                  state={state}
+                  patch={patch}
+                  clockOffset={clockOffset}
+                  status={status}
+                  auto={auto}
+                  onAuto={setAuto}
+                  devices={devices.length}
+                  devicesOpen={devicesOpen}
+                  onDevices={() => setDevicesOpen((open) => !open)}
+                />
+              )}
+            </span>
           </div>
         </div>
       )}
@@ -807,12 +818,9 @@ function LeadControls({
   status,
   auto,
   onAuto,
-  showChords,
-  onChords,
   devices,
   devicesOpen,
   onDevices,
-  className = '',
 }: {
   state: SessionState;
   patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
@@ -820,16 +828,13 @@ function LeadControls({
   status: 'connecting' | 'live' | 'offline';
   auto: boolean;
   onAuto: (value: boolean) => void;
-  showChords: boolean;
-  onChords: (value: boolean) => void;
   devices: number;
   devicesOpen: boolean;
   onDevices: () => void;
-  className?: string;
 }) {
   const { t } = useT();
   return (
-    <span className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+    <span className="flex flex-wrap items-center gap-1.5">
       {/*
         Auto and Manual, the one idea worth keeping wholesale from the legacy app: in
         Manual the leader can look ahead — check the next song's key, find the bridge —
@@ -860,10 +865,6 @@ function LeadControls({
       </Button>
 
       <Tempo state={state} patch={patch} clockOffset={clockOffset} />
-
-      <Button size="sm" active={showChords} onClick={() => onChords(!showChords)}>
-        {t('song.chords')}
-      </Button>
 
       <Button size="sm" active={devicesOpen} onClick={onDevices} aria-expanded={devicesOpen}>
         <IconPeople size={14} />
@@ -1100,7 +1101,7 @@ function Preview({
       </div>
       <div
         ref={container}
-        className={`min-h-0 flex-1 px-3 py-2 sm:px-4 ${
+        className={`min-h-0 flex-1 px-3 py-3 sm:px-4 ${
           fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
         }`}
       >

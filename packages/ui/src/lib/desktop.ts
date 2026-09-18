@@ -34,11 +34,6 @@ interface DesktopApi {
   openFile: () => Promise<PickedFile | null>;
   setPreventSleep: (on: boolean) => Promise<boolean>;
   setAutoStart: (on: boolean) => Promise<boolean>;
-  confirm: (options: {
-    message: string;
-    detail?: string;
-    confirmLabel?: string;
-  }) => Promise<boolean>;
 }
 
 declare global {
@@ -101,15 +96,4 @@ export async function pickTextFiles(accept: string, multiple = true): Promise<Pi
     });
     input.click();
   });
-}
-
-/** A native modal in the desktop app, the browser's own otherwise. */
-export async function confirmAction(options: {
-  message: string;
-  detail?: string;
-  confirmLabel?: string;
-}): Promise<boolean> {
-  const native = desktop();
-  if (native) return native.confirm(options);
-  return confirm(options.detail ? `${options.message}\n\n${options.detail}` : options.message);
 }

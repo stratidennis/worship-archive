@@ -24,10 +24,11 @@ import { adminApi } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { useUndoable } from '../lib/useUndoable.js';
 import { useT, type Translator } from '../lib/i18n.js';
-import { confirmAction } from '../lib/desktop.js';
+import { confirmAction } from '../lib/confirm.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Modal } from '../components/Modal.js';
 import { Button, Checkbox, Field as UiField, Input, Select } from '../components/ui.js';
 import {
   IconClose,
@@ -231,7 +232,7 @@ export function EditPage() {
             and every line wrapped in a different place from where it will actually
             wrap. The text size matches the reading view for the same reason.
           */}
-          <div className="mx-auto w-full max-w-[min(100%,90rem)] text-[17px] leading-snug">
+          <div className="mx-auto w-full max-w-[min(100%,90rem)] text-[20px] leading-snug">
             <div className="text-base">
               <Metadata song={current} edit={edit} t={t} />
             </div>
@@ -479,6 +480,7 @@ export function EditPage() {
                   void confirmAction({
                     message: t('edit.deleteConfirm', { title: current.title }),
                     confirmLabel: t('app.delete'),
+                    danger: true,
                   }).then((ok) => {
                     if (ok) void adminApi.deleteSong(id).then(() => navigate('/'));
                   });
@@ -492,31 +494,26 @@ export function EditPage() {
         </div>
 
         {blocker.state === 'blocked' && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-            <div
-              role="alertdialog"
-              aria-modal="true"
-              aria-label={t('edit.unsavedTitle')}
-              className="w-full max-w-sm rounded-xl border border-(--color-line) bg-(--color-stage-bg) p-5 shadow-xl"
+          <Modal
+            title={t('edit.unsavedTitle')}
+            detail={t('edit.unsavedBody')}
+            onDismiss={() => blocker.reset?.()}
+          >
+            {/* Staying is first, so it holds the focus: Escape and Enter both keep the
+                work rather than losing it. */}
+            <Button onClick={() => blocker.reset?.()}>{t('edit.stay')}</Button>
+            <Button variant="danger" onClick={() => blocker.proceed?.()}>
+              {t('edit.discard')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                void save().then((ok) => (ok ? blocker.proceed?.() : blocker.reset?.()));
+              }}
             >
-              <h2 className="text-lg font-bold">{t('edit.unsavedTitle')}</h2>
-              <p className="mt-1 text-sm text-(--color-muted)">{t('edit.unsavedBody')}</p>
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <Button onClick={() => blocker.reset?.()}>{t('edit.stay')}</Button>
-                <Button variant="danger" onClick={() => blocker.proceed?.()}>
-                  {t('edit.discard')}
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    void save().then((ok) => (ok ? blocker.proceed?.() : blocker.reset?.()));
-                  }}
-                >
-                  {t('edit.save')}
-                </Button>
-              </div>
-            </div>
-          </div>
+              {t('edit.save')}
+            </Button>
+          </Modal>
         )}
 
         {preview && (

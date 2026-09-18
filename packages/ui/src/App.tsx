@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { I18nProvider, useT } from './lib/i18n.js';
+import { ConfirmDialog } from './components/ConfirmDialog.js';
 import { useTheme } from './lib/theme.js';
 import { Library } from './routes/Library.js';
 import { SongPage } from './routes/SongPage.js';
@@ -36,6 +37,8 @@ function Shell({ children }: { children: React.ReactNode }) {
     <>
       <SkipLink />
       {children}
+      {/* One dialog for the whole app, so any page can ask a question by awaiting one. */}
+      <ConfirmDialog />
     </>
   );
 }

@@ -76,7 +76,20 @@ export function useFitToScreen(
     if (!container || !content) return;
 
     const measure = (): void => {
-      const available = container.clientHeight;
+      /*
+        The *content* box, not `clientHeight`.
+
+        `clientHeight` includes the container's own padding, so a song was allowed to
+        grow into it — the last line of a long song sat flush against the bottom edge of
+        the screen with the padding underneath it doing nothing. Subtracting it back out
+        is what makes the breathing room actually exist, on every view that fits a song:
+        the set preview, the song page, the band view and the stage.
+      */
+      const box = getComputedStyle(container);
+      const available =
+        container.clientHeight -
+        (parseFloat(box.paddingTop) || 0) -
+        (parseFloat(box.paddingBottom) || 0);
       const width = container.clientWidth;
       if (available <= 0 || width <= 0) {
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the

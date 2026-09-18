@@ -48,13 +48,6 @@ const api = {
     ipcRenderer.invoke('worship:set-prevent-sleep', on),
   setAutoStart: (on: boolean): Promise<boolean> =>
     ipcRenderer.invoke('worship:set-auto-start', on),
-
-  /** A native modal, for the handful of decisions that must not be a page element. */
-  confirm: (options: {
-    message: string;
-    detail?: string;
-    confirmLabel?: string;
-  }): Promise<boolean> => ipcRenderer.invoke('worship:confirm', options),
 };
 
 export type WorshipDesktopApi = typeof api;

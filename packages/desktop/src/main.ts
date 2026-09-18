@@ -415,21 +415,6 @@ function registerIpc(): void {
     setPreventSleep(Boolean(on)),
   );
   ipcMain.handle('worship:set-auto-start', (_event, on: boolean) => setAutoStart(Boolean(on)));
-
-  ipcMain.handle(
-    'worship:confirm',
-    async (_event, options: { message: string; detail?: string; confirmLabel?: string }) => {
-      const result = await dialog.showMessageBox({
-        type: 'warning',
-        buttons: [options.confirmLabel ?? 'Continuă', 'Anulează'],
-        defaultId: 1,
-        cancelId: 1,
-        message: options.message,
-        ...(options.detail ? { detail: options.detail } : {}),
-      });
-      return result.response === 0;
-    },
-  );
 }
 
 // ---- lifecycle -------------------------------------------------------------

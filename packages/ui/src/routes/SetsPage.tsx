@@ -4,7 +4,7 @@ import type { SetSummary } from '../lib/api.js';
 import { api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { forgetSet, rememberSet } from '../lib/lastSet.js';
-import { confirmAction } from '../lib/desktop.js';
+import { confirmAction } from '../lib/confirm.js';
 import { useT } from '../lib/i18n.js';
 import { nextSunday, setName } from '../lib/setName.js';
 import { AppHeader } from '../components/AppHeader.js';
@@ -99,6 +99,7 @@ export function SetsPage() {
                     void confirmAction({
                       message: t('sets.deleteConfirm', { title: setName(set, date) }),
                       confirmLabel: t('app.delete'),
+                      danger: true,
                     }).then((ok) => {
                       if (!ok) return;
                       // Forget it first: this device must not reopen a set that is gone.
