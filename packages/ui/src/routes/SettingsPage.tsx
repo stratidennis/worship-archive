@@ -60,8 +60,15 @@ export function SettingsPage() {
   */
   const selected = screen !== null && screens.some((s) => s.name === screen) ? screen : null;
   const stage = selected ? (byScreen[selected] ?? DEFAULT_STAGE_DISPLAY) : shared;
-  /** One screen inherits from all screens; all screens inherit from each screen itself. */
-  const inherit = selected ? t('settings.asAllScreens') : t('settings.asTheScreen');
+  /**
+   * One screen inherits from all screens; all screens inherit from this one.
+   *
+   * That last step is the whole point of the default: a television has no settings
+   * anybody chose, so "leave it alone" meant "leave it at whatever a fresh browser
+   * does" — which is how a leader working in English ended up with Romanian on the
+   * wall. Left alone, the screens now look like the screen being led from.
+   */
+  const inherit = selected ? t('settings.asAllScreens') : t('settings.asThisDevice');
   const setStage = (patch: Partial<StageDisplay>): void => saveStage(selected, patch);
 
   useEffect(() => {
@@ -264,11 +271,14 @@ export function SettingsPage() {
                   onChange={(language) => setStage({ language })}
                   inherit={inherit}
                 />
+                {/* Size is the one thing the screens do not take from here: a ceiling
+                    for a laptop on a music stand is not a ceiling for a television
+                    across a hall. Cleared, it is the screens' own generous default. */}
                 <FontSize
                   value={stage.maxFontPx}
                   onChange={(maxFontPx) => setStage({ maxFontPx })}
                   onClear={() => setStage({ maxFontPx: null })}
-                  clearLabel={inherit}
+                  clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.maxFontPx : null) ?? 72}
                 />
                 <ChordColour

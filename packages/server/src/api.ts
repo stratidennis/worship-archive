@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import {
   DEFAULT_STAGE_DISPLAY,
+  type HostDisplay,
   isStageDisplayEmpty,
   patchStageDisplay,
   type ServiceSet,
@@ -125,7 +126,18 @@ export function createServer(options: ApiOptions): FastifyInstance {
       return reply.code(400).send({ error: 'expected a song document' });
     }
     // `rev`, `createdAt` and `updatedAt` are the library's to set, not the client's.
-    return library.save({ ...incoming, id });
+    const saved = library.save({ ...incoming, id });
+    /*
+      Tell the room.
+
+      Every device holds the whole set in memory and never refetches on its own — that
+      is what keeps a phone useful when the WiFi drops mid-song. The cost is that a
+      change made here is invisible until somebody says so, and the leader changing a
+      song's key on the set page and watching nothing happen on the stage is exactly
+      the failure that buys.
+    */
+    options.hub?.notifyLibraryChanged();
+    return saved;
   });
 
   app.post('/api/songs', async (request, reply) => {
@@ -157,6 +169,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
   app.delete('/api/songs/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     if (!library.delete(id)) return reply.code(404).send({ error: 'not found' });
+    options.hub?.notifyLibraryChanged();
     return reply.code(204).send();
   });
 
@@ -176,6 +189,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const { id, rev } = request.params as { id: string; rev: string };
     const song = library.revert(id, Number(rev));
     if (!song) return reply.code(404).send({ error: 'not found' });
+    options.hub?.notifyLibraryChanged();
     return song;
   });
 
@@ -212,7 +226,9 @@ export function createServer(options: ApiOptions): FastifyInstance {
     if (!incoming || typeof incoming !== 'object') {
       return reply.code(400).send({ error: 'expected a set document' });
     }
-    return sets.save({ ...incoming, id });
+    const saved = sets.save({ ...incoming, id });
+    options.hub?.notifyLibraryChanged();
+    return saved;
   });
 
   app.post('/api/sets/:id/duplicate', async (request, reply) => {
@@ -226,6 +242,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
   app.delete('/api/sets/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     if (!sets.delete(id)) return reply.code(404).send({ error: 'not found' });
+    options.hub?.notifyLibraryChanged();
     return reply.code(204).send();
   });
 
@@ -366,6 +383,32 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const stage = patchStageDisplay(state.stage, body);
     options.hub.patch({ stage });
     return { stage };
+  });
+
+  /*
+    What the leader's own screen looks like, for the screens following it.
+
+    Over HTTP as well as through the socket because the leader is not always leading:
+    somebody setting a hall up on a Tuesday, with no service running, still expects the
+    televisions to match the laptop they are standing at.
+  */
+  app.put('/api/session/host', async (request, reply) => {
+    if (!options.hub) return reply.code(503).send({ error: 'no session' });
+    const body = request.body as Partial<HostDisplay> | undefined;
+    if (!body || typeof body !== 'object') return reply.code(400).send({ error: 'bad body' });
+    // `auto` is not a look, it is a question, and the answer is the *host's* — which is
+    // why the device resolves it before sending. See HostDisplay.
+    const themes: HostDisplay['theme'][] = ['light', 'dark', 'stage'];
+    const theme = themes.find((name) => name === body.theme);
+    const language = body.language === 'en' || body.language === 'ro' ? body.language : null;
+    if (!theme || !language) return reply.code(400).send({ error: 'bad body' });
+    const host: HostDisplay = {
+      theme,
+      language,
+      chordColor: typeof body.chordColor === 'string' ? body.chordColor : null,
+    };
+    options.hub.patch({ host });
+    return { host };
   });
 
   app.get('/api/session', async () => ({

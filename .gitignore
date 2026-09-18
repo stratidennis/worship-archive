@@ -18,6 +18,7 @@ coverage/
 index.db
 index.db-*
 /data/
+/packages/server/data/
 /tmp/
 migration-report.html
 .tsc/

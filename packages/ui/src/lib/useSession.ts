@@ -27,6 +27,8 @@ export type ConnectionStatus = 'connecting' | 'live' | 'offline';
 export interface Session {
   state: SessionState;
   devices: DeviceInfo[];
+  /** This tab's own id, so it can find itself in `devices`. */
+  deviceId: string;
   status: ConnectionStatus;
   /** serverTime − clientTime, so the metronome agrees across devices. */
   clockOffset: number;
@@ -247,5 +249,14 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
     ws.send(JSON.stringify({ t: 'patch', patch: value } satisfies ClientMessage));
   }, []);
 
-  return { state, devices, status, clockOffset, patch, libraryRev, synced };
+  return {
+    state,
+    devices,
+    deviceId: myDeviceId.current,
+    status,
+    clockOffset,
+    patch,
+    libraryRev,
+    synced,
+  };
 }

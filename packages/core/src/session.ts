@@ -45,6 +45,32 @@ export interface StageDisplay {
   chordColor: string | null;
 }
 
+/**
+ * What the leader's own screen looks like at this moment.
+ *
+ * Published by the leader's device, and the reason it exists is a genuinely confusing
+ * failure: "as the screen" for a stage display meant *that television's own* settings,
+ * which nobody has ever chosen — a browser opened on a TV is whatever the defaults are.
+ * So a leader working in English, having set the screens to follow along, watched them
+ * stay in Romanian, and the setting looked broken rather than misunderstood.
+ *
+ * Mirroring the leader is what people mean, so that is what the unset state now does,
+ * and this is where the thing being mirrored is kept.
+ *
+ * The theme here is **resolved**, never `auto`: "match the system" published as-is
+ * would mean the *television's* system, which is exactly the misunderstanding again,
+ * one level down. The leader's laptop in dark mode publishes `dark`.
+ *
+ * Text size is deliberately absent. A ceiling chosen for a laptop on a music stand is
+ * not a ceiling for a television across a hall — that one is not a thing to mirror,
+ * and the screens' own generous default is the right answer.
+ */
+export interface HostDisplay {
+  theme: Exclude<ThemeName, 'auto'>;
+  language: LanguageName;
+  chordColor: string | null;
+}
+
 export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   theme: null,
   language: null,
@@ -94,12 +120,16 @@ export function patchStageDisplay(
  */
 export function resolveStageDisplay(state: SessionState, screen: string | null): StageDisplay {
   const own = (screen && state.stageBy[screen]) || null;
-  if (!own) return state.stage;
+  const host = state.host;
   return {
-    theme: own.theme ?? state.stage.theme,
-    language: own.language ?? state.stage.language,
-    maxFontPx: own.maxFontPx ?? state.stage.maxFontPx,
-    chordColor: own.chordColor ?? state.stage.chordColor,
+    // Three layers, narrowest first: this screen, then all screens, then the leader's
+    // own device — and only if all three are silent does the screen fall back to
+    // whatever its own browser happens to think, which is nobody's decision.
+    theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,
+    language: own?.language ?? state.stage.language ?? host?.language ?? null,
+    chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
+    // Not the leader's. See {@link HostDisplay}.
+    maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
   };
 }
 
@@ -120,6 +150,12 @@ export interface SessionState {
 
   /** How the stage screens should look. See {@link StageDisplay}. */
   stage: StageDisplay;
+  /**
+   * How the leader's own screen looks, for the screens set to follow it.
+   *
+   * Null until a leader's device has said. See {@link HostDisplay}.
+   */
+  host: HostDisplay | null;
   /**
    * Overrides for one named screen, keyed by the name in its address.
    *
@@ -154,6 +190,7 @@ export const INITIAL_SESSION: SessionState = {
   output: 'live',
   stage: DEFAULT_STAGE_DISPLAY,
   stageBy: {},
+  host: null,
   tempo: null,
   beatsPerBar: 4,
   beatEpoch: null,
@@ -162,7 +199,16 @@ export const INITIAL_SESSION: SessionState = {
 };
 
 export interface DeviceInfo {
+  /** This connection. A reload gets a new one. */
   id: string;
+  /**
+   * The device behind it, as that device knows itself.
+   *
+   * Survives a reconnect, which is what makes the leader's own row in the list
+   * identifiable as *this laptop* rather than as one more anonymous entry. Null only
+   * in the moments before a device has said hello.
+   */
+  deviceId: string | null;
   name: string;
   role: DeviceRole;
   /** ISO time the device joined. */

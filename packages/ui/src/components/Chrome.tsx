@@ -1,6 +1,8 @@
 import { Outlet } from 'react-router-dom';
 import { AppHeader } from './AppHeader.js';
+import { DevicesPanel } from './DevicesPanel.js';
 import { HeaderSlotsProvider } from './header-slots.js';
+import { useHostAppearance } from '../lib/hostAppearance.js';
 
 /**
  * The shell every page with navigation lives inside.
@@ -19,11 +21,31 @@ import { HeaderSlotsProvider } from './header-slots.js';
  * page.
  */
 export function Chrome() {
+  /*
+    Here, and not above the router, because *this* is the set of pages the leader uses.
+
+    A television plugged into the host laptop is opened at `localhost/stage`, which
+    looks exactly like the leader's own browser to anything checking the address — so
+    published from the app shell it would announce the screen's appearance as the
+    thing the screens should follow, and a screen would end up following itself.
+    `/stage` and `/band` live outside this route on purpose; letting that fact do the
+    work is better than another test of who is who.
+  */
+  useHostAppearance();
+
   return (
     <HeaderSlotsProvider>
       <div className="flex h-dvh flex-col print:block print:h-auto">
         <AppHeader />
-        <Outlet />
+        {/* The page, and beside it whoever is connected. The panel is part of the
+            shell for the same reason the header is: it belongs to the service, not to
+            whichever page the leader happens to be looking at. */}
+        <div className="flex min-h-0 flex-1 print:block">
+          <div className="flex min-h-0 flex-1 flex-col print:block">
+            <Outlet />
+          </div>
+          <DevicesPanel />
+        </div>
       </div>
     </HeaderSlotsProvider>
   );

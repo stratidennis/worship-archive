@@ -101,6 +101,22 @@ describe('joining', () => {
     stage.ws.close();
   });
 
+  /*
+    Each entry carries the id its own device chose, which is the only way a device can
+    find itself in the list. Without it the leader's laptop is one more anonymous row,
+    and counting the phones in the room gives one more than there are people.
+  */
+  it('says which device each entry is, so a device can recognise itself', async () => {
+    const leader = await connect();
+    send(leader, { t: 'hello', role: 'leader', name: 'Lider', deviceId: 'this-laptop' });
+    const frame = await waitFor(leader, 'devices', (m) =>
+      m.devices.some((d) => d.deviceId === 'this-laptop'),
+    );
+    expect(frame.devices).toHaveLength(1);
+    expect(frame.devices[0]!.deviceId).toBe('this-laptop');
+    leader.ws.close();
+  });
+
   it('replaces a reconnecting device rather than listing it twice', async () => {
     const first = await connect();
     send(first, { t: 'hello', role: 'band', name: 'Dennis', deviceId: 'same' });

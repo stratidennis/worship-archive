@@ -22,8 +22,6 @@ interface Client {
   socket: WebSocket;
   device: DeviceInfo;
   alive: boolean;
-  /** Stable across reconnects; supplied by the client and persisted in its storage. */
-  deviceId: string | null;
 }
 
 export interface HubOptions {
@@ -155,9 +153,14 @@ export class SessionHub {
       // Empty rather than a placeholder word: the server has no language, and this is
       // only visible for the few milliseconds before the device says hello. The client
       // renders its own translated fallback.
-      device: { id, name: '', role: 'band', since: new Date().toISOString() },
+      device: {
+        id,
+        deviceId: null,
+        name: '',
+        role: 'band',
+        since: new Date().toISOString(),
+      },
       alive: true,
-      deviceId: null,
     };
     this.clients.set(id, client);
 
@@ -185,15 +188,15 @@ export class SessionHub {
           // list for up to ten seconds, exactly when they are looking at it.
           if (message.deviceId) {
             for (const [otherId, other] of this.clients) {
-              if (otherId !== id && other.deviceId === message.deviceId) {
+              if (otherId !== id && other.device.deviceId === message.deviceId) {
                 this.clients.delete(otherId);
                 other.socket.terminate();
               }
             }
-            client.deviceId = message.deviceId;
           }
           client.device = {
             ...client.device,
+            deviceId: message.deviceId ?? client.device.deviceId,
             name: message.name?.slice(0, 60) || '',
             role: message.role,
           };

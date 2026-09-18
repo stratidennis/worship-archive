@@ -1,15 +1,20 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT, type TranslationKey } from '../lib/i18n.js';
-import { useLeading } from '../lib/leading.js';
+import { setLeading, useLeading } from '../lib/leading.js';
 import { useHeaderSlots } from './header-slots.js';
+import { useLeaderSession } from './LeaderSession.js';
 import { Logo } from './Logo.js';
 import { ThemeToggle } from './ThemeToggle.js';
-import { ButtonLink, IconButton } from './ui.js';
+import { usePrefs } from '../lib/settings.js';
+import { Button, ButtonLink, IconButton } from './ui.js';
 import {
   IconBack,
+  IconChevronDown,
+  IconChevronUp,
   IconLead,
   IconLibrary,
+  IconPeople,
   IconSets,
   IconSettings,
   type IconProps,
@@ -78,9 +83,13 @@ export function AppHeader() {
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
-  const { placement, setHosts } = useHeaderSlots();
+  const { placement, hosts, setHosts } = useHeaderSlots();
   const { current, back } = placement;
-  const { setId: leadingSetId } = useLeading();
+  const { setId: leadingSetId, devicesOpen } = useLeading();
+  const { devices } = useLeaderSession();
+  const [prefs, setPrefs] = usePrefs();
+  const onSetPage = /^\/sets\/[^/]+$/.test(location.pathname);
+  const [hasPageActions, setHasPageActions] = useState(false);
   // Leading, but looking at something else. On the set itself the switch says so
   // already; anywhere else this is the only sign that the screens are following you.
   const leadingElsewhere =
@@ -97,6 +106,22 @@ export function AppHeader() {
     (node: HTMLDivElement | null) => setHosts((current) => ({ ...current, actions: node })),
     [setHosts],
   );
+
+  // Header actions arrive through a portal after the host itself mounts. Observe that
+  // host so dividers follow the content: no empty line on pages without actions, and a
+  // boundary on both sides as soon as a page contributes a group.
+  useEffect(() => {
+    const node = hosts.actions;
+    if (!node) {
+      setHasPageActions(false);
+      return;
+    }
+    const update = (): void => setHasPageActions(node.childNodes.length > 0);
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(node, { childList: true });
+    return () => observer.disconnect();
+  }, [hosts.actions]);
 
   const goBack = (): void => {
     // `idx` is React Router's position in its own history stack. At zero there is
@@ -149,12 +174,47 @@ export function AppHeader() {
       />
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        {/* What the page does, then what the app does — with a hairline between them,
-            drawn by the actions themselves so it cannot appear beside nothing. */}
+        {/* A hairline belongs *between* two groups, never before the first one after the
+            flexible space. Empty portal hosts stay completely invisible, and each
+            later visible group draws the single divider that separates it from the
+            visible group immediately before it. */}
         <div
-          ref={actionsRef}
-          className="flex items-center gap-1.5 [&:not(:empty)]:mr-1 [&:not(:empty)]:border-r [&:not(:empty)]:border-(--color-line) [&:not(:empty)]:pr-2.5"
-        />
+          className={`${onSetPage ? 'flex' : hasPageActions ? 'flex' : 'hidden'} items-center gap-1.5`}
+        >
+          <div ref={actionsRef} className="flex items-center gap-1.5" />
+
+          {/* On a set, these are one service-control group: Lead, Members, tools.
+              Keeping the latter two here lets the order stay stable while the page
+              still owns the Lead action itself. */}
+          {onSetPage && leadingSetId !== null && (
+            <Button
+              variant="ghost"
+              active={devicesOpen}
+              aria-expanded={devicesOpen}
+              aria-label={t('lead.connected', { count: devices.length })}
+              title={t('lead.connected', { count: devices.length })}
+              onClick={() => setLeading({ devicesOpen: !devicesOpen })}
+            >
+              <IconPeople size={17} />
+              <span className="tabular-nums">{devices.length}</span>
+            </Button>
+          )}
+
+          {onSetPage && (
+            <IconButton
+              variant="ghost"
+              label={prefs.setHeaderExpanded ? t('set.collapseHeader') : t('set.expandHeader')}
+              onClick={() => setPrefs({ setHeaderExpanded: !prefs.setHeaderExpanded })}
+              aria-expanded={prefs.setHeaderExpanded}
+            >
+              {prefs.setHeaderExpanded ? (
+                <IconChevronUp size={17} />
+              ) : (
+                <IconChevronDown size={17} />
+              )}
+            </IconButton>
+          )}
+        </div>
 
         {/*
           A service is running and you are not looking at it.
@@ -164,62 +224,98 @@ export function AppHeader() {
           the kind of thing that gets discovered at the wrong moment. So it says so, and
           the way back is the same control.
         */}
-        {leadingElsewhere && (
-          <ButtonLink
-            to={`/sets/${encodeURIComponent(leadingSetId)}`}
-            variant="primary"
-            title={t('lead.stillLeading')}
+        {!onSetPage && leadingSetId !== null && (
+          <div
+            className={`flex items-center gap-1.5 ${
+              hasPageActions ? 'ml-1 border-l border-(--color-line) pl-2.5' : ''
+            }`}
           >
-            {/* The same size and the same icon as the switch on the set itself. The
-                header does not remount between pages, so a control that changed shape
-                as you navigated read as a different control rather than as the same one
-                following you. */}
-            <IconLead size={16} />
-            <span className="hidden sm:inline">{t('app.lead')}</span>
-          </ButtonLink>
-        )}
+            {leadingElsewhere && (
+              <ButtonLink
+                to={`/sets/${encodeURIComponent(leadingSetId)}`}
+                variant="primary"
+                title={t('lead.stillLeading')}
+              >
+                {/* The same size and the same icon as the switch on the set itself. The
+                    header does not remount between pages, so a control that changed shape
+                    as you navigated read as a different control rather than as the same one
+                    following you. */}
+                <IconLead size={16} />
+                <span className="hidden sm:inline">{t('app.lead')}</span>
+              </ButtonLink>
+            )}
 
-        {/*
-          Back lives with the app's own controls, on the right.
+            {/*
+          Who is connected, from wherever you are.
 
-          In front of the navigation it moved the logo and all three destinations
-          sideways on every page that had one, so the thing you aim at to get Home was
-          somewhere different depending on where you were — which is the one thing a
-          fixed navigation bar exists to prevent. Here it appears and disappears at the
-          end of a row, where the only thing it can push is itself.
+          The toggle is here rather than in the set page's tools row because the panel
+          it opens is now part of the shell: a control that existed on one page could
+          be closed from the archive and only reopened by going back to the set, which
+          is not a toggle so much as a trapdoor.
         */}
-        {back && (
-          <IconButton variant="ghost" label={t('app.back')} onClick={goBack}>
-            <IconBack size={17} />
-          </IconButton>
+            <Button
+              variant="ghost"
+              active={devicesOpen}
+              aria-expanded={devicesOpen}
+              aria-label={t('lead.connected', { count: devices.length })}
+              title={t('lead.connected', { count: devices.length })}
+              onClick={() => setLeading({ devicesOpen: !devicesOpen })}
+            >
+              <IconPeople size={17} />
+              <span className="tabular-nums">{devices.length}</span>
+            </Button>
+          </div>
         )}
 
-        <ThemeToggle />
-        {/*
-          Settings is a detour, not a destination, so the same button gets you back out
-          of it. Pressing it again to close what it opened is what a toggle is, and
-          there is nothing else in this header that means "I am done here".
-        */}
-        {current === 'settings' ? (
-          <IconButton
-            variant="ghost"
-            label={t('settings.close')}
-            onClick={goBack}
-            className={HERE}
-          >
-            <IconSettings size={17} />
-          </IconButton>
-        ) : (
-          <ButtonLink
-            to="/settings"
-            variant="ghost"
-            aria-label={t('settings.title')}
-            title={t('settings.title')}
-            icon
-          >
-            <IconSettings size={17} />
-          </ButtonLink>
-        )}
+        <div
+          className={`flex items-center gap-1.5 ${
+            hasPageActions || onSetPage || leadingSetId !== null
+              ? 'ml-1 border-l border-(--color-line) pl-2.5'
+              : ''
+          }`}
+        >
+          {/*
+            Back lives with the app's own controls, on the right.
+
+            In front of the navigation it moved the logo and all three destinations
+            sideways on every page that had one, so the thing you aim at to get Home was
+            somewhere different depending on where you were — which is the one thing a
+            fixed navigation bar exists to prevent. Here it appears and disappears at the
+            end of a row, where the only thing it can push is itself.
+          */}
+          {back && (
+            <IconButton variant="ghost" label={t('app.back')} onClick={goBack}>
+              <IconBack size={17} />
+            </IconButton>
+          )}
+
+          <ThemeToggle />
+          {/*
+            Settings is a detour, not a destination, so the same button gets you back out
+            of it. Pressing it again to close what it opened is what a toggle is, and
+            there is nothing else in this header that means "I am done here".
+          */}
+          {current === 'settings' ? (
+            <IconButton
+              variant="ghost"
+              label={t('settings.close')}
+              onClick={goBack}
+              className={HERE}
+            >
+              <IconSettings size={17} />
+            </IconButton>
+          ) : (
+            <ButtonLink
+              to="/settings"
+              variant="ghost"
+              aria-label={t('settings.title')}
+              title={t('settings.title')}
+              icon
+            >
+              <IconSettings size={17} />
+            </ButtonLink>
+          )}
+        </div>
       </div>
     </header>
   );

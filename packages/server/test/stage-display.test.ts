@@ -157,3 +157,48 @@ describe('one screen at a time', () => {
     expect(response.json().state.stageBy.Back.language).toBe('en');
   });
 });
+
+/*
+  What the leader's own screen looks like.
+
+  The layer under everything else, and the one that makes an untouched installation
+  behave the way people expect: the televisions look like the laptop.
+*/
+describe('the leader\u2019s own appearance', () => {
+  const putHost = (body: Record<string, unknown>) =>
+    app.inject({ method: 'PUT', url: '/api/session/host', payload: body as object });
+
+  it('is unknown until a leader\u2019s device says', () => {
+    expect(hub.getState().host).toBeNull();
+  });
+
+  it('is what the screens fall back to', async () => {
+    await putHost({ theme: 'dark', language: 'en', chordColor: '#ef4444' });
+    const state = hub.getState();
+    expect(state.host).toEqual({ theme: 'dark', language: 'en', chordColor: '#ef4444' });
+    expect(resolveStageDisplay(state, null)).toMatchObject({ theme: 'dark', language: 'en' });
+  });
+
+  /*
+    "Match the system" is a question, not a look, and the answer belongs to the device
+    asking it. Sent as-is it would mean the *television's* system, which is the whole
+    misunderstanding this layer exists to fix, one level down — so the device resolves
+    it first and the host refuses it if it did not.
+  */
+  it('refuses a theme that is not a look', async () => {
+    const response = await putHost({ theme: 'auto', language: 'ro' });
+    expect(response.statusCode).toBe(400);
+    expect(hub.getState().host).toBeNull();
+  });
+
+  it('refuses a language it does not have', async () => {
+    expect((await putHost({ theme: 'dark', language: 'fr' })).statusCode).toBe(400);
+    expect((await putHost({ theme: 'dark' })).statusCode).toBe(400);
+  });
+
+  it('reaches every screen, because the hub pushes the whole state', async () => {
+    const before = hub.getState().rev;
+    await putHost({ theme: 'light', language: 'ro', chordColor: null });
+    expect(hub.getState().rev).toBeGreaterThan(before);
+  });
+});

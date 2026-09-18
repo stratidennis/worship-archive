@@ -74,6 +74,44 @@ export function BandPage() {
 
   const viewing = songAt(live.set, live.songs, itemIndex);
 
+  /*
+    Key and capo: the leader's, unless this musician has said otherwise since.
+
+    Both are the leader's to set — they are properties of how the song is being played
+    this Sunday, not of this phone — so they arrive with the set and apply everywhere.
+    But a capoed guitar and a bass are not playing the same shapes, so anyone can
+    disagree locally.
+
+    The disagreement lasts until the leader decides something. Any change they make to
+    this song, or moving to another one, puts every device back on what they said:
+    otherwise a guitarist who transposed up two in the first song spends the rest of
+    the service two semitones away from the room, and nothing on their screen explains
+    why. Held in component state rather than in prefs for the same reason — this is an
+    opinion about one song in one service, not a setting.
+  */
+  const leaderTranspose = useMemo(() => {
+    if (!viewing?.item.keyOverride) return state.transpose;
+    const native = viewing.song.performanceKey ?? viewing.song.writtenKey;
+    if (!native) return state.transpose;
+    return state.transpose + (semitonesBetween(native, viewing.item.keyOverride) ?? 0);
+  }, [viewing, state.transpose]);
+  const leaderCapo = viewing?.item.capoOverride ?? 0;
+
+  const leaderSays = `${itemIndex}:${viewing?.item.keyOverride ?? ''}:${
+    viewing?.item.capoOverride ?? ''
+  }:${state.transpose}`;
+  const [heard, setHeard] = useState(leaderSays);
+  const [shift, setShift] = useState(0);
+  const [capo, setCapo] = useState<number | null>(null);
+  if (heard !== leaderSays) {
+    setHeard(leaderSays);
+    setShift(0);
+    setCapo(null);
+  }
+
+  const transpose = leaderTranspose + shift;
+  const capoFret = capo ?? leaderCapo;
+
   /**
    * Stop following, right where you are.
    *
@@ -98,10 +136,14 @@ export function BandPage() {
     // during a service the first is the one people press without thinking.
     Escape: () => (help ? setHelp(false) : setLocal(null)),
     c: () => setPrefs({ showChords: !prefs.showChords }),
-    '+': () => setPrefs({ transpose: prefs.transpose + 1 }),
-    '=': () => setPrefs({ transpose: prefs.transpose + 1 }),
-    '-': () => setPrefs({ transpose: prefs.transpose - 1 }),
-    '0': () => setPrefs({ transpose: 0 }),
+    '+': () => setShift((value) => Math.min(11, value + 1)),
+    '=': () => setShift((value) => Math.min(11, value + 1)),
+    '-': () => setShift((value) => Math.max(-11, value - 1)),
+    // Back to the leader, both of them, which is what "0" means on this screen.
+    '0': () => {
+      setShift(0);
+      setCapo(null);
+    },
     '?': () => setHelp((open) => !open),
   });
 
@@ -126,20 +168,9 @@ export function BandPage() {
     };
   }, []);
 
-  const extraTranspose = useMemo(() => {
-    if (!viewing?.item.keyOverride) return state.transpose + prefs.transpose;
-    const native = viewing.song.performanceKey ?? viewing.song.writtenKey;
-    if (!native) return state.transpose + prefs.transpose;
-    return (
-      state.transpose +
-      prefs.transpose +
-      (semitonesBetween(native, viewing.item.keyOverride) ?? 0)
-    );
-  }, [viewing, state.transpose, prefs.transpose]);
-
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${extraTranspose}:${prefs.capo}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}`,
   });
 
   return (
@@ -192,33 +223,35 @@ export function BandPage() {
           know is which song everyone is on.
         */}
         <div className="order-last flex w-full flex-wrap items-center gap-1.5 sm:order-none sm:w-auto">
+          {/* Both read zero — "as the leader has it" — until this device says
+              otherwise, and the middle button puts them back there. */}
           <Stepper
             size="sm"
             caption={t('song.pitch')}
-            value={prefs.transpose}
-            display={prefs.transpose > 0 ? `+${prefs.transpose}` : String(prefs.transpose)}
-            onChange={(transpose) => setPrefs({ transpose })}
+            value={shift}
+            display={shift > 0 ? `+${shift}` : String(shift)}
+            onChange={setShift}
             min={-11}
             max={11}
             resetTo={0}
             labels={{
               down: t('song.transposeDown'),
               up: t('song.transposeUp'),
-              reset: t('song.transposeReset'),
+              reset: t('band.asLeader'),
             }}
           />
           <Stepper
             size="sm"
             caption={t('sets.capo')}
-            value={prefs.capo}
-            onChange={(capo) => setPrefs({ capo })}
+            value={capoFret}
+            onChange={(value) => setCapo(value === leaderCapo ? null : value)}
             min={0}
             max={11}
-            resetTo={0}
+            resetTo={leaderCapo}
             labels={{
               down: t('song.capoDown'),
               up: t('song.capoUp'),
-              reset: t('song.capoReset'),
+              reset: t('band.asLeader'),
             }}
           />
           <IconButton
@@ -274,6 +307,13 @@ export function BandPage() {
                     // ahead is rarely one glance, and having to reopen the list for
                     // every song made the one thing this panel is for feel like work.
                     setLocal(index);
+                    /*
+                      Closing depends on whether the list is beside the song or on top
+                      of it. Below `md` it takes the whole width and the song is behind
+                      it, so choosing one is the end of the errand; beside it, it stays
+                      open, because looking ahead is rarely one glance.
+                    */
+                    if (!window.matchMedia('(min-width: 768px)').matches) setListOpen(false);
                   }}
                   aria-current={index === itemIndex ? 'true' : undefined}
                   className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm ${
@@ -335,8 +375,8 @@ export function BandPage() {
                 options={{
                   showChords: prefs.showChords,
                   showBass: false,
-                  capo: viewing.item.capoOverride ?? prefs.capo,
-                  transpose: extraTranspose,
+                  capo: capoFret,
+                  transpose,
                 }}
               />
             </div>

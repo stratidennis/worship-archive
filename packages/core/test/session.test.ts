@@ -161,8 +161,53 @@ describe('how a stage screen should look', () => {
     expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
   });
 
+  /*
+    The bug this layer exists for: "leave it alone" used to mean "leave it at whatever
+    a browser opened on a television defaults to", which is nobody's decision. A leader
+    working in English, having touched nothing, watched the wall stay Romanian.
+  */
+  it('falls back to the leader\u2019s own screen before the television\u2019s', () => {
+    const state = session({ host: { theme: 'dark', language: 'en', chordColor: '#ef4444' } });
+    expect(resolveStageDisplay(state, null)).toEqual({
+      theme: 'dark',
+      language: 'en',
+      chordColor: '#ef4444',
+      maxFontPx: null,
+    });
+  });
+
+  it('lets a choice made for the screens beat the leader\u2019s own', () => {
+    const state = session({
+      stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
+      host: { theme: 'light', language: 'en', chordColor: null },
+    });
+    const resolved = resolveStageDisplay(state, null);
+    expect(resolved.theme).toBe('stage');
+    // And only that one: the rest still follows the leader.
+    expect(resolved.language).toBe('en');
+  });
+
+  it('lets one screen beat both', () => {
+    const state = session({
+      stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
+      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } },
+      host: { theme: 'dark', language: 'ro', chordColor: null },
+    });
+    expect(resolveStageDisplay(state, 'Drums').theme).toBe('light');
+    expect(resolveStageDisplay(state, 'Back').theme).toBe('stage');
+  });
+
+  /*
+    Size is the exception, and deliberately so: a ceiling chosen for a laptop on a
+    music stand would be unreadable from the back of a hall.
+  */
+  it('never takes the text size from the leader\u2019s device', () => {
+    const state = session({ host: { theme: 'dark', language: 'ro', chordColor: null } });
+    expect(resolveStageDisplay(state, null).maxFontPx).toBeNull();
+  });
+
   it('is unchanged by settings belonging to a screen that is not this one', () => {
     const state = session({ stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } } });
-    expect(resolveStageDisplay(state, 'Back')).toBe(state.stage);
+    expect(resolveStageDisplay(state, 'Back')).toEqual(state.stage);
   });
 });

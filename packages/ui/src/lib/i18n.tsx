@@ -222,6 +222,7 @@ const ro = {
   'lead.roleBand': 'Trupă',
   'lead.roleStage': 'Ecran',
   'lead.roleLeader': 'Lider',
+  'lead.thisDevice': 'Acest dispozitiv',
 
   // --- band -----------------------------------------------------------------
   'band.noLiveSet': 'Niciun program live',
@@ -230,6 +231,7 @@ const ro = {
   'band.following': 'Urmăresc',
   'band.onYourOwn': 'Independent',
   'band.hereNow': 'acum',
+  'band.asLeader': 'Ca liderul',
   'band.leaderNotOnSong': 'Liderul nu e pe o cântare.',
   'band.waiting': 'Așteptăm liderul',
   'band.yourName': 'Numele tău (ex. Dennis — chitară)',
@@ -314,9 +316,9 @@ const ro = {
   'settings.displayTarget': 'Pentru ce ecran',
   'settings.thisDevice': 'Acest dispozitiv',
   'settings.theScreens': 'Ecranele scenei',
-  'settings.asTheScreen': 'Ca ecranul',
+  'settings.asThisDevice': 'Ca aici',
   'settings.stageHint':
-    'Se aplică pe toate ecranele conectate, imediat. „Ca ecranul” lasă fiecare ecran cu setarea lui.',
+    'Se aplică pe toate ecranele conectate, imediat. „Ca aici” le ține la fel ca ecranul de pe care conduci.',
   'settings.stageOffline': 'Fără gazdă — setările ecranelor nu pot fi citite acum.',
   'settings.whichScreen': 'Care ecran',
   'settings.allScreens': 'Toate ecranele',
@@ -604,6 +606,7 @@ const en: Record<TranslationKey, Entry> = {
   'lead.roleBand': 'Band',
   'lead.roleStage': 'Screen',
   'lead.roleLeader': 'Leader',
+  'lead.thisDevice': 'This device',
 
   'band.noLiveSet': 'No set is live',
   'band.backToLeader': '↩ Back to the leader',
@@ -611,6 +614,7 @@ const en: Record<TranslationKey, Entry> = {
   'band.following': 'Following',
   'band.onYourOwn': 'Independent',
   'band.hereNow': 'now',
+  'band.asLeader': 'As the leader has it',
   'band.leaderNotOnSong': 'The leader is not on a song.',
   'band.waiting': 'Waiting for the leader',
   'band.yourName': 'Your name (e.g. Dennis — guitar)',
@@ -687,9 +691,9 @@ const en: Record<TranslationKey, Entry> = {
   'settings.displayTarget': 'Which screen',
   'settings.thisDevice': 'This device',
   'settings.theScreens': 'Stage screens',
-  'settings.asTheScreen': 'As the screen',
+  'settings.asThisDevice': 'As here',
   'settings.stageHint':
-    'Applies to every connected screen, at once. "As the screen" leaves each one with its own setting.',
+    'Applies to every connected screen, at once. \u201cAs here\u201d keeps them looking like the screen you lead from.',
   'settings.stageOffline': 'No host — the screens\u2019 settings cannot be read right now.',
   'settings.whichScreen': 'Which screen',
   'settings.allScreens': 'All screens',

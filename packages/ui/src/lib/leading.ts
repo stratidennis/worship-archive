@@ -26,9 +26,18 @@ export interface Leading {
    * come back to find themselves pushing every glance straight to the congregation.
    */
   auto: boolean;
+  /**
+   * Whether the connected-devices panel is showing.
+   *
+   * Here for the third time for the same reason as the other two: it is a thing the
+   * leader opened, not a property of the page they were on when they opened it. It
+   * closed itself on every navigation, so checking the QR screen for one more phone
+   * meant coming back and opening it again.
+   */
+  devicesOpen: boolean;
 }
 
-let current: Leading = { setId: null, auto: true };
+let current: Leading = { setId: null, auto: true, devicesOpen: false };
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -37,7 +46,13 @@ function emit(): void {
 
 export function setLeading(patch: Partial<Leading>): void {
   const next = { ...current, ...patch };
-  if (next.setId === current.setId && next.auto === current.auto) return;
+  if (
+    next.setId === current.setId &&
+    next.auto === current.auto &&
+    next.devicesOpen === current.devicesOpen
+  ) {
+    return;
+  }
   current = next;
   emit();
 }

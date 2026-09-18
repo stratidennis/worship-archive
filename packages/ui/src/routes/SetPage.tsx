@@ -40,14 +40,11 @@ import {
 } from '../components/ui.js';
 import {
   IconCheck,
-  IconChevronDown,
-  IconChevronUp,
   IconClose,
   IconEdit,
   IconFilter,
   IconGrip,
   IconLead,
-  IconPeople,
   IconPlus,
 } from '../components/icons.js';
 import { PrintableSet } from '../components/PrintableSet.js';
@@ -122,7 +119,6 @@ export function SetPage() {
   });
   const savedRef = useRef('');
 
-  const [devicesOpen, setDevicesOpen] = useState(false);
   const [help, setHelp] = useState(false);
 
   useHeader({ current: 'home' });
@@ -137,7 +133,7 @@ export function SetPage() {
   */
   const { setId: leadingSetId, auto } = useLeading();
   const leading = leadingSetId === id;
-  const { state, devices, status, clockOffset, patch, synced } = useLeaderSession();
+  const { state, status, clockOffset, patch, synced } = useLeaderSession();
   const setAuto = useCallback((value: boolean) => setLeading({ auto: value }), []);
 
   // This device came back here, so this is the set it reopens next time.
@@ -564,14 +560,6 @@ export function SetPage() {
           <IconLead size={16} />
           <span className="hidden sm:inline">{t('app.lead')}</span>
         </Button>
-        <IconButton
-          variant="ghost"
-          label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
-          onClick={() => setPrefs({ setHeaderExpanded: !expanded })}
-          aria-expanded={expanded}
-        >
-          {expanded ? <IconChevronUp size={17} /> : <IconChevronDown size={17} />}
-        </IconButton>
       </HeaderActions>
 
       {expanded && (
@@ -621,9 +609,6 @@ export function SetPage() {
                   status={status}
                   auto={auto}
                   onAuto={setAuto}
-                  devices={devices.length}
-                  devicesOpen={devicesOpen}
-                  onDevices={() => setDevicesOpen((open) => !open)}
                 />
               )}
             </span>
@@ -927,10 +912,6 @@ export function SetPage() {
             </p>
           )}
         </main>
-
-        {leading && devicesOpen && (
-          <DevicesPanel devices={devices} onClose={() => setDevicesOpen(false)} />
-        )}
       </div>
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
@@ -1153,9 +1134,6 @@ function LeadControls({
   status,
   auto,
   onAuto,
-  devices,
-  devicesOpen,
-  onDevices,
 }: {
   state: SessionState;
   patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
@@ -1163,9 +1141,6 @@ function LeadControls({
   status: 'connecting' | 'live' | 'offline';
   auto: boolean;
   onAuto: (value: boolean) => void;
-  devices: number;
-  devicesOpen: boolean;
-  onDevices: () => void;
 }) {
   const { t } = useT();
   return (
@@ -1192,11 +1167,6 @@ function LeadControls({
         {t('lead.clear')}
       </Button>
       <Tempo state={state} patch={patch} clockOffset={clockOffset} />
-
-      <Button size="sm" active={devicesOpen} onClick={onDevices} aria-expanded={devicesOpen}>
-        <IconPeople size={14} />
-        <span className="tabular-nums">{devices}</span>
-      </Button>
 
       <StatusDot status={status} />
     </span>
@@ -1247,71 +1217,6 @@ function Tempo({
         </>
       )}
     </span>
-  );
-}
-
-/** Who is connected — opened and closed from the tools row, like a chat sidebar. */
-function DevicesPanel({
-  devices,
-  onClose,
-}: {
-  devices: { id: string; name: string; role: string }[];
-  onClose: () => void;
-}) {
-  const { t } = useT();
-  return (
-    <aside
-      aria-label={t('lead.connected', { count: devices.length })}
-      className="scroll-slim hidden w-52 shrink-0 flex-col overflow-y-auto border-l border-(--color-line) bg-(--color-surface) px-3 py-2 sm:flex"
-    >
-      <div className="mb-2 flex items-center gap-1">
-        <p className="min-w-0 flex-1 truncate text-xs uppercase tracking-wider text-(--color-muted)">
-          {t('lead.connected', { count: devices.length })}
-        </p>
-        <IconButton size="sm" label={t('app.close')} variant="ghost" onClick={onClose}>
-          <IconClose size={14} />
-        </IconButton>
-      </div>
-      <ul className="space-y-1 text-sm">
-        {devices.map((device) => (
-          <DeviceRow key={device.id} name={device.name} role={device.role} />
-        ))}
-      </ul>
-      <ButtonLink to="/join" size="sm" className="mt-3 w-full">
-        {t('lead.qr')}
-      </ButtonLink>
-    </aside>
-  );
-}
-
-/**
- * One connected device.
- *
- * The role is a tag beside the name, except where it *is* the name: a screen that was
- * never given one of its own has nothing better to be called than "Screen", and
- * "Screen — Screen" is a row that says one thing twice. The same goes for the leader's
- * own entry.
- */
-function DeviceRow({ name, role }: { name: string; role: string }) {
-  const { t } = useT();
-  const roleLabel =
-    role === 'stage'
-      ? t('lead.roleStage')
-      : role === 'leader'
-        ? t('lead.roleLeader')
-        : t('lead.roleBand');
-  const shown = name.trim() || roleLabel;
-  return (
-    <li className="flex items-center gap-1.5">
-      <span
-        className="h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ background: 'var(--color-ok)' }}
-      />
-      <span className="min-w-0 flex-1 truncate">{shown}</span>
-      {shown !== roleLabel && (
-        <span className="shrink-0 text-[0.7rem] text-(--color-muted)">{roleLabel}</span>
-      )}
-    </li>
   );
 }
 
