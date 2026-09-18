@@ -25,7 +25,7 @@ export function Shortcuts({
         role="dialog"
         aria-modal="true"
         aria-label={t('keys.title')}
-        className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl border border-(--color-line) bg-(--color-stage-bg) p-5 shadow-xl"
+        className="scroll-slim max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl border border-(--color-line) bg-(--color-stage-bg) p-5 shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-baseline justify-between gap-3">

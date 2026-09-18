@@ -210,7 +210,7 @@ export function LeadPage() {
       <div className="flex min-h-0 flex-1">
         <nav
           aria-label={t('app.sets')}
-          className="hidden w-56 shrink-0 overflow-y-auto border-r border-(--color-line) py-2 md:block"
+          className="scroll-slim hidden w-56 shrink-0 overflow-y-auto border-r border-(--color-line) py-2 md:block"
         >
           {(live.set?.items ?? []).map((item, index) => {
             const isLive = index === state.itemIndex;
@@ -319,7 +319,7 @@ export function LeadPage() {
 
         <aside
           aria-label={t('lead.connected', { count: devices.length })}
-          className="hidden w-48 shrink-0 overflow-y-auto border-l border-(--color-line) px-3 py-2 lg:block"
+          className="scroll-slim hidden w-48 shrink-0 overflow-y-auto border-l border-(--color-line) px-3 py-2 lg:block"
         >
           <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
             {t('lead.connected', { count: devices.length })}

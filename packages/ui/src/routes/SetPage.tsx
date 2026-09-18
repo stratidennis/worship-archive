@@ -7,6 +7,7 @@ import { forgetSet, rememberSet } from '../lib/lastSet.js';
 import { moveItem } from '../lib/reorder.js';
 import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
+import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/desktop.js';
 import { SongBody } from '../components/SongBody.js';
@@ -350,7 +351,7 @@ export function SetPage() {
           </div>
 
           {tab === 'program' ? (
-            <ol className="min-h-0 flex-1 overflow-y-auto py-1">
+            <ol className="scroll-slim min-h-0 flex-1 overflow-y-auto py-1">
               {set.items.map((item, index) => (
                 <li
                   key={index}
@@ -435,7 +436,7 @@ export function SetPage() {
                 autoComplete="off"
                 className="m-2 shrink-0 rounded-lg border border-(--color-line) bg-transparent px-3 py-2 text-sm outline-none focus:border-(--color-chord)"
               />
-              <ul className="min-h-0 flex-1 overflow-y-auto">
+              <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
                 {hits.map((song) => (
                   <li key={song.id}>
                     <button
@@ -572,11 +573,13 @@ export function SetPage() {
 }
 
 /**
- * The middle pane: a song, read at a comfortable fixed size.
+ * The middle pane: the song exactly as it will look when it is led.
  *
- * Not fitted to the screen, unlike every performance view. Here you are deciding and
- * scrolling is fine; shrinking a long song to 11px to avoid a scrollbar would make the
- * decision harder, not easier.
+ * Same fit-to-one-screen renderer as `/lead`, `/band` and `/stage`, and that matters
+ * more than it sounds. The decision being made here is "does this song work in this
+ * service" — and part of that is whether it is legible, whether it needs three columns,
+ * whether it is one of the few that does not fit at all. A preview at a comfortable
+ * reading size would answer a question nobody is asking.
  */
 function Preview({
   song,
@@ -596,6 +599,10 @@ function Preview({
   children?: React.ReactNode;
 }) {
   const { t } = useT();
+  const [prefs] = usePrefs();
+  const container = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+
   // Held in a ref because it is a fresh closure on every render: as an effect
   // dependency it would refetch the song forever.
   const notify = useRef(onLoaded);
@@ -609,10 +616,18 @@ function Preview({
     });
   }, [songId, missing]);
 
-  if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
-
-  const native = song.performanceKey ?? song.writtenKey;
+  const native = song?.performanceKey ?? song?.writtenKey ?? null;
   const shift = transposeTo && native ? (semitonesBetween(native, transposeTo) ?? 0) : 0;
+
+  // `song?.id` belongs in the key: on the first render the song is still loading, so the
+  // refs are null and there is nothing to measure. Without it the fit would never re-run
+  // once the content arrived, and the pane would stay blank.
+  const fit = useFitToScreen(container, content, {
+    maxFontPx: prefs.maxFontPx,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.showBass}`,
+  });
+
+  if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
 
   return (
     <>
@@ -638,12 +653,38 @@ function Preview({
         </Link>
         {children}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 text-[15px] sm:px-4">
-        <SongBody
-          song={song}
-          options={{ showChords: true, showBass: false, capo: capo ?? 0, transpose: shift }}
-        />
+      <div
+        ref={container}
+        className={`min-h-0 flex-1 px-3 py-2 sm:px-4 ${
+          fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
+        }`}
+      >
+        <div
+          ref={content}
+          className="w-full"
+          style={{
+            fontSize: `${fit.fontPx}px`,
+            columnCount: fit.columns,
+            columnGap: '2.5em',
+            visibility: fit.measuring ? 'hidden' : 'visible',
+          }}
+        >
+          <SongBody
+            song={song}
+            options={{
+              showChords: prefs.showChords,
+              showBass: prefs.showBass,
+              capo: capo ?? 0,
+              transpose: shift,
+            }}
+          />
+        </div>
       </div>
+      {!fit.fits && (
+        <p className="shrink-0 border-t border-(--color-line) px-3 py-1 text-center text-xs text-(--color-muted)">
+          {t('song.doesNotFit')}
+        </p>
+      )}
     </>
   );
 }

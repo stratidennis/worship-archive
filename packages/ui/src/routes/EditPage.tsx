@@ -404,7 +404,7 @@ export function EditPage() {
         </div>
 
         {preview && (
-          <aside className="hidden min-h-0 w-[42%] shrink-0 overflow-y-auto border-l border-(--color-line) px-4 py-4 lg:block">
+          <aside className="scroll-slim hidden min-h-0 w-[42%] shrink-0 overflow-y-auto border-l border-(--color-line) px-4 py-4 lg:block">
             <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
               {t('edit.preview')}
             </p>
