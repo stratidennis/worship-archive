@@ -11,6 +11,7 @@ import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
+import { HomeButton } from '../components/NavBar.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -132,12 +133,14 @@ export function LeadPage() {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-(--color-line) px-3 py-2">
+        <HomeButton />
         <Link
           to="/library"
-          className="text-sm text-(--color-muted)"
+          className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
           aria-label={t('app.library')}
+          title={t('app.library')}
         >
-          ←
+          {t('app.library')}
         </Link>
         <select
           value={state.setId ?? ''}

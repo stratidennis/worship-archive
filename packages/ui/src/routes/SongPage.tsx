@@ -7,6 +7,7 @@ import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody, resolveKey } from '../components/SongBody.js';
+import { HomeButton } from '../components/NavBar.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
@@ -82,11 +83,13 @@ export function SongPage() {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <Link
             to="/library"
-            className="text-sm text-(--color-muted) hover:underline"
+            className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
             aria-label={t('app.library')}
+            title={t('app.library')}
           >
             ←
           </Link>
+          <HomeButton />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-bold leading-tight">{song.title}</h1>
             <p className="truncate text-xs text-(--color-muted)">

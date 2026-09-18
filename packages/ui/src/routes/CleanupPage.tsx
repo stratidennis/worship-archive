@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi, type CleanupAudit, type CleanupSuggestion } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
+import { NavBar } from '../components/NavBar.js';
 
 /**
  * Reviewing chord-spelling fixes — D12.
@@ -90,10 +91,8 @@ export function CleanupPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
+      <NavBar current="settings" back={{ to: '/settings', label: t('settings.title') }} />
       <header className="mb-4">
-        <Link to="/settings" className="text-xs uppercase tracking-widest text-(--color-muted)">
-          {t('settings.title')}
-        </Link>
         <h1 className="text-2xl font-bold">{t('cleanup.title')}</h1>
         <p className="mt-1 max-w-prose text-sm text-(--color-muted)">{t('cleanup.intro')}</p>
       </header>

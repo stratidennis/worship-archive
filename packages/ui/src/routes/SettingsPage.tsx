@@ -4,6 +4,7 @@ import { adminApi, type Backup } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
+import { NavBar } from '../components/NavBar.js';
 import {
   confirmAction,
   desktop,
@@ -80,12 +81,8 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-16 pt-6">
-      <header className="mb-6">
-        <Link to="/library" className="text-xs uppercase tracking-widest text-(--color-muted)">
-          {t('app.library')}
-        </Link>
-        <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
-      </header>
+      <NavBar current="settings" />
+      <h1 className="mb-5 text-2xl font-bold">{t('settings.title')}</h1>
 
       {message && (
         <p className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm" role="status">

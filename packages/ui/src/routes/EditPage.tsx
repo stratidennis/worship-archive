@@ -25,6 +25,7 @@ import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/desktop.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
+import { HomeButton } from '../components/NavBar.js';
 
 /** Keyboard shortcuts carried over from the old SongEditor, so muscle memory survives. */
 const TYPE_KEYS: Record<string, BlockType> = {
@@ -133,11 +134,13 @@ export function EditPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2">
           <Link
             to={`/song/${encodeURIComponent(id)}`}
-            className="text-sm text-(--color-muted)"
+            className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
             aria-label={t('app.back')}
+            title={t('app.back')}
           >
             ←
           </Link>
+          <HomeButton />
           <input
             value={current.title}
             onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}

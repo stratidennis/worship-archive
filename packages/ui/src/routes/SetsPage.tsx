@@ -5,6 +5,7 @@ import { api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { rememberSet } from '../lib/lastSet.js';
 import { useT } from '../lib/i18n.js';
+import { NavBar } from '../components/NavBar.js';
 
 /** The next Sunday, as an ISO date — the default for a new service. */
 function nextSunday(): string {
@@ -53,24 +54,17 @@ export function SetsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
-      <header className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <Link
-            to="/library"
-            className="text-xs uppercase tracking-widest text-(--color-muted)"
-          >
-            {t('app.name')}
-          </Link>
-          <h1 className="text-2xl font-bold">{t('app.sets')}</h1>
-        </div>
+      <NavBar current="sets">
         <button
           type="button"
           onClick={create}
-          className="shrink-0 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
+          className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
         >
           {t('sets.new')}
         </button>
-      </header>
+      </NavBar>
+
+      <h1 className="mb-4 text-2xl font-bold">{t('app.sets')}</h1>
 
       {error && <p className="mb-4 text-sm text-(--color-muted)">{error}</p>}
 

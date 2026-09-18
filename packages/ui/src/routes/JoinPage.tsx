@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
+import { NavBar } from '../components/NavBar.js';
 
 /**
  * How everyone else gets in.
@@ -56,6 +57,7 @@ export function JoinPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
+      <NavBar />
       <h1 className="text-2xl font-bold">{t('join.title')}</h1>
       <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
 

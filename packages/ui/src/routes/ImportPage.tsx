@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { importAny, type ImportFormat } from '@worship/importers';
 import type { Song } from '@worship/core';
 import { adminApi } from '../lib/api.js';
 import { pickTextFiles } from '../lib/desktop.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
+import { NavBar } from '../components/NavBar.js';
 
 /**
  * Bringing songs in.
@@ -92,10 +93,8 @@ export function ImportPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
+      <NavBar current="library" back={{ to: '/library', label: t('app.library') }} />
       <header className="mb-4">
-        <Link to="/library" className="text-xs uppercase tracking-widest text-(--color-muted)">
-          {t('app.library')}
-        </Link>
         <h1 className="text-2xl font-bold">{t('import.title')}</h1>
         <p className="mt-1 max-w-prose text-sm text-(--color-muted)">{t('import.subtitle')}</p>
       </header>

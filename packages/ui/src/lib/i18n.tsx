@@ -48,6 +48,9 @@ const ro = {
   'app.print': 'Print / PDF',
   'app.untitled': '(fără titlu)',
   'app.skipToContent': 'Sari la conținut',
+  'nav.home': 'Program',
+  'nav.homeHint': 'Programul curent',
+  'nav.where': 'Navigare',
 
   'save.dirty': 'nesalvat',
   'save.saving': 'se salvează…',
@@ -403,6 +406,9 @@ const en: Record<TranslationKey, Entry> = {
   'app.print': 'Print / PDF',
   'app.untitled': '(untitled)',
   'app.skipToContent': 'Skip to content',
+  'nav.home': 'Set',
+  'nav.homeHint': 'The current set',
+  'nav.where': 'Navigation',
 
   'save.dirty': 'unsaved',
   'save.saving': 'saving…',

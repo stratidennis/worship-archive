@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
+import { NavBar } from '../components/NavBar.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
@@ -139,49 +140,23 @@ export function Library() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-16 pt-6">
-      <header className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-(--color-muted)">
-            {t('app.name')}
-          </p>
-          <h1 className="text-2xl font-bold">{t('app.library')}</h1>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            to="/lead"
-            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-          >
-            {t('app.lead')}
-          </Link>
-          <Link
-            to="/band"
-            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-          >
-            {t('app.band')}
-          </Link>
-          <Link
-            to="/sets"
-            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-          >
-            {t('app.sets')}
-          </Link>
-          <Link
-            to="/settings"
-            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-            aria-label={t('settings.title')}
-            title={t('settings.title')}
-          >
-            ⚙
-          </Link>
-          <button
-            type="button"
-            onClick={() => void createSong()}
-            className="shrink-0 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
-          >
-            {t('library.new')}
-          </button>
-        </div>
-      </header>
+      <NavBar current="library">
+        <Link
+          to="/import"
+          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+        >
+          {t('app.import')}
+        </Link>
+        <button
+          type="button"
+          onClick={() => void createSong()}
+          className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
+        >
+          {t('library.new')}
+        </button>
+      </NavBar>
+
+      <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
 
       <input
         ref={search}
