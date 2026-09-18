@@ -138,7 +138,7 @@ export function LineEditor({
                       input.current?.focus();
                     }
                   }}
-                  className="absolute left-0 top-0 z-10 w-16 rounded border border-(--color-chord) bg-(--color-stage-bg) px-1 text-[1em] font-semibold text-(--color-chord) outline-none"
+                  className="absolute left-0 top-0 z-10 w-16 rounded border border-(--color-chord) bg-(--color-stage-bg) px-1 text-[1em] font-semibold text-(--color-chord-ink) outline-none"
                   placeholder="acord"
                   aria-label="Acord"
                 />
@@ -146,7 +146,7 @@ export function LineEditor({
                 <button
                   type="button"
                   onClick={() => startChordAt(segment.at)}
-                  className="absolute left-0 top-0 cursor-pointer rounded px-0.5 font-semibold text-(--color-chord) hover:bg-(--color-chord)/15"
+                  className="absolute left-0 top-0 cursor-pointer rounded px-0.5 font-semibold text-(--color-chord-ink) hover:bg-(--color-chord)/15"
                   title={t('edit.editChord')}
                   aria-label={t('edit.editChord')}
                 >

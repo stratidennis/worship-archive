@@ -13,6 +13,7 @@ export function ConfirmDialog() {
     <Modal
       title={pending.message}
       detail={pending.detail}
+      tone={pending.danger ? 'danger' : 'warn'}
       onDismiss={() => answerConfirm(false)}
     >
       {/* Cancel first: it takes the focus, so Enter can never confirm a deletion. */}

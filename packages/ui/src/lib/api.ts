@@ -56,7 +56,13 @@ async function get<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function send<T>(path: string, method: string, body?: unknown): Promise<T> {
+async function send<T>(
+  path: string,
+  method: string,
+  body?: unknown,
+  /** Let the request outlive the page, for a save fired as the tab goes away. */
+  keepalive = false,
+): Promise<T> {
   /*
     No `content-type` without a body.
 
@@ -67,6 +73,7 @@ async function send<T>(path: string, method: string, body?: unknown): Promise<T>
   */
   const response = await fetch(path, {
     method,
+    ...(keepalive ? { keepalive: true } : {}),
     ...(body === undefined
       ? {}
       : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
@@ -117,8 +124,8 @@ export const api = {
     ),
   createSet: (body: { title?: string; date?: string | null }) =>
     send<ServiceSet>('/api/sets', 'POST', body),
-  saveSet: (id: string, set: ServiceSet) =>
-    send<ServiceSet>(`/api/sets/${encodeURIComponent(id)}`, 'PUT', set),
+  saveSet: (id: string, set: ServiceSet, options: { keepalive?: boolean } = {}) =>
+    send<ServiceSet>(`/api/sets/${encodeURIComponent(id)}`, 'PUT', set, options.keepalive),
   duplicateSet: (id: string, body: { title?: string; date?: string | null } = {}) =>
     send<ServiceSet>(`/api/sets/${encodeURIComponent(id)}/duplicate`, 'POST', body),
   deleteSet: (id: string) => send<void>(`/api/sets/${encodeURIComponent(id)}`, 'DELETE'),

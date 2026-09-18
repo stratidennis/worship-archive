@@ -151,7 +151,7 @@ function LineView({
           {chunk.map((part, i) => (
             <span key={i} className="whitespace-pre">
               {anyChords && (
-                <span className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord)">
+                <span className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord-ink)">
                   {part.chord ?? ' '}
                   {part.bass && <span className="ml-1 text-(--color-bass)">{part.bass}</span>}
                 </span>

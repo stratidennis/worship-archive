@@ -25,6 +25,7 @@ import {
   ChevronRight,
   ChevronUp,
   Disc3,
+  Filter,
   GripVertical,
   House,
   Library,
@@ -40,6 +41,7 @@ import {
   Search,
   Settings,
   Sun,
+  TriangleAlert,
   Trash2,
   Undo2,
   Users,
@@ -97,3 +99,5 @@ export const IconUp = make(ArrowUp);
 export const IconDown = make(ArrowDown);
 export const IconMergeUp = make(ArrowUpToLine);
 export const IconPeople = make(Users);
+export const IconAlert = make(TriangleAlert);
+export const IconFilter = make(Filter);

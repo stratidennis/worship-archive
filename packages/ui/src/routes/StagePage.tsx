@@ -7,6 +7,7 @@ import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useT } from '../lib/i18n.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
+import { Logo } from '../components/Logo.js';
 
 /**
  * The stage display.
@@ -106,9 +107,14 @@ export function StagePage() {
             />
           </div>
         ) : (
-          <p className="mt-[20vh] text-center text-lg text-(--color-muted)">
-            {live.set ? '' : t('band.waiting')}
-          </p>
+          /* A screen at the front of a room with nothing on it yet. Better that it look
+             like a thing that is on and waiting than like a thing that failed. */
+          <div className="mt-[22vh] flex flex-col items-center gap-6">
+            <Logo className="h-20 opacity-25" />
+            <p className="text-center text-lg text-(--color-muted)">
+              {live.set ? '' : t('band.waiting')}
+            </p>
+          </div>
         )}
       </div>
 

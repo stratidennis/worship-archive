@@ -138,45 +138,53 @@ export function BandPage() {
           {viewing?.song.title ?? (live.set ? '—' : t('band.noLiveSet'))}
         </span>
         <BeatLed state={state} clockOffset={clockOffset} size="sm" />
-
-        <Stepper
-          size="sm"
-          caption={t('song.pitch')}
-          value={prefs.transpose}
-          display={prefs.transpose > 0 ? `+${prefs.transpose}` : String(prefs.transpose)}
-          onChange={(transpose) => setPrefs({ transpose })}
-          min={-11}
-          max={11}
-          resetTo={0}
-          labels={{
-            down: t('song.transposeDown'),
-            up: t('song.transposeUp'),
-            reset: t('song.transposeReset'),
-          }}
-        />
-        <Stepper
-          size="sm"
-          caption={t('sets.capo')}
-          value={prefs.capo}
-          onChange={(capo) => setPrefs({ capo })}
-          min={0}
-          max={11}
-          resetTo={0}
-          labels={{
-            down: t('song.capoDown'),
-            up: t('song.capoUp'),
-            reset: t('song.capoLabel'),
-          }}
-        />
-        <IconButton
-          size="sm"
-          label={t('song.chords')}
-          active={prefs.showChords}
-          onClick={() => setPrefs({ showChords: !prefs.showChords })}
-        >
-          <IconMusic size={14} />
-        </IconButton>
         <StatusDot status={status} />
+
+        {/*
+          On a phone held upright — which is what most of the band is holding — the
+          controls get their own row. In one row they took the width from the title,
+          which truncated to "A..", and the one thing a musician glancing down needs to
+          know is which song everyone is on.
+        */}
+        <div className="order-last flex w-full flex-wrap items-center gap-1.5 sm:order-none sm:w-auto">
+          <Stepper
+            size="sm"
+            caption={t('song.pitch')}
+            value={prefs.transpose}
+            display={prefs.transpose > 0 ? `+${prefs.transpose}` : String(prefs.transpose)}
+            onChange={(transpose) => setPrefs({ transpose })}
+            min={-11}
+            max={11}
+            resetTo={0}
+            labels={{
+              down: t('song.transposeDown'),
+              up: t('song.transposeUp'),
+              reset: t('song.transposeReset'),
+            }}
+          />
+          <Stepper
+            size="sm"
+            caption={t('sets.capo')}
+            value={prefs.capo}
+            onChange={(capo) => setPrefs({ capo })}
+            min={0}
+            max={11}
+            resetTo={0}
+            labels={{
+              down: t('song.capoDown'),
+              up: t('song.capoUp'),
+              reset: t('song.capoLabel'),
+            }}
+          />
+          <IconButton
+            size="sm"
+            label={t('song.chords')}
+            active={prefs.showChords}
+            onClick={() => setPrefs({ showChords: !prefs.showChords })}
+          >
+            <IconMusic size={14} />
+          </IconButton>
+        </div>
       </header>
 
       {!following && (

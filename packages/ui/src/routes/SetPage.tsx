@@ -42,12 +42,13 @@ import {
   IconChevronUp,
   IconClose,
   IconEdit,
+  IconFilter,
   IconGrip,
   IconLead,
   IconPeople,
   IconPlus,
 } from '../components/icons.js';
-import { PrintableRunningOrder } from '../components/PrintableRunningOrder.js';
+import { PrintableSet } from '../components/PrintableSet.js';
 
 /**
  * The set workspace — where the app opens, and where the service is both built and led.
@@ -115,6 +116,11 @@ export function SetPage() {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<(SearchHit | SongSummary)[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
+  /** Applied archive filters. The popover edits a draft and commits it here. */
+  const [filters, setFilters] = useState<{ collection: string; key: string }>({
+    collection: '',
+    key: '',
+  });
   const savedRef = useRef('');
 
   /** Leading, or merely working on the set. Never restored from storage — see below. */
@@ -163,31 +169,104 @@ export function SetPage() {
     };
   }, [id, t]);
 
-  // The picker shows the library until something is typed.
+  // The picker shows the archive until something is typed. Unsliced, because the
+  // filters run over it afterwards — trimming to the first sixty first would have made
+  // "songs in G" mean "songs in G among the first sixty alphabetically".
   useEffect(() => {
     if (tab !== 'library') return;
     const timer = setTimeout(() => {
       const request = query.trim() ? repo.search(query) : repo.songs();
-      request.then((r) => setHits(r.slice(0, 60))).catch(() => setHits([]));
+      request.then(setHits).catch(() => setHits([]));
     }, 120);
     return () => clearTimeout(timer);
   }, [query, tab]);
 
-  // Autosave, debounced, comparing against what was last persisted.
+  /*
+    What there is to filter by.
+
+    Keys are counted from the songs in view, so the list can never offer a key that
+    nothing here is in — and it works with no host, because a key is part of the song.
+
+    A collection is not. It is the folder the file sits in on the host, which the
+    offline mirror has no way of knowing, so the collections come from the host and
+    simply do not appear when there is none to ask. Offering a filter that would match
+    nothing would be worse than not offering it.
+  */
+  const [collections, setCollections] = useState<[string, number][]>([]);
+  const [inCollection, setInCollection] = useState<Set<string> | null>(null);
+
   useEffect(() => {
-    if (!set) return;
-    if (JSON.stringify(set) === savedRef.current) {
-      setSaveState('idle');
+    if (tab !== 'library') return;
+    api
+      .facets()
+      .then((f) => setCollections(f.collections.map((c) => [c.name, c.count])))
+      .catch(() => setCollections([]));
+  }, [tab]);
+
+  useEffect(() => {
+    if (filters.collection === '') {
+      setInCollection(null);
       return;
     }
-    setSaveState('dirty');
-    const timer = setTimeout(() => {
+    let cancelled = false;
+    api
+      .songs({ collection: filters.collection })
+      .then((list) => !cancelled && setInCollection(new Set(list.map((song) => song.id))))
+      .catch(() => !cancelled && setInCollection(new Set()))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.collection]);
+
+  const facets = useMemo(() => {
+    const keys = new Map<string, number>();
+    for (const song of hits) {
+      const key = song.performanceKey ?? song.writtenKey;
+      if (key) keys.set(key, (keys.get(key) ?? 0) + 1);
+    }
+    return {
+      collections,
+      keys: [...keys].sort((a, b) => b[1] - a[1]),
+    };
+  }, [hits, collections]);
+
+  const shown = useMemo(
+    () =>
+      hits
+        .filter(
+          (song) =>
+            (inCollection === null || inCollection.has(song.id)) &&
+            (filters.key === '' ||
+              (song.performanceKey ?? song.writtenKey ?? '') === filters.key),
+        )
+        .slice(0, 80),
+    [hits, filters.key, inCollection],
+  );
+
+  /*
+    Autosave, debounced — and flushed rather than abandoned.
+
+    The debounce used to be the whole story, and its cleanup cancelled the pending
+    timer. Which meant anything changed in the last 700ms before leaving the page was
+    silently thrown away: set a song's key and click the next song quickly enough and
+    the key was never sent. Navigation inside the app, closing the tab, switching to
+    another app on a phone — all three lost the same way, and all three look like the
+    change simply not sticking.
+  */
+  const latest = useRef<ServiceSet | null>(null);
+  latest.current = set;
+
+  const flush = useCallback(
+    (keepalive = false) => {
+      const current = latest.current;
+      if (!current || JSON.stringify(current) === savedRef.current) return;
       setSaveState('saving');
       api
-        .saveSet(id, set)
+        .saveSet(id, current, { keepalive })
         .then((stored) => {
           savedRef.current = JSON.stringify({
-            ...set,
+            ...current,
             rev: stored.rev,
             updatedAt: stored.updatedAt,
           });
@@ -197,9 +276,31 @@ export function SetPage() {
           setError(String(e));
           setSaveState('error');
         });
-    }, 700);
+    },
+    [id],
+  );
+
+  useEffect(() => {
+    if (!set) return;
+    if (JSON.stringify(set) === savedRef.current) {
+      setSaveState('idle');
+      return;
+    }
+    setSaveState('dirty');
+    const timer = setTimeout(() => flush(), 700);
     return () => clearTimeout(timer);
-  }, [set, id]);
+  }, [set, flush]);
+
+  // Leaving the page, and leaving the tab. `pagehide` is the one event that fires
+  // reliably on a phone, where a browser may never get an unload at all.
+  useEffect(() => {
+    const onHide = (): void => flush(true);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      flush(true);
+    };
+  }, [flush]);
 
   /*
     Take over the service, but only once the host has actually said where it is.
@@ -443,7 +544,7 @@ export function SetPage() {
 
   return (
     <div className="flex h-dvh flex-col print:h-auto">
-      <PrintableRunningOrder set={set} songs={songs} t={t} formatDate={formatDate} />
+      <PrintableSet set={set} songs={songs} t={t} formatDate={formatDate} />
 
       <AppHeader
         current="home"
@@ -496,16 +597,6 @@ export function SetPage() {
               {t('sets.addGap')}
             </Action>
             <Action onClick={() => window.print()}>{t('app.print')}</Action>
-            <Action
-              onClick={() => {
-                void api
-                  .duplicateSet(id, {})
-                  .then((copy) => navigate(`/sets/${encodeURIComponent(copy.id)}`))
-                  .catch((e: unknown) => setError(String(e)));
-              }}
-            >
-              {t('sets.duplicate')}
-            </Action>
             <span className="text-xs text-(--color-muted)">
               {t('set.itemCount', { count: set.items.length })}
             </span>
@@ -661,17 +752,23 @@ export function SetPage() {
             </ol>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
-              <Input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('sets.searchSong')}
-                aria-label={t('sets.searchSong')}
-                autoComplete="off"
-                className="mx-2 mb-2 w-[calc(100%-1rem)] shrink-0"
-              />
+              {/* Search and filters on one line: the panel is 288px wide by default and
+                  a second full row of chrome above a list of songs is most of what you
+                  came here to look at. */}
+              <div className="relative m-2 mt-0 flex shrink-0 items-center gap-1.5">
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t('sets.searchSong')}
+                  aria-label={t('sets.searchSong')}
+                  autoComplete="off"
+                  className="min-w-0 flex-1"
+                />
+                <ArchiveFilters facets={facets} value={filters} onChange={setFilters} />
+              </div>
               <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
-                {hits.map((song) => (
+                {shown.map((song) => (
                   <li key={song.id}>
                     <div
                       className={`group flex items-center gap-1 pl-3 pr-1.5 text-sm hover:bg-(--color-line)/40 ${
@@ -709,6 +806,11 @@ export function SetPage() {
                     </div>
                   </li>
                 ))}
+                {shown.length === 0 && hits.length > 0 && (
+                  <li className="px-3 py-6 text-center text-sm text-(--color-muted)">
+                    {t('set.noMatches')}
+                  </li>
+                )}
               </ul>
             </div>
           )}
@@ -828,6 +930,184 @@ export function SetPage() {
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
     </div>
+  );
+}
+
+/**
+ * The archive filters, in a popover.
+ *
+ * A popover rather than a second row of chips, because the panel is 288px wide by
+ * default and the chips would have been three rows of them above the list of songs you
+ * came here to read.
+ *
+ * It edits a **draft**. Apply commits it; Cancel, Escape and clicking away all discard
+ * it — three ways to do the same thing rather than one of them quietly meaning the
+ * opposite. The button carries a dot while anything is filtered, so a list that looks
+ * short can always be explained without opening this.
+ */
+function ArchiveFilters({
+  facets,
+  value,
+  onChange,
+}: {
+  facets: { collections: [string, number][]; keys: [string, number][] };
+  value: { collection: string; key: string };
+  onChange: (next: { collection: string; key: string }) => void;
+}) {
+  const { t } = useT();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const active = value.collection !== '' || value.key !== '';
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent): void => {
+      if (!wrapper.current?.contains(event.target as Node)) close();
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [open, close]);
+
+  return (
+    <div ref={wrapper} className="relative shrink-0">
+      <IconButton
+        label={t('set.filters')}
+        active={open || active}
+        aria-expanded={open}
+        onClick={() => {
+          // Always open on what is actually applied, not on last time's abandoned draft.
+          setDraft(value);
+          setOpen((current) => !current);
+        }}
+      >
+        <IconFilter size={16} />
+      </IconButton>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={t('set.filters')}
+          className="absolute right-0 top-11 z-30 w-64 rounded-xl border border-(--color-line) bg-(--color-surface) p-3 shadow-xl"
+        >
+          {facets.collections.length > 0 && (
+            <FilterGroup
+              label={t('set.filterCollection')}
+              options={facets.collections}
+              value={draft.collection}
+              onChange={(collection) => setDraft((d) => ({ ...d, collection }))}
+              allLabel={t('library.all')}
+            />
+          )}
+          <FilterGroup
+            label={t('set.filterKey')}
+            options={facets.keys}
+            value={draft.key}
+            onChange={(key) => setDraft((d) => ({ ...d, key }))}
+            allLabel={t('library.all')}
+            className={facets.collections.length > 0 ? 'mt-3' : ''}
+          />
+
+          <div className="mt-4 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mr-auto text-(--color-muted)"
+              disabled={draft.collection === '' && draft.key === ''}
+              onClick={() => setDraft({ collection: '', key: '' })}
+            >
+              {t('set.filtersClear')}
+            </Button>
+            <Button size="sm" onClick={close}>
+              {t('app.cancel')}
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                onChange(draft);
+                close();
+              }}
+            >
+              {t('app.apply')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One row of filter chips, with "All" always first so there is a way back. */
+function FilterGroup({
+  label,
+  options,
+  value,
+  onChange,
+  allLabel,
+  className = '',
+}: {
+  label: string;
+  options: [string, number][];
+  value: string;
+  onChange: (value: string) => void;
+  allLabel: string;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <span className="mb-1.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-(--color-muted)">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1">
+        <Chip active={value === ''} onClick={() => onChange('')}>
+          {allLabel}
+        </Chip>
+        {options.map(([name, count]) => (
+          <Chip key={name} active={value === name} onClick={() => onChange(name)}>
+            {name}
+            <span className="ml-1 opacity-60 tabular-nums">{count}</span>
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex h-7 max-w-full items-center truncate rounded-full border px-2.5 text-xs font-medium transition-colors ${
+        active
+          ? 'border-(--color-chord) bg-(--color-chord) text-white'
+          : 'border-(--color-line) bg-(--color-surface) hover:bg-(--color-line)'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -1112,7 +1392,10 @@ function Preview({
   return (
     <>
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-(--color-line) px-3 py-2 sm:px-4">
-        <div className="min-w-0 flex-1">
+        {/* `basis-full` below `sm`: on a phone held upright the key and capo controls
+            took the whole row and the title truncated to "Abba …". The title gets its
+            own line there and the controls sit under it. */}
+        <div className="min-w-0 flex-1 basis-full sm:basis-auto">
           <h1 className="truncate text-base font-bold">{song.title}</h1>
           <p className="truncate text-xs text-(--color-muted)">
             {[

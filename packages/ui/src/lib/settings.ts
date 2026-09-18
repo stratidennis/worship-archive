@@ -21,6 +21,14 @@ export interface Prefs {
   transpose: number;
   /** A ceiling, not a command — the fit algorithm decides the actual size. */
   maxFontPx: number;
+  /**
+   * What colour chords are printed in, as a CSS colour, or null for the theme's own.
+   *
+   * Only the chords. The same blue is also the app's accent — buttons, selection, the
+   * focus ring — and someone who wants their chords in bright orange because the room
+   * is bright is not asking for an orange interface.
+   */
+  chordColor: string | null;
   language: 'ro' | 'en';
   /**
    * `auto` follows the operating system. `stage` is not a darker dark — it is a
@@ -45,6 +53,7 @@ export const DEFAULT_PREFS: Prefs = {
   capo: 0,
   transpose: 0,
   maxFontPx: 26,
+  chordColor: null,
   language: 'ro',
   theme: 'auto',
   setHeaderExpanded: true,

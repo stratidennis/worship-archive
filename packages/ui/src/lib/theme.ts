@@ -17,21 +17,21 @@ export function applyTheme(theme: Prefs['theme']): void {
   else root.setAttribute('data-theme', theme);
 }
 
+/**
+ * The chord colour, as an override on the token the songs read.
+ *
+ * An inline property on `<html>`, which is what makes it beat every theme's own value
+ * without needing one rule per theme. Printing overrides it back with `!important`,
+ * because a colour chosen to stand out on a dark screen is usually invisible on paper.
+ */
+export function applyChordColor(colour: string | null): void {
+  const root = document.documentElement;
+  if (colour) root.style.setProperty('--color-chord-ink', colour);
+  else root.style.removeProperty('--color-chord-ink');
+}
+
 export function useTheme(): void {
   const [prefs] = usePrefs();
   useEffect(() => applyTheme(prefs.theme), [prefs.theme]);
+  useEffect(() => applyChordColor(prefs.chordColor), [prefs.chordColor]);
 }
-
-/**
- * The pre-paint theme, inlined into the page head.
- *
- * Reading the preference in React is one frame too late: the first paint would use the
- * default theme and then swap. This runs before the body exists, and it is why it reads
- * localStorage directly rather than going through `usePrefs`.
- */
-export const THEME_BOOTSTRAP = `
-try {
-  var p = JSON.parse(localStorage.getItem('worship-archive:prefs') || '{}');
-  if (p.theme && p.theme !== 'auto') document.documentElement.setAttribute('data-theme', p.theme);
-} catch (e) {}
-`.trim();

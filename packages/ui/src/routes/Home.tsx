@@ -5,6 +5,7 @@ import { repo } from '../lib/repo.js';
 import { chooseSet, lastSet } from '../lib/lastSet.js';
 import { nextSunday } from '../lib/setName.js';
 import { useT } from '../lib/i18n.js';
+import { Logo } from '../components/Logo.js';
 
 /**
  * Where the app opens.
@@ -72,9 +73,14 @@ export function Home() {
     );
   }
 
+  // A moment, usually — but a blank page with one grey line on it looks like a failure,
+  // and this is the very first thing the app shows.
   return (
-    <p className="px-4 py-16 text-center text-sm text-(--color-muted)">
-      {creating ? t('set.creatingFirst') : t('set.opening')}
-    </p>
+    <div className="flex h-dvh flex-col items-center justify-center gap-4 px-4">
+      <Logo className="h-12 animate-pulse" />
+      <p className="text-center text-sm text-(--color-muted)">
+        {creating ? t('set.creatingFirst') : t('set.opening')}
+      </p>
+    </div>
   );
 }

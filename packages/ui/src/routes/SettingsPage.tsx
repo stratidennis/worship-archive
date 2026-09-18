@@ -6,6 +6,7 @@ import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
 import { AppHeader } from '../components/AppHeader.js';
 import { Page, Scroll } from '../components/Page.js';
+import { IconCheck } from '../components/icons.js';
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
 import { desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
@@ -159,6 +160,8 @@ export function SettingsPage() {
               onChange={(showChords) => setPrefs({ showChords })}
               label={t('settings.showChords')}
             />
+
+            <ChordColour />
           </Section>
 
           <Section title={t('settings.library')}>
@@ -263,6 +266,121 @@ export function SettingsPage() {
         </div>
       </Scroll>
     </Page>
+  );
+}
+
+/**
+ * What colour the chords are.
+ *
+ * Six presets and a picker, rather than a picker alone: most of the reason anyone opens
+ * this is "I cannot see the chords in this room", and the answer is usually one of the
+ * loud ones — the amber and the red are there to be found in two seconds on a bright
+ * stage. The picker is for the person who wants their own.
+ *
+ * The preview is the control's whole justification. A swatch tells you what the colour
+ * is; two lines of a song tell you whether you can read it, which is the actual
+ * question, and it answers it in the theme you are sitting in.
+ */
+const CHORD_COLOURS: { value: string; label: string }[] = [
+  { value: '#f59e0b', label: 'Amber' },
+  { value: '#ef4444', label: 'Red' },
+  { value: '#ec4899', label: 'Magenta' },
+  { value: '#10b981', label: 'Green' },
+  { value: '#06b6d4', label: 'Cyan' },
+  { value: '#8b5cf6', label: 'Violet' },
+];
+
+function ChordColour() {
+  const { t } = useT();
+  const [prefs, setPrefs] = usePrefs();
+  const custom =
+    prefs.chordColor !== null && !CHORD_COLOURS.some((c) => c.value === prefs.chordColor);
+
+  return (
+    <div className="mt-4">
+      <span className="block text-sm">{t('settings.chordColor')}</span>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {/* The theme's own, whichever theme that is. */}
+        <Swatch
+          selected={prefs.chordColor === null}
+          label={t('settings.chordColorDefault')}
+          colour="var(--color-chord)"
+          onClick={() => setPrefs({ chordColor: null })}
+        />
+        {CHORD_COLOURS.map(({ value, label }) => (
+          <Swatch
+            key={value}
+            selected={prefs.chordColor === value}
+            label={label}
+            colour={value}
+            onClick={() => setPrefs({ chordColor: value })}
+          />
+        ))}
+
+        <label
+          title={t('settings.chordColorCustom')}
+          className={`relative grid h-8 w-8 cursor-pointer place-items-center rounded-full border-2 transition ${
+            custom ? 'border-(--color-chord)' : 'border-transparent hover:border-(--color-line)'
+          }`}
+        >
+          <span
+            className="h-6 w-6 rounded-full border border-(--color-line)"
+            style={{
+              background: custom
+                ? (prefs.chordColor ?? '')
+                : 'conic-gradient(#ef4444,#f59e0b,#10b981,#06b6d4,#8b5cf6,#ec4899,#ef4444)',
+            }}
+          />
+          <input
+            type="color"
+            aria-label={t('settings.chordColorCustom')}
+            value={prefs.chordColor ?? '#3b82f6'}
+            onChange={(event) => setPrefs({ chordColor: event.target.value })}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+        </label>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-(--color-line) bg-(--color-raised) px-3 py-2 font-mono text-sm leading-tight">
+        <span className="block whitespace-pre text-[0.72em] font-semibold text-(--color-chord-ink)">
+          {t('settings.chordColorSampleChords')}
+        </span>
+        <span className="block">{t('settings.chordColorSample')}</span>
+      </div>
+    </div>
+  );
+}
+
+function Swatch({
+  selected,
+  label,
+  colour,
+  onClick,
+}: {
+  selected: boolean;
+  label: string;
+  colour: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      aria-label={label}
+      title={label}
+      className={`grid h-8 w-8 place-items-center rounded-full border-2 transition ${
+        selected ? 'border-(--color-chord)' : 'border-transparent hover:border-(--color-line)'
+      }`}
+    >
+      <span
+        className="grid h-6 w-6 place-items-center rounded-full border border-(--color-line)"
+        style={{ background: colour }}
+      >
+        {selected && <IconCheck size={13} className="text-white" />}
+      </span>
+    </button>
   );
 }
 

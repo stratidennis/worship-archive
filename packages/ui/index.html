@@ -4,7 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Worship Archive</title>
-    <meta name="theme-color" content="#16181a" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="theme-color" content="#232628" />
     <!--
       The theme is applied before the first paint. Reading it in React is one frame too
       late: the page would paint in the default theme and then swap, which on the way to
@@ -15,6 +17,8 @@
         var p = JSON.parse(localStorage.getItem('worship-archive:prefs') || '{}');
         if (p.theme && p.theme !== 'auto')
           document.documentElement.setAttribute('data-theme', p.theme);
+        if (p.chordColor)
+          document.documentElement.style.setProperty('--color-chord-ink', p.chordColor);
       } catch (e) {}
     </script>
   </head>

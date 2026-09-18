@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT, type TranslationKey } from '../lib/i18n.js';
+import { Logo } from './Logo.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { ButtonLink, IconButton, Segmented, segmentClasses } from './ui.js';
 import {
@@ -96,6 +97,12 @@ export function AppHeader({
           <IconBack size={17} />
         </IconButton>
       )}
+
+      {/* The mark only, never the name: the name is in the window title and on the tab,
+          and a wordmark in a bar that already carries navigation, a date and six
+          controls is the thing that tips it from full into cluttered. Off on a phone,
+          where every pixel of that row is doing work. */}
+      <Logo className="hidden h-6 shrink-0 sm:block" />
 
       <Segmented label={t('nav.where')} className="shrink-0">
         {DESTINATIONS.map(({ key, to, label, Icon }) => (

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { IconAlert, IconTrash } from './icons.js';
 
 /**
  * A dialog that has to be answered.
@@ -19,14 +20,25 @@ import { useEffect, useRef } from 'react';
  *  - **Focus goes back where it came from.** Otherwise answering the question drops a
  *    keyboard user at the top of the document.
  */
+
+/** What kind of answer is being asked for, which decides the mark beside the question. */
+export type Tone = 'warn' | 'danger';
+
+const TONES: Record<Tone, { ring: string; Icon: typeof IconAlert }> = {
+  warn: { ring: 'bg-(--color-cue)/15 text-(--color-cue)', Icon: IconAlert },
+  danger: { ring: 'bg-red-500/15 text-red-500', Icon: IconTrash },
+};
+
 export function Modal({
   title,
   detail,
+  tone = 'warn',
   children,
   onDismiss,
 }: {
   title: string;
   detail?: string | undefined;
+  tone?: Tone;
   /** The buttons, least destructive first. */
   children: React.ReactNode;
   onDismiss: () => void;
@@ -34,6 +46,7 @@ export function Modal({
   const panel = useRef<HTMLDivElement>(null);
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
+  const { ring, Icon } = TONES[tone];
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -54,7 +67,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+      className="modal-backdrop fixed inset-0 z-50 grid place-items-center bg-black/55 p-4 backdrop-blur-[2px]"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onDismiss();
       }}
@@ -64,11 +77,23 @@ export function Modal({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-sm rounded-xl border border-(--color-line) bg-(--color-surface) p-5 shadow-xl"
+        className="modal-panel w-full max-w-md rounded-2xl border border-(--color-line) bg-(--color-surface) p-5 shadow-2xl"
       >
-        <h2 className="text-lg font-bold">{title}</h2>
-        {detail && <p className="mt-1 text-sm text-(--color-muted)">{detail}</p>}
-        <div className="mt-4 flex flex-wrap justify-end gap-2">{children}</div>
+        <div className="flex gap-3.5">
+          {/* A mark, not decoration: it says at a glance whether this is "you will lose
+              something" or "you are about to destroy something", before the sentence is
+              read. */}
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${ring}`}>
+            <Icon size={19} />
+          </span>
+          <div className="min-w-0 pt-0.5">
+            <h2 className="text-base font-bold leading-snug">{title}</h2>
+            {detail && (
+              <p className="mt-1.5 text-sm leading-relaxed text-(--color-muted)">{detail}</p>
+            )}
+          </div>
+        </div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">{children}</div>
       </div>
     </div>
   );

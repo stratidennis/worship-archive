@@ -346,22 +346,15 @@ export function EditPage() {
                     />
                     {t('edit.linked')}
                   </label>
-                  <label
-                    className="flex items-center gap-1 text-(--color-muted)"
-                    title={t('edit.bandOnlyHint')}
-                  >
-                    <Checkbox
-                      checked={block.bandOnly}
-                      onChange={(e) =>
-                        edit((s) => updateBlock(s, block.id, { bandOnly: e.target.checked }))
-                      }
-                    />
-                    {t('edit.bandOnly')}
-                  </label>
 
                   <span className="ml-auto flex gap-0.5">
+                    {/* The ends of the list have nowhere to go, and the first section
+                        has nothing above it to merge into. These used to be pressable
+                        and silently do nothing, which reads as the button being broken
+                        rather than as the move being impossible. */}
                     <Btn
                       small
+                      disabled={blockIndex === 0}
                       onClick={() => edit((s) => moveBlock(s, block.id, -1))}
                       title={t('edit.moveUp')}
                     >
@@ -369,6 +362,7 @@ export function EditPage() {
                     </Btn>
                     <Btn
                       small
+                      disabled={blockIndex === current.blocks.length - 1}
                       onClick={() => edit((s) => moveBlock(s, block.id, 1))}
                       title={t('edit.moveDown')}
                     >
@@ -376,6 +370,7 @@ export function EditPage() {
                     </Btn>
                     <Btn
                       small
+                      disabled={blockIndex === 0}
                       onClick={() => edit((s) => mergeBlockUp(s, block.id))}
                       title={t('edit.mergeUp')}
                     >
@@ -534,6 +529,13 @@ export function EditPage() {
   );
 }
 
+/**
+ * The song's own facts.
+ *
+ * Copyright and CCLI are not here. They are still parsed, stored and written back out,
+ * so a song that arrived with them keeps them — but this band does not licence-report,
+ * and two fields nobody fills in are two more things to read past every time.
+ */
 function Metadata({
   song,
   edit,
@@ -606,18 +608,6 @@ function Metadata({
           )
         }
         placeholder={t('block.Chorus').toLowerCase()}
-      />
-      <Field
-        label={t('edit.copyright')}
-        value={song.copyright ?? ''}
-        onChange={(v) => edit((s) => ({ ...s, copyright: v || null }), 'copyright')}
-        placeholder="—"
-      />
-      <Field
-        label={t('edit.ccli')}
-        value={song.ccli ?? ''}
-        onChange={(v) => edit((s) => ({ ...s, ccli: v || null }), 'ccli')}
-        placeholder="—"
       />
     </div>
   );

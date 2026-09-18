@@ -1,104 +1,103 @@
 #!/usr/bin/env python3
 """
-Generate the app icon at every size the packagers need.
+Generate the app icon at every size the packagers need, from the brand art.
 
-Committed output, reproducible source. The icon is drawn rather than designed: a
-rounded square in the app's own chord blue, with a stylised open book of music. It has
-to read at 16px in a Windows tray and at 1024px in the macOS dock, so it is built from
-three shapes and nothing else — detail that survives one size and not the other is
-worse than no detail.
+This used to *draw* an icon — a rounded square and a stylised book, built from three
+shapes because detail that survives one size and not the other is worse than no detail.
+It exists because there was no logo. There is one now, so the job changed: take
+`brand/logo-mark.png` and produce every size and shape the platforms ask for, so that
+one source file is the only thing anyone ever edits.
 
-    python3 tools/src/make-icons.py
+    python3 tools/src/make-icons.py        (or: pnpm icons)
+
+Two backgrounds, for two different reasons. App icons get an opaque white rounded
+square: a transparent icon on a white Windows taskbar disappears, and Android's
+maskable icons are composited onto whatever shape the launcher wants — which crops a
+transparent one to a blue blob. Tray icons stay transparent, because a menu bar is not
+white and never will be.
 """
 
-from PIL import Image, ImageDraw
 from pathlib import Path
 
+from PIL import Image, ImageDraw
+
 ROOT = Path(__file__).resolve().parents[2]
-BG = (34, 63, 122)          # oklch(48% 0.16 255) as sRGB — the --color-chord token
-BG_DARK = (24, 45, 90)
-FG = (247, 249, 252)
-ACCENT = (247, 190, 106)    # --color-cue: the one warm note
+MARK = ROOT / "brand" / "logo-mark.png"
+UI_PUBLIC = ROOT / "packages" / "ui" / "public"
+DESKTOP_BUILD = ROOT / "packages" / "desktop" / "build"
+
+WHITE = (255, 255, 255, 255)
+# 4x supersampling: the only anti-aliasing available without a vector rasteriser, and
+# at 16px the difference between this and none is legibility.
+SUPER = 4
 
 
-def draw(size: int) -> Image.Image:
-    # 4x supersampling: the only anti-aliasing available without a vector rasteriser,
-    # and at 16px the difference between this and none is legibility.
-    s = size * 4
+def rounded_square(size: int, radius_ratio: float, colour: tuple[int, int, int, int]):
+    s = size * SUPER
     image = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(image)
-
-    radius = int(s * 0.22)
-    d.rounded_rectangle([0, 0, s - 1, s - 1], radius=radius, fill=BG)
-    d.rounded_rectangle([0, 0, s - 1, int(s * 0.5)], radius=radius, fill=BG)
-    d.rectangle([0, int(s * 0.3), s - 1, int(s * 0.55)], fill=BG)
-    d.rounded_rectangle(
-        [int(s * 0.04), int(s * 0.04), int(s * 0.96), int(s * 0.96)],
-        radius=int(s * 0.19),
-        outline=BG_DARK,
-        width=max(1, int(s * 0.012)),
+    ImageDraw.Draw(image).rounded_rectangle(
+        [0, 0, s - 1, s - 1], radius=int(s * radius_ratio), fill=colour
     )
-
-    # An open book: two pages meeting at a spine.
-    top, bottom = int(s * 0.30), int(s * 0.74)
-    left, right = int(s * 0.16), int(s * 0.84)
-    mid = s // 2
-    lift = int(s * 0.05)
-    d.polygon(
-        [(left, top + lift), (mid, top), (mid, bottom), (left, bottom + lift)], fill=FG
-    )
-    d.polygon(
-        [(right, top + lift), (mid, top), (mid, bottom), (right, bottom + lift)], fill=FG
-    )
-    d.line([(mid, top), (mid, bottom)], fill=BG_DARK, width=max(1, int(s * 0.012)))
-
-    # A single note on the right-hand page — the one element that says "music" at 16px.
-    head_r = int(s * 0.055)
-    head_x, head_y = int(s * 0.63), int(s * 0.60)
-    d.ellipse(
-        [head_x - head_r, head_y - int(head_r * 0.8), head_x + head_r, head_y + int(head_r * 0.8)],
-        fill=ACCENT,
-    )
-    d.line(
-        [(head_x + head_r - int(s * 0.004), head_y), (head_x + head_r - int(s * 0.004), int(s * 0.42))],
-        fill=ACCENT,
-        width=max(1, int(s * 0.022)),
-    )
-
-    # Two stave lines on the left-hand page, suggesting text without drawing any.
-    for i, y in enumerate((0.47, 0.55, 0.63)):
-        d.line(
-            [(int(s * 0.24), int(s * y) + int(lift * (1 - y))), (int(s * 0.43), int(s * y))],
-            fill=BG_DARK,
-            width=max(1, int(s * 0.018)),
-        )
-
     return image.resize((size, size), Image.LANCZOS)
 
 
+def centred(mark: Image.Image, canvas: Image.Image, scale: float) -> Image.Image:
+    """The mark centred on a canvas, its longest side `scale` of the canvas."""
+    box = int(canvas.width * scale)
+    art = mark.copy()
+    art.thumbnail((box, box), Image.LANCZOS)
+    out = canvas.copy()
+    out.alpha_composite(art, ((out.width - art.width) // 2, (out.height - art.height) // 2))
+    return out
+
+
+def app_icon(mark: Image.Image, size: int, *, scale: float, inset: float = 0.0):
+    """A white rounded square with the mark on it, optionally inset in its canvas."""
+    plate_size = int(size * (1 - inset * 2))
+    plate = centred(mark, rounded_square(plate_size, 0.22, WHITE), scale)
+    if inset == 0.0:
+        return plate
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.alpha_composite(plate, ((size - plate_size) // 2, (size - plate_size) // 2))
+    return canvas
+
+
+def scaled_to_height(image: Image.Image, height: int) -> Image.Image:
+    width = round(image.width * height / image.height)
+    return image.resize((width, height), Image.LANCZOS)
+
+
 def main() -> None:
-    master = draw(1024)
+    mark = Image.open(MARK).convert("RGBA")
 
-    (ROOT / "packages/desktop/build").mkdir(parents=True, exist_ok=True)
-    master.save(ROOT / "packages/desktop/build/icon.png")
-
-    # electron-builder derives .ico and .icns itself, but a tray icon must be small and
-    # drawn at its real size rather than downscaled from 1024.
-    for size in (16, 24, 32, 48):
-        draw(size).save(ROOT / f"packages/desktop/build/tray-{size}.png")
-
+    # The web app. 0.62 keeps the mark inside the 80%-diameter circle Android promises
+    # not to crop, so the same file serves as the maskable icon too.
     for size in (192, 512):
-        draw(size).save(ROOT / f"packages/ui/public/icon-{size}.png")
+        app_icon(mark, size, scale=0.62).save(UI_PUBLIC / f"icon-{size}.png")
 
-    # Apple wants transparent padding around the glyph; a full-bleed square looks wrong
-    # next to every other icon in the dock.
-    padded = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
-    inner = draw(int(1024 * 0.82))
-    offset = (1024 - inner.width) // 2
-    padded.paste(inner, (offset, offset), inner)
-    padded.save(ROOT / "packages/desktop/build/icon-mac.png")
+    # The favicon, at the three sizes browsers actually ask for. Written from the mark
+    # rather than copied from the supplied .ico, which was a 432KB nine-image file for
+    # something that renders at 16 pixels.
+    app_icon(mark, 64, scale=0.72).save(
+        UI_PUBLIC / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)]
+    )
 
-    print("wrote packages/desktop/build/ and packages/ui/public/")
+    # In the interface: twice the size they are drawn at, for a retina screen.
+    scaled_to_height(mark, 96).save(UI_PUBLIC / "logo-mark.png")
+    wordmark = Image.open(ROOT / "brand" / "logo-wordmark.png").convert("RGBA")
+    scaled_to_height(wordmark, 128).save(UI_PUBLIC / "logo-wordmark.png")
+
+    # The desktop app. macOS insets its icons inside the canvas — a full-bleed one looks
+    # a size larger than everything beside it in the dock — and Windows does not.
+    app_icon(mark, 1024, scale=0.60).save(DESKTOP_BUILD / "icon.png")
+    app_icon(mark, 1024, scale=0.60, inset=0.08).save(DESKTOP_BUILD / "icon-mac.png")
+
+    # The tray: transparent, because a menu bar is not white.
+    for size in (16, 24, 32, 48):
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        centred(mark, canvas, 0.92).save(DESKTOP_BUILD / f"tray-{size}.png")
+
+    print(f"icons written from {MARK.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
