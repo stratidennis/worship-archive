@@ -1,5 +1,6 @@
 import type { ServiceSet, Song } from '@worship/core';
 import type { Translator } from '../lib/i18n.js';
+import { setName } from '../lib/setName.js';
 
 /**
  * The running order as it prints.
@@ -28,7 +29,7 @@ export function PrintableRunningOrder({
 
   return (
     <div className="hidden print:block">
-      <h1 className="mb-0.5 text-xl font-bold">{set.title}</h1>
+      <h1 className="mb-0.5 text-xl font-bold">{setName(set, formatDate)}</h1>
       {date && <p className="mb-4 text-sm">{date}</p>}
 
       <ol className="space-y-1">

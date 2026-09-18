@@ -5,7 +5,9 @@ import { api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { rememberSet } from '../lib/lastSet.js';
 import { useT } from '../lib/i18n.js';
-import { NavBar } from '../components/NavBar.js';
+import { setName } from '../lib/setName.js';
+import { AppHeader } from '../components/AppHeader.js';
+import { IconPlus } from '../components/icons.js';
 
 /** The next Sunday, as an ISO date — the default for a new service. */
 function nextSunday(): string {
@@ -44,7 +46,7 @@ export function SetsPage() {
 
   const create = (): void => {
     void api
-      .createSet({ title: t('sets.newTitle'), date: nextSunday() })
+      .createSet({ title: nextSunday(), date: nextSunday() })
       .then((created) => {
         rememberSet(created.id);
         navigate(`/sets/${encodeURIComponent(created.id)}`);
@@ -53,53 +55,57 @@ export function SetsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
-      <NavBar current="sets">
+    <>
+      <AppHeader current="sets">
         <button
           type="button"
           onClick={create}
-          className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
+          className="flex h-9 items-center gap-1.5 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 text-sm font-medium text-white"
         >
-          {t('sets.new')}
+          <IconPlus size={16} />
+          <span className="hidden sm:inline">{t('sets.new')}</span>
         </button>
-      </NavBar>
+      </AppHeader>
 
-      <h1 className="mb-4 text-2xl font-bold">{t('app.sets')}</h1>
+      <div className="mx-auto max-w-3xl px-4 pb-16 pt-5">
+        <h1 className="mb-4 text-2xl font-bold">{t('app.sets')}</h1>
 
-      {error && <p className="mb-4 text-sm text-(--color-muted)">{error}</p>}
+        {error && <p className="mb-4 text-sm text-(--color-muted)">{error}</p>}
 
-      <ul id="main" className="divide-y divide-(--color-line)">
-        {sets.map((set) => (
-          <li key={set.id} className="flex items-center gap-3 py-3">
-            <Link to={`/sets/${encodeURIComponent(set.id)}`} className="min-w-0 flex-1">
-              <span className="block truncate font-medium">{set.title}</span>
-              <span className="block text-xs text-(--color-muted)">
-                {date(set.date)} · {t('library.count', { count: set.songCount })}
-              </span>
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                void api
-                  .duplicateSet(set.id, { date: nextSunday() })
-                  .then((copy) => {
-                    rememberSet(copy.id);
-                    navigate(`/sets/${encodeURIComponent(copy.id)}`);
-                  })
-                  .catch((e: unknown) => setError(String(e)));
-              }}
-              className="shrink-0 rounded-md border border-(--color-line) px-2 py-1 text-xs hover:bg-(--color-line)"
-              title={t('sets.duplicateHint')}
-            >
-              {t('sets.duplicate')}
-            </button>
-          </li>
-        ))}
-      </ul>
+        <ul id="main" className="divide-y divide-(--color-line)">
+          {sets.map((set) => (
+            <li key={set.id} className="flex items-center gap-3 py-3">
+              <Link to={`/sets/${encodeURIComponent(set.id)}`} className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{setName(set, date)}</span>
+                <span className="block text-xs text-(--color-muted)">
+                  {/* The name is already the date; repeating it here said nothing. */}
+                  {t('library.count', { count: set.songCount })}
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  void api
+                    .duplicateSet(set.id, { date: nextSunday() })
+                    .then((copy) => {
+                      rememberSet(copy.id);
+                      navigate(`/sets/${encodeURIComponent(copy.id)}`);
+                    })
+                    .catch((e: unknown) => setError(String(e)));
+                }}
+                className="shrink-0 rounded-md border border-(--color-line) px-2 py-1 text-xs hover:bg-(--color-line)"
+                title={t('sets.duplicateHint')}
+              >
+                {t('sets.duplicate')}
+              </button>
+            </li>
+          ))}
+        </ul>
 
-      {sets.length === 0 && !error && (
-        <p className="mt-10 text-center text-sm text-(--color-muted)">{t('sets.empty')}</p>
-      )}
-    </div>
+        {sets.length === 0 && !error && (
+          <p className="mt-10 text-center text-sm text-(--color-muted)">{t('sets.empty')}</p>
+        )}
+      </div>
+    </>
   );
 }

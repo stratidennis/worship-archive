@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useParams } from 'react-router-dom';
 import {
   BLOCK_TYPES,
   SINGERS,
   insertBlock,
   insertLine,
   mergeBlockUp,
+  pasteIntoLine,
   moveBlock,
   removeBlock,
   removeLine,
+  replaceLine,
   setChord,
   setLineText,
   splitBlock,
@@ -25,7 +27,16 @@ import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/desktop.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
-import { HomeButton } from '../components/NavBar.js';
+import { AppHeader } from '../components/AppHeader.js';
+import {
+  IconClose,
+  IconDown,
+  IconMergeUp,
+  IconRedo,
+  IconSave,
+  IconUndo,
+  IconUp,
+} from '../components/icons.js';
 
 /** Keyboard shortcuts carried over from the old SongEditor, so muscle memory survives. */
 const TYPE_KEYS: Record<string, BlockType> = {
@@ -36,6 +47,19 @@ const TYPE_KEYS: Record<string, BlockType> = {
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
+/**
+ * What is compared to decide whether there is anything to save.
+ *
+ * Deliberately not the whole document. `rev`, `createdAt` and `updatedAt` belong to the
+ * server and change on every write, so comparing them meant the editor was still
+ * "unsaved" the instant after a successful save — the Save button never went quiet, and
+ * leaving would have asked about changes that had already been written.
+ */
+function contentOf(song: Song): string {
+  const { rev: _rev, createdAt: _createdAt, updatedAt: _updatedAt, ...content } = song;
+  return JSON.stringify(content);
+}
+
 export function EditPage() {
   const { t, blockName, singerName } = useT();
   const { id = '' } = useParams();
@@ -43,7 +67,6 @@ export function EditPage() {
   const song = useUndoable<Song | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [preview, setPreview] = useState(false);
-  const [layer, setLayer] = useState<'chords' | 'bass'>('chords');
   const [error, setError] = useState<string | null>(null);
   const savedRef = useRef<string>('');
 
@@ -56,7 +79,7 @@ export function EditPage() {
           setError(t('song.notLocal'));
           return;
         }
-        savedRef.current = JSON.stringify(loaded);
+        savedRef.current = contentOf(loaded);
         reset(loaded);
       })
       .catch((e: unknown) => setError(String(e)));
@@ -64,35 +87,55 @@ export function EditPage() {
 
   const current = song.value;
 
-  // Autosave. Debounced, and it compares against what was last persisted so an undo
-  // back to the saved state does not write an identical revision.
+  /*
+    Saving is explicit.
+
+    It used to autosave 800ms after you stopped typing, which is fine for notes and
+    wrong for a song: a half-finished edit to Sunday's chords would reach every other
+    device before the musician had decided it was right. Nothing leaves this page until
+    Save — and nothing leaves this page *silently*, either: navigating away with unsaved
+    work is blocked below.
+  */
+  const dirty = current !== null && contentOf(current) !== savedRef.current;
+
   useEffect(() => {
-    if (!current) return;
-    const serialised = JSON.stringify(current);
-    if (serialised === savedRef.current) {
-      setSaveState('idle');
-      return;
+    setSaveState((previous) => {
+      if (previous === 'saving' || previous === 'error') return previous;
+      return dirty ? 'dirty' : previous === 'saved' ? 'saved' : 'idle';
+    });
+  }, [dirty]);
+
+  const save = useCallback(async (): Promise<boolean> => {
+    if (!current) return true;
+    setSaveState('saving');
+    try {
+      await repo.saveSong(id, current);
+      // What was sent is now what is stored; the server's own `rev` and `updatedAt`
+      // are deliberately not part of the comparison — see `contentOf`.
+      savedRef.current = contentOf(current);
+      setSaveState('saved');
+      return true;
+    } catch (e: unknown) {
+      setError(String(e));
+      setSaveState('error');
+      return false;
     }
-    setSaveState('dirty');
-    const timer = setTimeout(() => {
-      setSaveState('saving');
-      repo
-        .saveSong(id, current)
-        .then((stored) => {
-          savedRef.current = JSON.stringify({
-            ...current,
-            rev: stored.rev,
-            updatedAt: stored.updatedAt,
-          });
-          setSaveState('saved');
-        })
-        .catch((e: unknown) => {
-          setError(String(e));
-          setSaveState('error');
-        });
-    }, 800);
-    return () => clearTimeout(timer);
   }, [current, id]);
+
+  // Closing the tab or reloading is the browser's to warn about, not ours.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent): void => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  // Navigating inside the app is ours. The blocker holds the navigation open while the
+  // question is asked, then either lets it through or cancels it.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && currentLocation.pathname !== nextLocation.pathname,
+  );
 
   const edit = useCallback(
     (fn: (s: Song) => Song, mergeKey?: string) => {
@@ -101,28 +144,32 @@ export function EditPage() {
     [song],
   );
 
-  // Undo/redo at the document level. The browser's own undo still works inside a field.
+  // Undo/redo and save at the document level. The browser's own undo still works inside
+  // a field.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const meta = event.metaKey || event.ctrlKey;
-      if (meta && event.key.toLowerCase() === 'z') {
+      if (!meta) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z') {
         event.preventDefault();
         if (event.shiftKey) song.redo();
         else song.undo();
+      } else if (key === 's') {
+        event.preventDefault();
+        void save();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [song]);
+  }, [song, save]);
 
   if (error && !current) {
     return (
-      <div className="p-6">
-        <Link to="/library" className="text-sm underline">
-          ← {t('app.library')}
-        </Link>
-        <p className="mt-4 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>
-      </div>
+      <>
+        <AppHeader back />
+        <p className="p-6 text-sm text-(--color-muted)">{t('song.loadError', { error })}</p>
+      </>
     );
   }
   if (!current)
@@ -130,44 +177,41 @@ export function EditPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="shrink-0 border-b border-(--color-line) px-4 py-2">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2">
-          <Link
-            to={`/song/${encodeURIComponent(id)}`}
-            className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
-            aria-label={t('app.back')}
-            title={t('app.back')}
-          >
-            ←
-          </Link>
-          <HomeButton />
+      <AppHeader
+        back
+        title={
           <input
             value={current.title}
             onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}
             placeholder={t('edit.title')}
             aria-label={t('edit.title')}
-            className="min-w-40 flex-1 bg-transparent text-lg font-bold outline-none focus:bg-(--color-chord)/5"
+            className="w-full min-w-40 bg-transparent text-base font-bold outline-none focus:bg-(--color-chord)/5 sm:w-64"
           />
-          <SaveBadge state={saveState} />
-          <div className="flex items-center gap-1 text-sm">
-            <Btn onClick={song.undo} disabled={!song.canUndo} title={t('edit.undo')}>
-              ↶
-            </Btn>
-            <Btn onClick={song.redo} disabled={!song.canRedo} title={t('edit.redo')}>
-              ↷
-            </Btn>
-            <Btn
-              onClick={() => setLayer(layer === 'chords' ? 'bass' : 'chords')}
-              active={layer === 'bass'}
-            >
-              {layer === 'bass' ? t('song.bass') : t('song.chords')}
-            </Btn>
-            <Btn onClick={() => setPreview(!preview)} active={preview}>
-              {t('edit.preview')}
-            </Btn>
-          </div>
+        }
+      >
+        <SaveBadge state={saveState} />
+        <div className="flex items-center gap-1 text-sm">
+          <Btn onClick={song.undo} disabled={!song.canUndo} title={t('edit.undo')}>
+            <IconUndo size={16} />
+          </Btn>
+          <Btn onClick={song.redo} disabled={!song.canRedo} title={t('edit.redo')}>
+            <IconRedo size={16} />
+          </Btn>
+          <Btn onClick={() => setPreview(!preview)} active={preview}>
+            {t('edit.preview')}
+          </Btn>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={!dirty || saveState === 'saving'}
+            title={t('edit.saveShortcut')}
+            className="flex h-9 items-center gap-1.5 rounded-md border border-(--color-chord) bg-(--color-chord) px-3 text-sm font-semibold text-white disabled:border-(--color-line) disabled:bg-transparent disabled:text-(--color-muted)"
+          >
+            <IconSave size={16} />
+            {t('edit.save')}
+          </button>
         </div>
-      </header>
+      </AppHeader>
 
       <div className="flex min-h-0 flex-1">
         <div id="main" className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -291,28 +335,28 @@ export function EditPage() {
                       onClick={() => edit((s) => moveBlock(s, block.id, -1))}
                       title={t('edit.moveUp')}
                     >
-                      ↑
+                      <IconUp size={13} />
                     </Btn>
                     <Btn
                       small
                       onClick={() => edit((s) => moveBlock(s, block.id, 1))}
                       title={t('edit.moveDown')}
                     >
-                      ↓
+                      <IconDown size={13} />
                     </Btn>
                     <Btn
                       small
                       onClick={() => edit((s) => mergeBlockUp(s, block.id))}
                       title={t('edit.mergeUp')}
                     >
-                      ⇧⇧
+                      <IconMergeUp size={13} />
                     </Btn>
                     <Btn
                       small
                       onClick={() => edit((s) => removeBlock(s, block.id))}
                       title={t('edit.removeSection')}
                     >
-                      ✕
+                      <IconClose size={13} />
                     </Btn>
                   </span>
                 </div>
@@ -321,7 +365,7 @@ export function EditPage() {
                   <LineEditor
                     key={lineIndex}
                     line={line}
-                    layer={layer}
+                    layer="chords"
                     showChords
                     onTextChange={(text) =>
                       edit(
@@ -331,8 +375,22 @@ export function EditPage() {
                     }
                     onChordChange={(at, raw) =>
                       edit((s) =>
-                        updateLine(s, block.id, lineIndex, (l) => setChord(l, at, raw, layer)),
+                        updateLine(s, block.id, lineIndex, (l) => setChord(l, at, raw)),
                       )
+                    }
+                    onPasteLines={(at, text) =>
+                      edit((s) => {
+                        const target = s.blocks.find((b) => b.id === block.id)?.lines[
+                          lineIndex
+                        ];
+                        if (!target) return s;
+                        return replaceLine(
+                          s,
+                          block.id,
+                          lineIndex,
+                          pasteIntoLine(target, at, text),
+                        );
+                      })
                     }
                     onEnter={() => edit((s) => insertLine(s, block.id, lineIndex))}
                     onBackspaceEmpty={() =>
@@ -403,6 +461,45 @@ export function EditPage() {
           </div>
         </div>
 
+        {blocker.state === 'blocked' && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-label={t('edit.unsavedTitle')}
+              className="w-full max-w-sm rounded-xl border border-(--color-line) bg-(--color-stage-bg) p-5 shadow-xl"
+            >
+              <h2 className="text-lg font-bold">{t('edit.unsavedTitle')}</h2>
+              <p className="mt-1 text-sm text-(--color-muted)">{t('edit.unsavedBody')}</p>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => blocker.reset?.()}
+                  className="rounded-md border border-(--color-line) px-3 py-1.5 text-sm hover:bg-(--color-line)"
+                >
+                  {t('edit.stay')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => blocker.proceed?.()}
+                  className="rounded-md border border-(--color-line) px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
+                >
+                  {t('edit.discard')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void save().then((ok) => (ok ? blocker.proceed?.() : blocker.reset?.()));
+                  }}
+                  className="rounded-md border border-(--color-chord) bg-(--color-chord) px-3 py-1.5 text-sm font-semibold text-white"
+                >
+                  {t('edit.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {preview && (
           <aside className="scroll-slim hidden min-h-0 w-[42%] shrink-0 overflow-y-auto border-l border-(--color-line) px-4 py-4 lg:block">
             <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
@@ -411,12 +508,7 @@ export function EditPage() {
             <div style={{ fontSize: '16px' }}>
               <SongBody
                 song={current}
-                options={{
-                  showChords: true,
-                  showBass: layer === 'bass',
-                  capo: 0,
-                  transpose: 0,
-                }}
+                options={{ showChords: true, showBass: false, capo: 0, transpose: 0 }}
               />
             </div>
           </aside>

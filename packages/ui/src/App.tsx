@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { I18nProvider, useT } from './lib/i18n.js';
 import { useTheme } from './lib/theme.js';
 import { Library } from './routes/Library.js';
@@ -31,40 +31,46 @@ function SkipLink() {
   );
 }
 
-function Shell() {
+function Shell({ children }: { children: React.ReactNode }) {
   useTheme();
   return (
     <>
       <SkipLink />
-      <Routes>
-        {/*
-          `/` is a set, not the library. The set is the thing being worked on; the
-          library is where you go to find a song for it.
-        */}
-        <Route path="/" element={<Home />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/song/:id" element={<SongPage />} />
-        <Route path="/edit/:id" element={<EditPage />} />
-        <Route path="/sets" element={<SetsPage />} />
-        <Route path="/sets/:id" element={<SetPage />} />
-        <Route path="/lead" element={<LeadPage />} />
-        <Route path="/band" element={<BandPage />} />
-        <Route path="/stage" element={<StagePage />} />
-        <Route path="/join" element={<JoinPage />} />
-        <Route path="/import" element={<ImportPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/cleanup" element={<CleanupPage />} />
-      </Routes>
+      {children}
     </>
   );
 }
 
+const page = (element: React.ReactNode): React.ReactElement => <Shell>{element}</Shell>;
+
+/*
+  A data router, not `<BrowserRouter>`.
+
+  The editor has to be able to stop a navigation when there are unsaved changes, and
+  `useBlocker` only exists on a data router. Everything else about the routes is
+  unchanged: `/` is a set, because the set is the thing being worked on, and the library
+  is where you go to find a song for it.
+*/
+const router = createBrowserRouter([
+  { path: '/', element: page(<Home />) },
+  { path: '/library', element: page(<Library />) },
+  { path: '/song/:id', element: page(<SongPage />) },
+  { path: '/edit/:id', element: page(<EditPage />) },
+  { path: '/sets', element: page(<SetsPage />) },
+  { path: '/sets/:id', element: page(<SetPage />) },
+  { path: '/lead', element: page(<LeadPage />) },
+  { path: '/band', element: page(<BandPage />) },
+  { path: '/stage', element: page(<StagePage />) },
+  { path: '/join', element: page(<JoinPage />) },
+  { path: '/import', element: page(<ImportPage />) },
+  { path: '/settings', element: page(<SettingsPage />) },
+  { path: '/cleanup', element: page(<CleanupPage />) },
+]);
+
 export function App() {
   return (
     <I18nProvider>
-      <BrowserRouter>
-        <Shell />
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </I18nProvider>
   );
 }

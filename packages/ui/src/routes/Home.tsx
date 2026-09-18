@@ -44,7 +44,8 @@ export function Home() {
         }
 
         setCreating(true);
-        const created = await api.createSet({ title: t('sets.newTitle'), date: nextSunday() });
+        const sunday = nextSunday();
+        const created = await api.createSet({ title: sunday, date: sunday });
         if (!cancelled) setTarget(created.id);
       } catch {
         if (!cancelled) setError(t('set.cannotCreate'));

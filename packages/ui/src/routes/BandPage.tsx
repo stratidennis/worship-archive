@@ -11,6 +11,7 @@ import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from './LeadPage.js';
+import { IconHome, IconMinus, IconMusic, IconPlus } from '../components/icons.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -121,7 +122,7 @@ export function BandPage() {
 
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${viewing?.song.id ?? ''}:${position.blockId}:${prefs.showChords}:${prefs.showBass}:${extraTranspose}:${prefs.capo}`,
+    key: `${viewing?.song.id ?? ''}:${position.blockId}:${prefs.showChords}:${extraTranspose}:${prefs.capo}`,
   });
 
   return (
@@ -129,11 +130,11 @@ export function BandPage() {
       <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--color-line) px-3 py-1.5">
         <Link
           to="/"
-          className="rounded border border-(--color-line) px-1.5 py-1 text-xs hover:bg-(--color-line)"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded border border-(--color-line) hover:bg-(--color-line)"
           aria-label={t('nav.homeHint')}
           title={t('nav.homeHint')}
         >
-          ⌂
+          <IconHome size={15} />
         </Link>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {viewing?.song.title ?? (live.set ? '—' : t('band.noLiveSet'))}
@@ -144,7 +145,7 @@ export function BandPage() {
           onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}
           label={t('song.transposeDown')}
         >
-          ♭
+          <IconMinus size={14} />
         </Small>
         <Small onClick={() => setPrefs({ transpose: 0 })} label={t('song.transposeReset')}>
           {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
@@ -153,7 +154,7 @@ export function BandPage() {
           onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}
           label={t('song.transposeUp')}
         >
-          ♯
+          <IconPlus size={14} />
         </Small>
         <Small
           onClick={() => setPrefs({ capo: prefs.capo > 0 ? prefs.capo - 1 : 0 })}
@@ -172,7 +173,7 @@ export function BandPage() {
           active={prefs.showChords}
           label={t('song.chords')}
         >
-          ♪
+          <IconMusic size={14} />
         </Small>
         <StatusDot status={status} />
       </header>
@@ -215,7 +216,7 @@ export function BandPage() {
               song={viewing.song}
               options={{
                 showChords: prefs.showChords,
-                showBass: prefs.showBass,
+                showBass: false,
                 capo: viewing.item.capoOverride ?? prefs.capo,
                 transpose: extraTranspose,
               }}
@@ -267,7 +268,7 @@ function Small({
   onClick: () => void;
   children: React.ReactNode;
   active?: boolean;
-  /** ♭, ♯ and ♪ mean nothing read aloud. */
+  /** An icon alone means nothing read aloud. */
   label?: string;
 }) {
   return (

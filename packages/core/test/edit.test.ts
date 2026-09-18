@@ -3,13 +3,16 @@ import {
   insertBlock,
   mergeBlockUp,
   moveBlock,
+  pasteIntoLine,
   removeBlock,
+  replaceLine,
   setChord,
   setLineText,
   shiftAnchors,
   splitBlock,
+  updateLine,
 } from '../src/edit.js';
-import { emptyBlock, emptyLine, type Anchor, type Song } from '../src/types.js';
+import { emptyBlock, emptyLine, type Anchor, type Line, type Song } from '../src/types.js';
 
 const A = (at: number, raw = 'G'): Anchor => ({ at, raw });
 
@@ -189,5 +192,95 @@ describe('block operations', () => {
   it('cannot merge the first block upwards', () => {
     const base = songWith({ id: 'V1', lines: ['one'] });
     expect(mergeBlockUp(base, 'V1')).toBe(base);
+  });
+});
+
+describe('pasting several lines at once', () => {
+  const line = (text: string, chords: { at: number; raw: string }[] = []): Line => ({
+    ...emptyLine(text),
+    chords,
+  });
+
+  it('splits on newlines', () => {
+    const result = pasteIntoLine(line(''), 0, 'una\ndouă\ntrei');
+    expect(result.map((l) => l.text)).toEqual(['una', 'două', 'trei']);
+  });
+
+  it('treats Windows and old Mac line endings the same', () => {
+    expect(pasteIntoLine(line(''), 0, 'a\r\nb\rc').map((l) => l.text)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('is an ordinary edit when the text has no newline', () => {
+    const result = pasteIntoLine(line('ab', [{ at: 2, raw: 'G' }]), 1, 'XY');
+    expect(result).toHaveLength(1);
+    expect(result[0]!.text).toBe('aXYb');
+    // The chord was after the cursor, so it moves with the text it sat over.
+    expect(result[0]!.chords).toEqual([{ at: 4, raw: 'G' }]);
+  });
+
+  it('splits around the cursor, keeping both halves', () => {
+    const result = pasteIntoLine(line('startEND'), 5, 'one\ntwo');
+    expect(result.map((l) => l.text)).toEqual(['startone', 'twoEND']);
+  });
+
+  it('leaves chords before the cursor exactly where they were', () => {
+    const result = pasteIntoLine(line('abcdef', [{ at: 1, raw: 'G' }]), 3, 'X\nY');
+    expect(result[0]!.text).toBe('abcX');
+    expect(result[0]!.chords).toEqual([{ at: 1, raw: 'G' }]);
+  });
+
+  it('carries chords after the cursor onto the last line, correctly offset', () => {
+    // `G` sat over index 4 of "abcdef"; after the split that character is index 1 of
+    // "Ydef", because "Y" now precedes it.
+    const result = pasteIntoLine(line('abcdef', [{ at: 4, raw: 'G' }]), 3, 'X\nY');
+    const last = result[result.length - 1]!;
+    expect(last.text).toBe('Ydef');
+    expect(last.chords).toEqual([{ at: 2, raw: 'G' }]);
+  });
+
+  it('never loses a chord', () => {
+    const chords = [
+      { at: 0, raw: 'C' },
+      { at: 2, raw: 'F' },
+      { at: 5, raw: 'G' },
+    ];
+    const result = pasteIntoLine(line('abcdef', chords), 3, 'one\ntwo\nthree');
+    const all = result.flatMap((l) => l.chords.map((c) => c.raw));
+    expect(all.sort()).toEqual(['C', 'F', 'G']);
+  });
+
+  it('keeps the singers and indent of the line it split', () => {
+    const source: Line = { ...emptyLine('x'), singers: 'All', indent: 2 };
+    const result = pasteIntoLine(source, 1, 'a\nb\nc');
+    for (const l of result) {
+      expect(l.singers).toBe('All');
+      expect(l.indent).toBe(2);
+    }
+  });
+
+  it('handles a trailing newline without inventing content', () => {
+    expect(pasteIntoLine(line(''), 0, 'one\n').map((l) => l.text)).toEqual(['one', '']);
+  });
+
+  it('clamps a cursor outside the line rather than throwing', () => {
+    expect(() => pasteIntoLine(line('ab'), 99, 'x\ny')).not.toThrow();
+    expect(pasteIntoLine(line('ab'), 99, 'x\ny').map((l) => l.text)).toEqual(['abx', 'y']);
+  });
+});
+
+describe('replacing one line with several', () => {
+  it('splices them into the block in order, leaving its neighbours alone', () => {
+    const song = songWith({ id: 'V1', lines: ['first', 'target', 'third'] });
+    const result = replaceLine(song, 'V1', 1, [emptyLine('a'), emptyLine('b')]);
+    expect(result.blocks[0]!.lines.map((l) => l.text)).toEqual(['first', 'a', 'b', 'third']);
+  });
+
+  it('is what a multi-line paste writes back', () => {
+    const song = songWith({ id: 'V1', lines: ['abcdef'] });
+    const withChord = updateLine(song, 'V1', 0, (l) => setChord(l, 4, 'G'));
+    const line = withChord.blocks[0]!.lines[0]!;
+    const result = replaceLine(withChord, 'V1', 0, pasteIntoLine(line, 3, 'X\nY'));
+    expect(result.blocks[0]!.lines.map((l) => l.text)).toEqual(['abcX', 'Ydef']);
+    expect(result.blocks[0]!.lines[1]!.chords).toEqual([{ at: 2, raw: 'G' }]);
   });
 });

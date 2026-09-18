@@ -16,7 +16,6 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 export interface Prefs {
   showChords: boolean;
-  showBass: boolean;
   capo: number;
   /** Extra transposition on top of the song's performance key. */
   transpose: number;
@@ -31,17 +30,25 @@ export interface Prefs {
   theme: 'auto' | 'light' | 'dark' | 'stage';
   /** The set workspace's tools row. Collapsed during a service, expanded while building one. */
   setHeaderExpanded: boolean;
+  /**
+   * Width of the running-order panel, in pixels.
+   *
+   * Bounded rather than free: past a point the list is all whitespace and the song has
+   * nowhere left to go, and a panel dragged to the far edge on a laptop is a layout
+   * nobody can recover from without knowing where the divider went.
+   */
+  sidebarWidth: number;
 }
 
 export const DEFAULT_PREFS: Prefs = {
   showChords: true,
-  showBass: false,
   capo: 0,
   transpose: 0,
   maxFontPx: 26,
   language: 'ro',
   theme: 'auto',
   setHeaderExpanded: true,
+  sidebarWidth: 288,
 };
 
 const KEY = 'worship-archive:prefs';

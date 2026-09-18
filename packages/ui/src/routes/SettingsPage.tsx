@@ -4,7 +4,7 @@ import { adminApi, type Backup } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
-import { NavBar } from '../components/NavBar.js';
+import { AppHeader } from '../components/AppHeader.js';
 import {
   confirmAction,
   desktop,
@@ -80,183 +80,184 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-16 pt-6">
-      <NavBar current="settings" />
-      <h1 className="mb-5 text-2xl font-bold">{t('settings.title')}</h1>
+    <>
+      <AppHeader current="settings" back />
+      <div className="mx-auto max-w-2xl px-4 pb-16 pt-5">
+        <h1 className="mb-5 text-2xl font-bold">{t('settings.title')}</h1>
 
-      {message && (
-        <p className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm" role="status">
-          {message}
-        </p>
-      )}
-      {error && (
-        <p
-          className="mb-4 rounded-lg border border-red-500/40 p-3 text-sm text-red-500"
-          role="alert"
-        >
-          {error}
-        </p>
-      )}
-
-      <Section title={t('settings.language')}>
-        <Choice<Lang>
-          value={lang}
-          onChange={setLang}
-          options={[
-            ['ro', 'Română'],
-            ['en', 'English'],
-          ]}
-          label={t('settings.language')}
-        />
-      </Section>
-
-      <Section title={t('settings.theme')}>
-        <Choice<Prefs['theme']>
-          value={prefs.theme}
-          onChange={(theme) => setPrefs({ theme })}
-          options={[
-            ['auto', t('settings.themeAuto')],
-            ['light', t('settings.themeLight')],
-            ['dark', t('settings.themeDark')],
-            ['stage', t('settings.themeStage')],
-          ]}
-          label={t('settings.theme')}
-        />
-        {prefs.theme === 'stage' && (
-          <p className="mt-2 text-xs text-(--color-muted)">{t('settings.themeStageHint')}</p>
-        )}
-      </Section>
-
-      <Section title={t('settings.display')}>
-        <label className="block">
-          <span className="flex items-baseline justify-between text-sm">
-            {t('settings.maxFont')}
-            <span className="font-mono text-xs text-(--color-muted)">{prefs.maxFontPx}px</span>
-          </span>
-          <input
-            type="range"
-            min={14}
-            max={72}
-            step={1}
-            value={prefs.maxFontPx}
-            onChange={(event) => setPrefs({ maxFontPx: Number(event.target.value) })}
-            className="mt-1 w-full accent-(--color-chord)"
-          />
-          <span className="mt-1 block text-xs text-(--color-muted)">
-            {t('settings.maxFontHint')}
-          </span>
-        </label>
-
-        <Toggle
-          checked={prefs.showChords}
-          onChange={(showChords) => setPrefs({ showChords })}
-          label={t('settings.showChords')}
-        />
-        <Toggle
-          checked={prefs.showBass}
-          onChange={(showBass) => setPrefs({ showBass })}
-          label={t('settings.showBass')}
-        />
-      </Section>
-
-      <Section title={t('settings.library')}>
-        {state && (
-          <p className="text-sm">
-            <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
-              {t('settings.dataDir')}
-            </span>
-            <code className="mt-0.5 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
-              {state.dataDir}
-            </code>
+        {message && (
+          <p className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm" role="status">
+            {message}
           </p>
         )}
-        {native && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button onClick={() => void native.revealDataDir()}>
-              {t('settings.revealDataDir')}
-            </Button>
-            <Button onClick={() => void native.chooseDataDir()}>
-              {t('settings.chooseDataDir')}
-            </Button>
-            <span className="w-full text-xs text-(--color-muted)">
-              {t('settings.chooseDataDirHint')}
-            </span>
-          </div>
+        {error && (
+          <p
+            className="mb-4 rounded-lg border border-red-500/40 p-3 text-sm text-red-500"
+            role="alert"
+          >
+            {error}
+          </p>
         )}
 
-        <p className="mt-3 text-sm text-(--color-muted)">
-          {t('settings.mirror', { songs: mirror?.songs ?? 0 })} ·{' '}
-          {mirror?.lastSync
-            ? t('settings.lastSync', { when: new Date(mirror.lastSync).toLocaleString() })
-            : t('settings.neverSynced')}
-        </p>
-        <Button
-          onClick={() => {
-            void repo.sync().then(() => repo.status().then(setMirror));
-          }}
-        >
-          {t('settings.resync')}
-        </Button>
-      </Section>
-
-      <Section title={t('settings.backup')}>
-        <p className="text-xs text-(--color-muted)">{t('settings.backupHint')}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button onClick={() => void downloadBackup()} disabled={busy}>
-            {t('settings.download')}
-          </Button>
-          <Button onClick={() => void restore('merge')} disabled={busy}>
-            {t('settings.restoreMerge')}
-          </Button>
-          <Button onClick={() => void restore('replace')} disabled={busy} danger>
-            {t('settings.restoreReplace')}
-          </Button>
-        </div>
-      </Section>
-
-      <Section title={t('settings.cleanup')}>
-        <p className="text-xs text-(--color-muted)">{t('settings.cleanupHint')}</p>
-        <Link
-          to="/cleanup"
-          className="mt-2 inline-block rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
-        >
-          {t('settings.openCleanup')}
-        </Link>
-      </Section>
-
-      {native && state && (
-        <Section title={t('settings.desktop')}>
-          <Toggle
-            checked={state.preventSleep}
-            onChange={(on) => {
-              void native
-                .setPreventSleep(on)
-                .then((value) =>
-                  setState((current) =>
-                    current ? { ...current, preventSleep: value } : current,
-                  ),
-                );
-            }}
-            label={t('settings.preventSleep')}
-            hint={t('settings.preventSleepHint')}
+        <Section title={t('settings.language')}>
+          <Choice<Lang>
+            value={lang}
+            onChange={setLang}
+            options={[
+              ['ro', 'Română'],
+              ['en', 'English'],
+            ]}
+            label={t('settings.language')}
           />
-          <Toggle
-            checked={state.autoStart}
-            onChange={(on) => {
-              void native
-                .setAutoStart(on)
-                .then((value) =>
-                  setState((current) => (current ? { ...current, autoStart: value } : current)),
-                );
-            }}
-            label={t('settings.autoStart')}
-          />
-          <p className="mt-2 text-xs text-(--color-muted)">
-            {t('settings.version', { version: state.version })}
-          </p>
         </Section>
-      )}
-    </div>
+
+        <Section title={t('settings.theme')}>
+          <Choice<Prefs['theme']>
+            value={prefs.theme}
+            onChange={(theme) => setPrefs({ theme })}
+            options={[
+              ['auto', t('settings.themeAuto')],
+              ['light', t('settings.themeLight')],
+              ['dark', t('settings.themeDark')],
+              ['stage', t('settings.themeStage')],
+            ]}
+            label={t('settings.theme')}
+          />
+          {prefs.theme === 'stage' && (
+            <p className="mt-2 text-xs text-(--color-muted)">{t('settings.themeStageHint')}</p>
+          )}
+        </Section>
+
+        <Section title={t('settings.display')}>
+          <label className="block">
+            <span className="flex items-baseline justify-between text-sm">
+              {t('settings.maxFont')}
+              <span className="font-mono text-xs text-(--color-muted)">
+                {prefs.maxFontPx}px
+              </span>
+            </span>
+            <input
+              type="range"
+              min={14}
+              max={72}
+              step={1}
+              value={prefs.maxFontPx}
+              onChange={(event) => setPrefs({ maxFontPx: Number(event.target.value) })}
+              className="mt-1 w-full accent-(--color-chord)"
+            />
+            <span className="mt-1 block text-xs text-(--color-muted)">
+              {t('settings.maxFontHint')}
+            </span>
+          </label>
+
+          <Toggle
+            checked={prefs.showChords}
+            onChange={(showChords) => setPrefs({ showChords })}
+            label={t('settings.showChords')}
+          />
+        </Section>
+
+        <Section title={t('settings.library')}>
+          {state && (
+            <p className="text-sm">
+              <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
+                {t('settings.dataDir')}
+              </span>
+              <code className="mt-0.5 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
+                {state.dataDir}
+              </code>
+            </p>
+          )}
+          {native && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button onClick={() => void native.revealDataDir()}>
+                {t('settings.revealDataDir')}
+              </Button>
+              <Button onClick={() => void native.chooseDataDir()}>
+                {t('settings.chooseDataDir')}
+              </Button>
+              <span className="w-full text-xs text-(--color-muted)">
+                {t('settings.chooseDataDirHint')}
+              </span>
+            </div>
+          )}
+
+          <p className="mt-3 text-sm text-(--color-muted)">
+            {t('settings.mirror', { songs: mirror?.songs ?? 0 })} ·{' '}
+            {mirror?.lastSync
+              ? t('settings.lastSync', { when: new Date(mirror.lastSync).toLocaleString() })
+              : t('settings.neverSynced')}
+          </p>
+          <Button
+            onClick={() => {
+              void repo.sync().then(() => repo.status().then(setMirror));
+            }}
+          >
+            {t('settings.resync')}
+          </Button>
+        </Section>
+
+        <Section title={t('settings.backup')}>
+          <p className="text-xs text-(--color-muted)">{t('settings.backupHint')}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button onClick={() => void downloadBackup()} disabled={busy}>
+              {t('settings.download')}
+            </Button>
+            <Button onClick={() => void restore('merge')} disabled={busy}>
+              {t('settings.restoreMerge')}
+            </Button>
+            <Button onClick={() => void restore('replace')} disabled={busy} danger>
+              {t('settings.restoreReplace')}
+            </Button>
+          </div>
+        </Section>
+
+        <Section title={t('settings.cleanup')}>
+          <p className="text-xs text-(--color-muted)">{t('settings.cleanupHint')}</p>
+          <Link
+            to="/cleanup"
+            className="mt-2 inline-block rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
+          >
+            {t('settings.openCleanup')}
+          </Link>
+        </Section>
+
+        {native && state && (
+          <Section title={t('settings.desktop')}>
+            <Toggle
+              checked={state.preventSleep}
+              onChange={(on) => {
+                void native
+                  .setPreventSleep(on)
+                  .then((value) =>
+                    setState((current) =>
+                      current ? { ...current, preventSleep: value } : current,
+                    ),
+                  );
+              }}
+              label={t('settings.preventSleep')}
+              hint={t('settings.preventSleepHint')}
+            />
+            <Toggle
+              checked={state.autoStart}
+              onChange={(on) => {
+                void native
+                  .setAutoStart(on)
+                  .then((value) =>
+                    setState((current) =>
+                      current ? { ...current, autoStart: value } : current,
+                    ),
+                  );
+              }}
+              label={t('settings.autoStart')}
+            />
+            <p className="mt-2 text-xs text-(--color-muted)">
+              {t('settings.version', { version: state.version })}
+            </p>
+          </Section>
+        )}
+      </div>
+    </>
   );
 }
 

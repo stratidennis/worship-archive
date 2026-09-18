@@ -234,3 +234,85 @@ export function isEmptySong(song: Song): boolean {
     )
   );
 }
+
+/**
+ * Paste text into a line, splitting it wherever the source had a line break.
+ *
+ * Lyrics are almost always copied from somewhere — a document, a website, a message —
+ * and they arrive as several lines. Flattening them into one and making someone press
+ * Enter in the right twenty places is busywork the machine can do.
+ *
+ * The chords are the delicate part. Anchors before the cursor belong to the first
+ * line and do not move; anchors after it belong to the *last* line, shifted by however
+ * much text now precedes them there. Getting this wrong silently moves chords onto the
+ * wrong syllables, which is the kind of mistake nobody notices until a service.
+ */
+export function pasteIntoLine(line: Line, at: number, text: string): Line[] {
+  const cursor = Math.max(0, Math.min(at, line.text.length));
+  const chunks = text.replace(/\r\n?/g, '\n').split('\n');
+  const before = line.text.slice(0, cursor);
+  const after = line.text.slice(cursor);
+
+  // A single line of text is an ordinary edit; `setLineText` already shifts anchors.
+  if (chunks.length === 1) {
+    return [setLineText(line, before + chunks[0] + after)];
+  }
+
+  const first = chunks[0] ?? '';
+  const last = chunks[chunks.length - 1] ?? '';
+
+  const keep = (anchors: Anchor[]): Anchor[] => anchors.filter((a) => a.at <= cursor);
+  const move = (anchors: Anchor[]): Anchor[] =>
+    anchors
+      .filter((a) => a.at > cursor)
+      .map((a) => ({ ...a, at: a.at - cursor + last.length }));
+
+  const head: Line = {
+    ...line,
+    text: before + first,
+    chords: keep(line.chords),
+    bass: keep(line.bass),
+  };
+
+  const middle = chunks.slice(1, -1).map((chunk) => ({
+    ...emptyLine(chunk),
+    singers: line.singers,
+    indent: line.indent,
+    color: line.color,
+  }));
+
+  const tail: Line = {
+    ...emptyLine(last + after),
+    singers: line.singers,
+    indent: line.indent,
+    color: line.color,
+    chords: move(line.chords),
+    bass: move(line.bass),
+  };
+
+  return [head, ...middle, tail];
+}
+
+/** Replace one line with several — what a multi-line paste produces. */
+export function replaceLine(
+  song: Song,
+  blockId: string,
+  lineIndex: number,
+  lines: Line[],
+): Song {
+  return {
+    ...song,
+    blocks: song.blocks.map((block) =>
+      block.id === blockId
+        ? {
+            ...block,
+            lines: [
+              ...block.lines.slice(0, lineIndex),
+              ...lines,
+              ...block.lines.slice(lineIndex + 1),
+            ],
+          }
+        : block,
+    ),
+  };
+}

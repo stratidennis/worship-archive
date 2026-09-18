@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Line } from '@worship/core';
 import { useT } from '../lib/i18n.js';
+import { IconMusic } from './icons.js';
 
 /**
  * One editable lyric line, with its chords stacked above the right syllables.
@@ -19,6 +20,8 @@ export interface LineEditorProps {
   onChordChange: (at: number, raw: string) => void;
   onEnter: () => void;
   onBackspaceEmpty: () => void;
+  /** Multi-line paste: the text arrives already split on its own line breaks. */
+  onPasteLines: (at: number, text: string) => void;
   autoFocus?: boolean;
 }
 
@@ -58,6 +61,7 @@ export function LineEditor({
   onChordChange,
   onEnter,
   onBackspaceEmpty,
+  onPasteLines,
   autoFocus,
 }: LineEditorProps) {
   const { t } = useT();
@@ -156,6 +160,21 @@ export function LineEditor({
           ref={input}
           value={line.text}
           onChange={(e) => onTextChange(e.target.value)}
+          onPaste={(event) => {
+            const pasted = event.clipboardData.getData('text/plain');
+            // Single-line text is left to the browser, which handles selection
+            // replacement and the undo stack better than this could.
+            if (!pasted.includes('\n') && !pasted.includes('\r')) return;
+            event.preventDefault();
+            const target = event.currentTarget;
+            const start = target.selectionStart ?? target.value.length;
+            const end = target.selectionEnd ?? start;
+            // A selection is replaced, as paste always does: drop it first, then insert.
+            const withoutSelection =
+              start === end ? line.text : line.text.slice(0, start) + line.text.slice(end);
+            if (withoutSelection !== line.text) onTextChange(withoutSelection);
+            onPasteLines(start, pasted);
+          }}
           onKeyDown={handleKeyDown}
           spellCheck={false}
           className="w-full bg-transparent leading-[1.35] outline-none focus:bg-(--color-chord)/5"
@@ -169,7 +188,7 @@ export function LineEditor({
             title={t('edit.addChord')}
             aria-label={t('edit.addChord')}
           >
-            +♪
+            <IconMusic size={14} />
           </button>
         )}
       </div>

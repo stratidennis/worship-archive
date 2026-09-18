@@ -7,7 +7,8 @@ import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody, resolveKey } from '../components/SongBody.js';
-import { HomeButton } from '../components/NavBar.js';
+import { AppHeader } from '../components/AppHeader.js';
+import { IconEdit, IconPrint } from '../components/icons.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
@@ -46,7 +47,6 @@ export function SongPage() {
     '-': () => setPrefs({ transpose: prefs.transpose - 1 }),
     '0': () => setPrefs({ transpose: 0, capo: 0 }),
     c: () => setPrefs({ showChords: !prefs.showChords }),
-    b: () => setPrefs({ showBass: !prefs.showBass }),
     p: () => window.print(),
     '?': () => setHelp((open) => !open),
     Escape: () => setHelp(false),
@@ -59,7 +59,7 @@ export function SongPage() {
   // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.showBass}:${prefs.transpose}:${prefs.capo}`,
+    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.transpose}:${prefs.capo}`,
   });
 
   if (error) {
@@ -79,19 +79,11 @@ export function SongPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="shrink-0 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <Link
-            to="/library"
-            className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
-            aria-label={t('app.library')}
-            title={t('app.library')}
-          >
-            ←
-          </Link>
-          <HomeButton />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold leading-tight">{song.title}</h1>
+      <AppHeader
+        back
+        title={
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-bold leading-tight">{song.title}</h1>
             <p className="truncate text-xs text-(--color-muted)">
               {song.writtenKey && song.performanceKey && song.writtenKey !== song.performanceKey
                 ? t('song.writtenPlayed', {
@@ -108,68 +100,67 @@ export function SongPage() {
               {song.timeSignature && ` · ${song.timeSignature}`}
             </p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-1 text-sm">
-            <Group label={t('song.pitch')}>
-              <Btn
-                onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}
-                label={t('song.transposeDown')}
-              >
-                −
-              </Btn>
-              <Btn
-                onClick={() => setPrefs({ transpose: 0 })}
-                muted
-                label={t('song.transposeReset')}
-              >
-                {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
-              </Btn>
-              <Btn
-                onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}
-                label={t('song.transposeUp')}
-              >
-                +
-              </Btn>
-            </Group>
-            <Group label={t('song.capoLabel')}>
-              <Btn
-                onClick={() => setPrefs({ capo: Math.max(0, prefs.capo - 1) })}
-                label={t('song.capoDown')}
-              >
-                −
-              </Btn>
-              <Btn onClick={() => setPrefs({ capo: 0 })} muted label={t('song.capoLabel')}>
-                {prefs.capo}
-              </Btn>
-              <Btn
-                onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })}
-                label={t('song.capoUp')}
-              >
-                +
-              </Btn>
-            </Group>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-1 text-sm">
+          <Group label={t('song.pitch')}>
             <Btn
-              onClick={() => setPrefs({ showChords: !prefs.showChords })}
-              active={prefs.showChords}
+              onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}
+              label={t('song.transposeDown')}
             >
-              {t('song.chords')}
+              −
             </Btn>
             <Btn
-              onClick={() => setPrefs({ showBass: !prefs.showBass })}
-              active={prefs.showBass}
+              onClick={() => setPrefs({ transpose: 0 })}
+              muted
+              label={t('song.transposeReset')}
             >
-              {t('song.bass')}
+              {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
             </Btn>
-            <Btn onClick={() => window.print()}>{t('app.print')}</Btn>
-            <Link
-              to={`/edit/${encodeURIComponent(id)}`}
-              className="min-w-8 rounded-md border border-(--color-line) px-2 py-1 text-sm font-medium hover:bg-(--color-line) sm:px-2.5 sm:py-1.5"
+            <Btn
+              onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}
+              label={t('song.transposeUp')}
             >
-              {t('song.edit')}
-            </Link>
-          </div>
+              +
+            </Btn>
+          </Group>
+          <Group label={t('song.capoLabel')}>
+            <Btn
+              onClick={() => setPrefs({ capo: Math.max(0, prefs.capo - 1) })}
+              label={t('song.capoDown')}
+            >
+              −
+            </Btn>
+            <Btn onClick={() => setPrefs({ capo: 0 })} muted label={t('song.capoLabel')}>
+              {prefs.capo}
+            </Btn>
+            <Btn
+              onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })}
+              label={t('song.capoUp')}
+            >
+              +
+            </Btn>
+          </Group>
+          <Btn
+            onClick={() => setPrefs({ showChords: !prefs.showChords })}
+            active={prefs.showChords}
+          >
+            {t('song.chords')}
+          </Btn>
+          <Btn onClick={() => window.print()} label={t('app.print')}>
+            <IconPrint size={16} />
+          </Btn>
+          <Link
+            to={`/edit/${encodeURIComponent(id)}`}
+            aria-label={t('song.edit')}
+            title={t('song.edit')}
+            className="flex min-w-8 items-center gap-1.5 rounded-md border border-(--color-line) px-2 py-1 text-sm font-medium hover:bg-(--color-line) sm:px-2.5 sm:py-1.5"
+          >
+            <IconEdit size={15} />
+            <span className="hidden lg:inline">{t('song.edit')}</span>
+          </Link>
         </div>
-      </header>
+      </AppHeader>
 
       {/*
         The container is the measuring frame: exactly the space a song must fit into.
@@ -198,7 +189,7 @@ export function SongPage() {
             song={song}
             options={{
               showChords: prefs.showChords,
-              showBass: prefs.showBass,
+              showBass: false,
               capo: prefs.capo,
               transpose: prefs.transpose,
             }}

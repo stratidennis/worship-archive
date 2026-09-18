@@ -3,7 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
-import { NavBar } from '../components/NavBar.js';
+import { AppHeader } from '../components/AppHeader.js';
+import { IconPlus } from '../components/icons.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
@@ -139,131 +140,134 @@ export function Library() {
   const results: SongSummary[] = useMemo(() => hits ?? songs, [hits, songs]);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-16 pt-6">
-      <NavBar current="library">
+    <>
+      <AppHeader current="library">
         <Link
           to="/import"
-          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+          className="flex h-9 items-center rounded-lg border border-(--color-line) px-3 text-sm font-medium hover:bg-(--color-line)"
         >
           {t('app.import')}
         </Link>
         <button
           type="button"
           onClick={() => void createSong()}
-          className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
+          className="flex h-9 items-center gap-1.5 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 text-sm font-medium text-white"
         >
-          {t('library.new')}
+          <IconPlus size={16} />
+          <span className="hidden sm:inline">{t('library.new')}</span>
         </button>
-      </NavBar>
+      </AppHeader>
 
-      <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
+      <div className="mx-auto max-w-4xl px-4 pb-16 pt-5">
+        {/* Every page carries one, so a screen reader announces where it landed. */}
+        <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
+        <input
+          ref={search}
+          type="search"
+          value={query}
+          onChange={(e) => setParam('q', e.target.value)}
+          placeholder={t('library.search')}
+          aria-label={t('library.search')}
+          autoComplete="off"
+          className="w-full rounded-lg border border-(--color-line) bg-transparent px-4 py-3 text-base outline-none focus:border-(--color-chord)"
+        />
 
-      <input
-        ref={search}
-        type="search"
-        value={query}
-        onChange={(e) => setParam('q', e.target.value)}
-        placeholder={t('library.search')}
-        aria-label={t('library.search')}
-        autoComplete="off"
-        className="w-full rounded-lg border border-(--color-line) bg-transparent px-4 py-3 text-base outline-none focus:border-(--color-chord)"
-      />
-
-      {facets && (
-        <div className="mt-3 flex flex-wrap gap-1.5 text-sm">
-          <Chip active={!collection} onClick={() => setParam('collection', '')}>
-            {t('library.all')} ({facets.collections.reduce((n, c) => n + c.count, 0)})
-          </Chip>
-          {facets.collections.map((c) => (
-            <Chip
-              key={c.name}
-              active={collection === c.name}
-              onClick={() => setParam('collection', collection === c.name ? '' : c.name)}
-            >
-              {c.name} ({c.count})
+        {facets && (
+          <div className="mt-3 flex flex-wrap gap-1.5 text-sm">
+            <Chip active={!collection} onClick={() => setParam('collection', '')}>
+              {t('library.all')} ({facets.collections.reduce((n, c) => n + c.count, 0)})
             </Chip>
-          ))}
-          <span className="mx-1 w-px bg-(--color-line)" />
-          {facets.keys.slice(0, 8).map((k) => (
-            <Chip
-              key={k.name}
-              active={key === k.name}
-              onClick={() => setParam('key', key === k.name ? '' : k.name)}
-            >
-              {k.name}
-            </Chip>
-          ))}
-        </div>
-      )}
-
-      {error && (
-        <p className="mt-6 rounded-md border border-(--color-line) p-3 text-sm text-(--color-muted)">
-          {t('library.loadError', { error })}
-        </p>
-      )}
-
-      <p
-        className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)"
-        role="status"
-      >
-        <span>
-          {t('library.count', { count: results.length })}
-          {hits && ` ${t('library.found')}`}
-        </span>
-        {reach === 'offline' && mirror && (
-          <span className="rounded-full bg-(--color-line) px-2 py-0.5">
-            {t('library.offlineBadge', { count: mirror.songs })}
-          </span>
+            {facets.collections.map((c) => (
+              <Chip
+                key={c.name}
+                active={collection === c.name}
+                onClick={() => setParam('collection', collection === c.name ? '' : c.name)}
+              >
+                {c.name} ({c.count})
+              </Chip>
+            ))}
+            <span className="mx-1 w-px bg-(--color-line)" />
+            {facets.keys.slice(0, 8).map((k) => (
+              <Chip
+                key={k.name}
+                active={key === k.name}
+                onClick={() => setParam('key', key === k.name ? '' : k.name)}
+              >
+                {k.name}
+              </Chip>
+            ))}
+          </div>
         )}
-      </p>
 
-      <ul id="main" className="divide-y divide-(--color-line)">
-        {results.map((song) => (
-          <li key={song.id}>
-            <Link
-              to={`/song/${encodeURIComponent(song.id)}`}
-              className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">
-                  {song.title || t('app.untitled')}
+        {error && (
+          <p className="mt-6 rounded-md border border-(--color-line) p-3 text-sm text-(--color-muted)">
+            {t('library.loadError', { error })}
+          </p>
+        )}
+
+        <p
+          className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)"
+          role="status"
+        >
+          <span>
+            {t('library.count', { count: results.length })}
+            {hits && ` ${t('library.found')}`}
+          </span>
+          {reach === 'offline' && mirror && (
+            <span className="rounded-full bg-(--color-line) px-2 py-0.5">
+              {t('library.offlineBadge', { count: mirror.songs })}
+            </span>
+          )}
+        </p>
+
+        <ul id="main" className="divide-y divide-(--color-line)">
+          {results.map((song) => (
+            <li key={song.id}>
+              <Link
+                to={`/song/${encodeURIComponent(song.id)}`}
+                className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">
+                    {song.title || t('app.untitled')}
+                  </span>
+                  {hits && 'snippet' in song && (
+                    <span className="block truncate text-xs">
+                      <Snippet text={(song as SearchHit).snippet} />
+                    </span>
+                  )}
                 </span>
-                {hits && 'snippet' in song && (
-                  <span className="block truncate text-xs">
-                    <Snippet text={(song as SearchHit).snippet} />
+                {song.tempo && (
+                  <span className="shrink-0 text-xs tabular-nums text-(--color-muted)">
+                    {song.tempo}
                   </span>
                 )}
-              </span>
-              {song.tempo && (
-                <span className="shrink-0 text-xs tabular-nums text-(--color-muted)">
-                  {song.tempo}
-                </span>
-              )}
-              <KeyBadge song={song} />
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      {results.length === 0 && !error && (
-        <div className="mt-10 text-center text-sm text-(--color-muted)">
-          {query ? (
-            <p>{t('library.nothingFor', { query })}</p>
-          ) : (
-            <>
-              <p>{t('library.empty')}</p>
-              <p className="mt-1">{t('library.emptyHint')}</p>
-              <Link
-                to="/import"
-                className="mt-3 inline-block rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 font-medium text-white"
-              >
-                {t('import.title')}
+                <KeyBadge song={song} />
               </Link>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+            </li>
+          ))}
+        </ul>
+
+        {results.length === 0 && !error && (
+          <div className="mt-10 text-center text-sm text-(--color-muted)">
+            {query ? (
+              <p>{t('library.nothingFor', { query })}</p>
+            ) : (
+              <>
+                <p>{t('library.empty')}</p>
+                <p className="mt-1">{t('library.emptyHint')}</p>
+                <Link
+                  to="/import"
+                  className="mt-3 inline-block rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 font-medium text-white"
+                >
+                  {t('import.title')}
+                </Link>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

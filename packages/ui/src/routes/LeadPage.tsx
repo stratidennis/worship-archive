@@ -8,10 +8,12 @@ import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
+import { setName } from '../lib/setName.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
-import { HomeButton } from '../components/NavBar.js';
+import { AppHeader } from '../components/AppHeader.js';
+import { IconClose } from '../components/icons.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -34,7 +36,7 @@ const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
  * protocol never needs to know a leader is browsing.
  */
 export function LeadPage() {
-  const { t, blockName } = useT();
+  const { t, blockName, date } = useT();
   // The name the band sees in the device list, so it follows their language too.
   const session = useSession('leader', t('lead.roleLeader'));
   const { state, devices, status, clockOffset, patch, libraryRev } = session;
@@ -132,16 +134,7 @@ export function LeadPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-(--color-line) px-3 py-2">
-        <HomeButton />
-        <Link
-          to="/library"
-          className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
-          aria-label={t('app.library')}
-          title={t('app.library')}
-        >
-          {t('app.library')}
-        </Link>
+      <AppHeader current="lead">
         <select
           value={state.setId ?? ''}
           onChange={(e) =>
@@ -153,8 +146,7 @@ export function LeadPage() {
           <option value="">{t('lead.choose')}</option>
           {sets.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.title}
-              {s.date ? ` · ${s.date}` : ''}
+              {setName(s, date)}
             </option>
           ))}
         </select>
@@ -186,16 +178,14 @@ export function LeadPage() {
 
         <Tempo state={state} patch={patch} clockOffset={clockOffset} />
 
-        <span className="ml-auto flex items-center gap-2">
-          <Btn
-            onClick={() => setPrefs({ showChords: !prefs.showChords })}
-            active={prefs.showChords}
-          >
-            {t('song.chords')}
-          </Btn>
-          <StatusDot status={status} />
-        </span>
-      </header>
+        <Btn
+          onClick={() => setPrefs({ showChords: !prefs.showChords })}
+          active={prefs.showChords}
+        >
+          {t('song.chords')}
+        </Btn>
+        <StatusDot status={status} />
+      </AppHeader>
 
       {!auto && !isLiveView && (
         <button
@@ -303,7 +293,7 @@ export function LeadPage() {
                   }
                   options={{
                     showChords: prefs.showChords,
-                    showBass: prefs.showBass,
+                    showBass: false,
                     capo: viewing.item.capoOverride ?? prefs.capo,
                     transpose: extraTranspose,
                   }}
@@ -394,7 +384,7 @@ function Tempo({
             onClick={() => patch({ tempo: null, beatEpoch: null })}
             label={t('lead.stopTempo')}
           >
-            ✕
+            <IconClose size={15} />
           </Btn>
         </>
       )}

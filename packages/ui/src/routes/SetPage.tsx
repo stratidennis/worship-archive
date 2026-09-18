@@ -11,6 +11,19 @@ import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/desktop.js';
 import { SongBody } from '../components/SongBody.js';
+import { AppHeader } from '../components/AppHeader.js';
+import { ResizeHandle } from '../components/ResizeHandle.js';
+import { setName } from '../lib/setName.js';
+import {
+  IconCalendar,
+  IconCheck,
+  IconChevronDown,
+  IconChevronUp,
+  IconEdit,
+  IconGrip,
+  IconPlus,
+  IconClose,
+} from '../components/icons.js';
 import { PrintableRunningOrder } from '../components/PrintableRunningOrder.js';
 
 /**
@@ -32,6 +45,16 @@ import { PrintableRunningOrder } from '../components/PrintableRunningOrder.js';
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+/**
+ * The stored title, derived from the date.
+ *
+ * It still exists because the sets list, the print view and the delete confirmation all
+ * name a set — but it is no longer something to keep in step by hand.
+ */
+function titleForDate(date: string | null): string {
+  return date ?? '';
+}
 
 /** What the middle pane is showing. */
 type Selection =
@@ -148,7 +171,14 @@ export function SetPage() {
 
   const drag = useDragList(reorder);
 
-  const addSong = (songId: string): void => {
+  /**
+   * `stay` is for the `+` beside a row in the library list.
+   *
+   * Adding from there is usually the start of building a set, not the end of one
+   * decision — jumping to the running order after every song would mean going back to
+   * the library five separate times to add five songs.
+   */
+  const addSong = (songId: string, { stay = false }: { stay?: boolean } = {}): void => {
     if (!songs[songId]) {
       void repo.song(songId).then((full) => {
         if (full) setSongs((s) => ({ ...s, [songId]: full }));
@@ -167,6 +197,7 @@ export function SetPage() {
         },
       ],
     }));
+    if (stay) return;
     setSelection({ kind: 'item', index: set ? set.items.length : 0 });
     setTab('program');
   };
@@ -242,45 +273,37 @@ export function SetPage() {
         formatDate={formatDate}
       />
 
-      <header className="shrink-0 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <button
-            type="button"
-            onClick={() => setPrefs({ setHeaderExpanded: !expanded })}
-            aria-expanded={expanded}
-            aria-label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
-            title={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
-            className="rounded px-1.5 py-1 text-sm text-(--color-muted) hover:bg-(--color-line)"
-          >
-            {expanded ? '▾' : '▸'}
-          </button>
-          <input
-            value={set.title}
-            onChange={(e) => update((s) => ({ ...s, title: e.target.value }))}
-            className="min-w-40 flex-1 bg-transparent text-lg font-bold outline-none focus:bg-(--color-chord)/5"
-            placeholder={t('sets.name')}
-            aria-label={t('sets.name')}
+      <AppHeader
+        current="home"
+        title={
+          /*
+            The date *is* the name. A service is identified by when it happens, and a
+            free-text title beside a date was two fields that had to agree — they did
+            not, and "Program nou" sat at the top of a set for a whole Sunday.
+          */
+          <DateField
+            value={set.date}
+            onChange={(date) => update((s) => ({ ...s, date, title: titleForDate(date) }))}
+            label={t('sets.noDate')}
           />
-          <input
-            type="date"
-            value={set.date ?? ''}
-            onChange={(e) => update((s) => ({ ...s, date: e.target.value || null }))}
-            aria-label={t('sets.noDate')}
-            className="rounded border border-(--color-line) bg-transparent px-2 py-1 text-sm"
-          />
-          <SaveBadge state={saveState} />
-          <nav className="ml-auto flex items-center gap-1.5 text-sm">
-            <Chip to="/library">{t('app.library')}</Chip>
-            <Chip to="/sets">{t('app.sets')}</Chip>
-            <Chip to="/lead">{t('app.lead')}</Chip>
-            <Chip to="/settings" label={t('settings.title')}>
-              ⚙
-            </Chip>
-          </nav>
-        </div>
+        }
+      >
+        <SaveBadge state={saveState} />
+        <button
+          type="button"
+          onClick={() => setPrefs({ setHeaderExpanded: !expanded })}
+          aria-expanded={expanded}
+          aria-label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
+          title={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
+          className="grid h-9 w-9 place-items-center rounded-lg border border-(--color-line) hover:bg-(--color-line)"
+        >
+          {expanded ? <IconChevronUp size={17} /> : <IconChevronDown size={17} />}
+        </button>
+      </AppHeader>
 
-        {expanded && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+      {expanded && (
+        <div className="shrink-0 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
             <Action onClick={() => addItem({ kind: 'note', text: '' })}>
               {t('sets.addNote')}
             </Action>
@@ -306,7 +329,7 @@ export function SetPage() {
               className="ml-auto"
               onClick={() => {
                 void confirmAction({
-                  message: t('sets.deleteConfirm', { title: set.title }),
+                  message: t('sets.deleteConfirm', { title: setName(set, formatDate) }),
                   confirmLabel: t('app.delete'),
                 }).then((ok) => {
                   if (!ok) return;
@@ -318,12 +341,18 @@ export function SetPage() {
               {t('app.delete')}
             </Action>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 print:hidden">
         <aside
-          className={`w-full shrink-0 flex-col border-r border-(--color-line) md:flex md:w-72 ${
+          /*
+            A custom property rather than an inline `width`: an inline width would beat
+            the `w-full` that makes the panel take the whole screen on a phone, and the
+            list would be stuck at its desktop width there.
+          */
+          style={{ '--sidebar': `${prefs.sidebarWidth}px` } as React.CSSProperties}
+          className={`w-full shrink-0 flex-col md:flex md:w-(--sidebar) ${
             selection === null ? 'flex' : 'hidden'
           }`}
         >
@@ -373,9 +402,9 @@ export function SetPage() {
                     tabIndex={-1}
                     aria-label={t('set.dragHandle')}
                     title={t('set.dragHandle')}
-                    className="-my-1.5 shrink-0 select-none py-1.5 pl-0.5 pr-1.5 text-base leading-none text-(--color-muted) opacity-50 transition-opacity group-hover:opacity-100"
+                    className="-my-1.5 flex shrink-0 select-none items-center py-1.5 pl-0.5 pr-1 text-(--color-muted) opacity-50 transition-opacity group-hover:opacity-100"
                   >
-                    ⠿
+                    <IconGrip size={15} />
                   </span>
                   <button
                     type="button"
@@ -406,9 +435,9 @@ export function SetPage() {
                     onClick={() => removeAt(index)}
                     aria-label={t('set.removeItem')}
                     title={t('set.removeItem')}
-                    className="shrink-0 rounded px-1 text-xs text-(--color-muted) hover:bg-(--color-line)"
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-(--color-muted) opacity-0 transition-opacity focus-visible:opacity-100 hover:bg-(--color-line) group-hover:opacity-100"
                   >
-                    ✕
+                    <IconClose size={14} />
                   </button>
                 </li>
               ))}
@@ -416,11 +445,6 @@ export function SetPage() {
               {set.items.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-(--color-muted)">
                   {t('sets.addFirst')}
-                </li>
-              )}
-              {set.items.length > 1 && (
-                <li className="px-3 py-3 text-xs text-(--color-muted)">
-                  {t('set.reorderHint')}
                 </li>
               )}
             </ol>
@@ -438,31 +462,49 @@ export function SetPage() {
               <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
                 {hits.map((song) => (
                   <li key={song.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelection({ kind: 'candidate', songId: song.id })}
-                      className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-sm hover:bg-(--color-line)/40 ${
+                    <div
+                      className={`group flex items-center gap-1 pl-3 pr-1.5 text-sm hover:bg-(--color-line)/40 ${
                         selection?.kind === 'candidate' && selection.songId === song.id
                           ? 'bg-(--color-chord)/15'
                           : ''
                       }`}
                     >
-                      <span className="min-w-0 flex-1 truncate">
-                        {song.title || t('app.untitled')}
-                      </span>
-                      {inSet.has(song.id) && (
-                        <span className="shrink-0 text-xs text-(--color-chord)">✓</span>
-                      )}
-                      <span className="shrink-0 font-mono text-xs text-(--color-muted)">
-                        {song.performanceKey ?? song.writtenKey ?? ''}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelection({ kind: 'candidate', songId: song.id })}
+                        className="flex min-w-0 flex-1 items-baseline gap-2 py-1.5 text-left"
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {song.title || t('app.untitled')}
+                        </span>
+                        <span className="shrink-0 font-mono text-xs text-(--color-muted)">
+                          {song.performanceKey ?? song.writtenKey ?? ''}
+                        </span>
+                      </button>
+                      {/*
+                        Add without leaving the list. Faint until the row is hovered, so a
+                        long list reads as titles rather than a column of buttons, and a
+                        tick once the song is in — which answers "did that work" in the
+                        same place the question was asked.
+                      */}
+                      <AddButton
+                        added={inSet.has(song.id)}
+                        onAdd={() => addSong(song.id, { stay: true })}
+                        addLabel={t('set.addToSet')}
+                        addedLabel={t('set.alreadyInSet')}
+                      />
+                    </div>
                   </li>
                 ))}
               </ul>
             </div>
           )}
         </aside>
+
+        <ResizeHandle
+          width={prefs.sidebarWidth}
+          onWidth={(sidebarWidth) => setPrefs({ sidebarWidth })}
+        />
 
         <main
           id="main"
@@ -572,6 +614,79 @@ export function SetPage() {
 }
 
 /**
+ * Add a song to the set, from the list.
+ *
+ * Three states in one control: faint while idle so a long list does not become a column
+ * of buttons, solid on hover, and a tick once the song is in the set. The tick is not a
+ * button — there is nothing useful to do with a second press, and a disabled plus would
+ * have looked like a failure rather than a success.
+ */
+function AddButton({
+  added,
+  onAdd,
+  addLabel,
+  addedLabel,
+}: {
+  added: boolean;
+  onAdd: () => void;
+  addLabel: string;
+  addedLabel: string;
+}) {
+  if (added) {
+    return (
+      <span
+        aria-label={addedLabel}
+        title={addedLabel}
+        className="grid h-7 w-7 shrink-0 place-items-center text-(--color-chord)"
+      >
+        <IconCheck size={16} />
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onAdd}
+      aria-label={addLabel}
+      title={addLabel}
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-transparent text-(--color-muted) opacity-40 transition hover:border-(--color-chord) hover:bg-(--color-chord) hover:text-white hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
+    >
+      <IconPlus size={16} />
+    </button>
+  );
+}
+
+/**
+ * The set's date, which is also its name.
+ *
+ * The leading icon is ours; the browser draws its own picker button beside it. That one
+ * used to be invisible on a dark background — `color-scheme` in `index.css` is what
+ * fixes it, globally, for every native control rather than this one field.
+ */
+function DateField({
+  value,
+  onChange,
+  label,
+}: {
+  value: string | null;
+  onChange: (value: string | null) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex h-9 items-center gap-2 rounded-lg border border-(--color-line) px-2.5">
+      <IconCalendar size={16} className="shrink-0 text-(--color-muted)" />
+      <input
+        type="date"
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value || null)}
+        aria-label={label}
+        className="bg-transparent text-sm font-semibold outline-none"
+      />
+    </label>
+  );
+}
+
+/**
  * The middle pane: the song exactly as it will look when it is led.
  *
  * Same fit-to-one-screen renderer as `/lead`, `/band` and `/stage`, and that matters
@@ -623,7 +738,7 @@ function Preview({
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.showBass}`,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
@@ -645,10 +760,13 @@ function Preview({
           </p>
         </div>
         <Link
-          to={`/song/${encodeURIComponent(song.id)}`}
-          className="rounded-md border border-(--color-line) px-2 py-1 text-sm hover:bg-(--color-line)"
+          to={`/edit/${encodeURIComponent(song.id)}`}
+          aria-label={t('song.edit')}
+          title={t('song.edit')}
+          className="flex h-8 items-center gap-1.5 rounded-md border border-(--color-line) px-2 text-sm hover:bg-(--color-line)"
         >
-          {t('song.edit')}
+          <IconEdit size={15} />
+          <span className="hidden lg:inline">{t('song.edit')}</span>
         </Link>
         {children}
       </div>
@@ -672,7 +790,7 @@ function Preview({
             song={song}
             options={{
               showChords: prefs.showChords,
-              showBass: prefs.showBass,
+              showBass: false,
               capo: capo ?? 0,
               transpose: shift,
             }}
@@ -732,27 +850,6 @@ function SongControls({
         />
       </label>
     </span>
-  );
-}
-
-function Chip({
-  to,
-  children,
-  label,
-}: {
-  to: string;
-  children: React.ReactNode;
-  label?: string;
-}) {
-  return (
-    <Link
-      to={to}
-      aria-label={label}
-      title={label}
-      className="rounded-lg border border-(--color-line) px-2.5 py-1.5 font-medium hover:bg-(--color-line)"
-    >
-      {children}
-    </Link>
   );
 }
 

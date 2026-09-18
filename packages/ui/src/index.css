@@ -79,6 +79,33 @@
   --color-focus: oklch(84% 0.14 85);
 }
 
+/*
+  Tell the browser which palette to draw its *own* controls in.
+
+  Without this a native `<input type="date">` draws its calendar button in near-black,
+  which on a dark background is invisible — the field looked like it had no picker at
+  all. It also fixes select arrows, spinners and the default focus rings, and it is
+  inherited, so the date picker panel itself comes out dark too.
+*/
+:root {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'],
+:root[data-theme='stage'] {
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
