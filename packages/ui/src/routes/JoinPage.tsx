@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
@@ -41,17 +41,39 @@ export function JoinPage() {
       .catch((e: unknown) => setError(String(e)));
   }, []);
 
-  // The address in the browser's own bar is the one that demonstrably works from here;
-  // prefer it, and fall back to what the host reports.
+  /*
+    Which port to hand out.
+
+    The host reports the port it listens on, and in a packaged app that is the only one
+    there is. In development it is not: Vite serves the interface on another port and
+    proxies the API through, so the host's own number points at a different — and older
+    — copy of the app. Whatever is in this browser's address bar is the one that
+    demonstrably works, so it wins whenever it is not localhost, and every address on
+    this page is built from the same choice. They used to disagree: the QR said one
+    port and the list underneath it said another.
+  */
+  const origin = useMemo(() => {
+    const here = location.host && !location.host.startsWith('localhost') ? location : null;
+    if (here)
+      return {
+        protocol: here.protocol,
+        port: here.port || (here.protocol === 'https:' ? '443' : '80'),
+      };
+    return host ? { protocol: 'http:', port: String(host.port) } : null;
+  }, [host]);
+
+  const address = useCallback(
+    (hostname: string) => `${origin?.protocol ?? 'http:'}//${hostname}:${origin?.port ?? ''}`,
+    [origin],
+  );
+
   const url = useMemo(() => {
-    const fromBrowser =
-      location.host && !location.host.startsWith('localhost')
-        ? `${location.protocol}//${location.host}`
-        : host
-          ? `http://${host.addresses[0] ?? host.hostname}:${host.port}`
-          : null;
-    return fromBrowser ? `${fromBrowser}${path}` : null;
-  }, [host, path]);
+    if (location.host && !location.host.startsWith('localhost')) {
+      return `${location.protocol}//${location.host}${path}`;
+    }
+    const first = host?.addresses[0] ?? host?.hostname;
+    return first && origin ? `${address(first)}${path}` : null;
+  }, [host, origin, address, path]);
 
   useEffect(() => {
     if (!url) return;
@@ -110,15 +132,15 @@ export function JoinPage() {
             <ul className="mt-2 space-y-1 text-sm">
               <li>
                 <code className="rounded bg-(--color-line) px-1.5 py-0.5">
-                  http://{host.hostname}:{host.port}
+                  {address(host.hostname)}
                   {path}
                 </code>{' '}
                 <span className="text-(--color-muted)">— {t('join.usuallyWorks')}</span>
               </li>
-              {host.addresses.map((address) => (
-                <li key={address}>
+              {host.addresses.map((ip) => (
+                <li key={ip}>
                   <code className="rounded bg-(--color-line) px-1.5 py-0.5">
-                    http://{address}:{host.port}
+                    {address(ip)}
                     {path}
                   </code>{' '}
                   <span className="text-(--color-muted)">— {t('join.alwaysWorks')}</span>
