@@ -44,38 +44,39 @@ export function JoinPage() {
   }, []);
 
   /*
-    Which port to hand out.
+    Which port to hand out: the one you are reading this on.
 
-    The host reports the port it listens on, and in a packaged app that is the only one
-    there is. In development it is not: Vite serves the interface on another port and
-    proxies the API through, so the host's own number points at a different — and older
-    — copy of the app. Whatever is in this browser's address bar is the one that
-    demonstrably works, so it wins whenever it is not localhost, and every address on
-    this page is built from the same choice. They used to disagree: the QR said one
-    port and the list underneath it said another.
+    Not the one the host reports. In a packaged app they are the same number, but in
+    development they are not — Vite serves the interface and proxies the API to the
+    server on another port, and that other port serves no interface at all. Handing it
+    out sent someone to `:7374/band` and a JSON error, because the address was for a
+    process that only answers `/api`.
+
+    Whatever port this page arrived on is, by definition, a port that serves the app.
+    The *hostname* is the part the browser cannot supply — `localhost` means nothing on
+    a phone — so that still comes from the host.
   */
-  const origin = useMemo(() => {
-    const here = location.host && !location.host.startsWith('localhost') ? location : null;
-    if (here)
-      return {
-        protocol: here.protocol,
-        port: here.port || (here.protocol === 'https:' ? '443' : '80'),
-      };
-    return host ? { protocol: 'http:', port: String(host.port) } : null;
-  }, [host]);
+  const origin = useMemo(
+    () => ({
+      protocol: location.protocol,
+      port: location.port || (location.protocol === 'https:' ? '443' : '80'),
+    }),
+    [],
+  );
 
   const address = useCallback(
-    (hostname: string) => `${origin?.protocol ?? 'http:'}//${hostname}:${origin?.port ?? ''}`,
+    (hostname: string) => `${origin.protocol}//${hostname}:${origin.port}`,
     [origin],
   );
 
   const url = useMemo(() => {
-    if (location.host && !location.host.startsWith('localhost')) {
+    if (location.hostname && !/^(localhost|127\.|\[?::1)/.test(location.hostname)) {
       return `${location.protocol}//${location.host}${path}`;
     }
+    // Opened on the host itself: keep this port, but use an address a phone can route to.
     const first = host?.addresses[0] ?? host?.hostname;
-    return first && origin ? `${address(first)}${path}` : null;
-  }, [host, origin, address, path]);
+    return first ? `${address(first)}${path}` : null;
+  }, [host, address, path]);
 
   useEffect(() => {
     if (!url) return;

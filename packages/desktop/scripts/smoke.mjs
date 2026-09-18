@@ -58,8 +58,25 @@ const check = (label, ok, detail = '') => {
   if (!ok) failures++;
 };
 
+/*
+  A stand-in for the packaged interface.
+
+  The point is not what is in the file but that a client-side route reaches it: every
+  address a band member is ever given — `/band`, `/stage`, `/join` — is a path only the
+  browser knows how to resolve, so the server has to answer all of them with the app.
+  Without that, scanning the QR code gets you a JSON 404.
+*/
+const ui = join(data, 'ui');
+await mkdir(ui, { recursive: true });
+await writeFile(
+  join(ui, 'index.html'),
+  '<!doctype html><title>Worship Archive</title>',
+  'utf8',
+);
+
 const server = await startServer({
   dataDir: data,
+  uiDir: ui,
   port: 7999,
   mdns: false,
   watch: false,
@@ -71,6 +88,17 @@ try {
 
   const stats = await (await fetch(`${base}/api/stats`)).json();
   check('the API answers', stats.songs === 1, `songs=${stats.songs}`);
+
+  // The addresses on the join screen are these, and they are client-side routes.
+  for (const route of ['/', '/band', '/stage', '/join', '/sets/anything']) {
+    const page = await fetch(`${base}${route}`);
+    const html = (page.headers.get('content-type') ?? '').includes('text/html');
+    check(`${route} serves the app`, page.ok && html, `${page.status}`);
+  }
+
+  // ...and an unknown API route is still an API error, not the app.
+  const missing = await fetch(`${base}/api/nope`);
+  check('an unknown API route stays JSON', missing.status === 404);
 
   // SQLite through the bundle, including the FTS5 index and the Romanian tokeniser.
   const hits = await (await fetch(`${base}/api/search?q=bunatatea`)).json();

@@ -336,6 +336,27 @@ export function createServer(options: ApiOptions): FastifyInstance {
       if (request.url.startsWith('/api/')) return reply.code(404).send({ error: 'not found' });
       return reply.sendFile('index.html');
     });
+  } else {
+    /*
+      No interface to serve — this is the development server, with Vite hosting the app
+      on its own port and proxying `/api` through to here.
+
+      Worth saying out loud rather than answering `{"message":"Route GET:/band not
+      found"}`, which is true and tells you nothing: the address looks like the app, it
+      is the port the app's own join screen used to print, and the reply looks like the
+      app is broken rather than like you are knocking on the wrong door.
+    */
+    app.setNotFoundHandler(async (request, reply) => {
+      if (request.url.startsWith('/api/')) return reply.code(404).send({ error: 'not found' });
+      return reply
+        .code(404)
+        .type('text/plain; charset=utf-8')
+        .send(
+          'This port serves the API only.\n\n' +
+            'In development the app itself is served by Vite on another port — try ' +
+            '7373 instead of this one. A packaged build serves both from here.\n',
+        );
+    });
   }
 
   return app;
