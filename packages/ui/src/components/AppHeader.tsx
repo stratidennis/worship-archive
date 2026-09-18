@@ -128,27 +128,6 @@ export function AppHeader() {
         ))}
       </nav>
 
-      {/*
-        Back sits after the navigation, not before it.
-
-        In front, it moved the logo and all three destinations sideways on every page
-        that had one — so the thing you aim at to get Home was in a different place
-        depending on where you were, which is the one thing a fixed navigation bar
-        exists to prevent. Here it leads the page's own side of the header: the app's
-        controls are pinned to the left edge and never move, and what changes is
-        grouped with the rest of what changes.
-      */}
-      {back && (
-        <IconButton
-          variant="ghost"
-          label={t('app.back')}
-          onClick={goBack}
-          className="ml-1 shrink-0"
-        >
-          <IconBack size={17} />
-        </IconButton>
-      )}
-
       {/* `empty:hidden` matters: `basis-full` on an empty box would still claim a whole
           second row on every page that contributes no title. */}
       <div
@@ -163,6 +142,21 @@ export function AppHeader() {
           ref={actionsRef}
           className="flex items-center gap-1.5 [&:not(:empty)]:mr-1 [&:not(:empty)]:border-r [&:not(:empty)]:border-(--color-line) [&:not(:empty)]:pr-2.5"
         />
+
+        {/*
+          Back lives with the app's own controls, on the right.
+
+          In front of the navigation it moved the logo and all three destinations
+          sideways on every page that had one, so the thing you aim at to get Home was
+          somewhere different depending on where you were — which is the one thing a
+          fixed navigation bar exists to prevent. Here it appears and disappears at the
+          end of a row, where the only thing it can push is itself.
+        */}
+        {back && (
+          <IconButton variant="ghost" label={t('app.back')} onClick={goBack}>
+            <IconBack size={17} />
+          </IconButton>
+        )}
 
         <ThemeToggle />
         {/*
