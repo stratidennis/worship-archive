@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   INITIAL_SESSION,
   estimateClockOffset,
+  randomId,
   type ClientMessage,
   type DeviceInfo,
   type DeviceRole,
@@ -58,13 +59,13 @@ function deviceId(): string {
   try {
     const existing = sessionStorage.getItem(DEVICE_ID_KEY);
     if (existing) return existing;
-    const fresh = crypto.randomUUID();
+    const fresh = randomId();
     sessionStorage.setItem(DEVICE_ID_KEY, fresh);
     return fresh;
   } catch {
     // Private window or blocked storage: an in-memory id still de-duplicates
     // reconnects for this page's lifetime, which is the case that matters.
-    return crypto.randomUUID();
+    return randomId();
   }
 }
 

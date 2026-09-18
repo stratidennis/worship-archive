@@ -22,6 +22,7 @@ import {
   type Singers,
   type Song,
 } from '../types.js';
+import { randomId } from '../id.js';
 import { DIRECTIVE_ALIASES, ENVIRONMENT_BLOCKS, unescapeLyric } from './directives.js';
 
 const DIRECTIVE_RE = /^\s*\{\s*([a-zA-Z_][\w]*)\s*(?::\s*([\s\S]*?))?\s*\}\s*$/;
@@ -132,7 +133,7 @@ export interface ParseOptions {
  */
 export function parseChordPro(source: string, options: ParseOptions = {}): Song {
   const now = options.now ?? new Date().toISOString();
-  const makeId = options.makeId ?? (() => crypto.randomUUID());
+  const makeId = options.makeId ?? randomId;
 
   const song: Song = {
     id: '',
