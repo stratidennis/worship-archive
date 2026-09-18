@@ -106,12 +106,6 @@ export function AppHeader() {
       beneath rather than as the first row of the content.
     */
     <header className="relative z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-(--color-line) bg-(--color-surface) px-2 py-1.5 shadow-[0_1px_0_0_var(--color-line),0_6px_16px_-12px_rgb(0_0_0/0.5)] print:hidden sm:px-3">
-      {back && (
-        <IconButton variant="ghost" label={t('app.back')} onClick={goBack} className="shrink-0">
-          <IconBack size={17} />
-        </IconButton>
-      )}
-
       <nav aria-label={t('nav.where')} className="flex shrink-0 items-center gap-0.5">
         {DESTINATIONS.map(({ key, to, label, Icon }) => (
           <Link
@@ -133,6 +127,27 @@ export function AppHeader() {
           </Link>
         ))}
       </nav>
+
+      {/*
+        Back sits after the navigation, not before it.
+
+        In front, it moved the logo and all three destinations sideways on every page
+        that had one — so the thing you aim at to get Home was in a different place
+        depending on where you were, which is the one thing a fixed navigation bar
+        exists to prevent. Here it leads the page's own side of the header: the app's
+        controls are pinned to the left edge and never move, and what changes is
+        grouped with the rest of what changes.
+      */}
+      {back && (
+        <IconButton
+          variant="ghost"
+          label={t('app.back')}
+          onClick={goBack}
+          className="ml-1 shrink-0"
+        >
+          <IconBack size={17} />
+        </IconButton>
+      )}
 
       {/* `empty:hidden` matters: `basis-full` on an empty box would still claim a whole
           second row on every page that contributes no title. */}
