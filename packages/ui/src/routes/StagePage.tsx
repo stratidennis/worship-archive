@@ -75,10 +75,6 @@ export function StagePage() {
     };
   }, []);
 
-  if (state.output === 'black') {
-    return <div className="h-dvh bg-black" />;
-  }
-
   return (
     <div className="relative flex h-dvh flex-col bg-(--color-stage-bg)">
       <div

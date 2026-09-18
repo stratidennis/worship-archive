@@ -7,7 +7,15 @@
  * truth in the next frame rather than having to replay a log.
  */
 
-export type OutputMode = 'live' | 'cleared' | 'black';
+/**
+ * What the screens are showing.
+ *
+ * `black` used to be a third option, beside `cleared`. Two buttons that both mean "stop
+ * showing the song" is one button too many at the moment you need either of them — and
+ * on a projector the difference between a blank slide and a black one is not something
+ * a congregation can tell apart.
+ */
+export type OutputMode = 'live' | 'cleared';
 export type DeviceRole = 'leader' | 'band' | 'stage';
 
 export interface SessionState {

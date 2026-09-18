@@ -12,7 +12,7 @@ import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
 import { Button, IconButton, Input, Stepper } from '../components/ui.js';
-import { IconHome, IconMusic } from '../components/icons.js';
+import { IconHome, IconMusic, IconSets } from '../components/icons.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -51,6 +51,7 @@ export function BandPage() {
   const [prefs, setPrefs] = usePrefs();
 
   const [local, setLocal] = useState<number | null>(null);
+  const [listOpen, setListOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -62,6 +63,14 @@ export function BandPage() {
   const following = local === null;
 
   const viewing = songAt(live.set, live.songs, itemIndex);
+
+  /**
+   * Stop following, right where you are.
+   *
+   * Freezing on the current item rather than jumping anywhere: "I want to look at
+   * something else" starts from what is in front of you.
+   */
+  const setFollowing = (follow: boolean): void => setLocal(follow ? null : itemIndex);
 
   const step = (delta: 1 | -1): void => {
     const at = songIndices.indexOf(itemIndex);
@@ -139,6 +148,15 @@ export function BandPage() {
         </span>
         <BeatLed state={state} clockOffset={clockOffset} size="sm" />
         <StatusDot status={status} />
+        <IconButton
+          size="sm"
+          label={t('band.songList')}
+          active={listOpen}
+          aria-expanded={listOpen}
+          onClick={() => setListOpen((open) => !open)}
+        >
+          <IconSets size={14} />
+        </IconButton>
 
         {/*
           On a phone held upright — which is what most of the band is holding — the
@@ -184,59 +202,120 @@ export function BandPage() {
           >
             <IconMusic size={14} />
           </IconButton>
+
+          {/*
+            Following, or reading on your own.
+
+            This was a "back to the leader" bar that appeared once you had already
+            wandered off. A switch says the same thing before you touch anything and
+            stays where it is — and it is the whole point of this view: a musician
+            checking the bridge while the leader is still on verse two changes nothing
+            for anybody else.
+          */}
+          <Button size="sm" active={following} onClick={() => setFollowing(!following)}>
+            {following ? t('band.following') : t('band.onYourOwn')}
+          </Button>
         </div>
       </header>
 
-      {!following && (
-        <Button
-          variant="primary"
-          onClick={() => setLocal(null)}
-          className="shrink-0 rounded-none border-x-0 border-t-0"
-        >
-          {t('band.backToLeader')}
-        </Button>
-      )}
+      <div className="flex min-h-0 flex-1">
+        {/*
+          The running order, for looking ahead.
 
-      <main
-        id="main"
-        ref={container}
-        className={`min-h-0 flex-1 px-3 py-3 ${fit.fits ? 'overflow-hidden' : 'overflow-y-auto'}`}
-        onTouchStart={(e) => {
-          const x = e.touches[0]?.clientX ?? 0;
-          const handler = (end: TouchEvent): void => {
-            const dx = (end.changedTouches[0]?.clientX ?? 0) - x;
-            if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
-            window.removeEventListener('touchend', handler);
-          };
-          window.addEventListener('touchend', handler);
-        }}
-      >
-        {viewing ? (
-          <div
-            ref={content}
-            style={{
-              fontSize: `${fit.fontPx}px`,
-              columnCount: fit.columns,
-              columnGap: '2.5em',
-              visibility: fit.measuring ? 'hidden' : 'visible',
-            }}
+          Full width on a phone, where it stands in for the song while it is open, and a
+          column beside it on anything wider — the same swap the set workspace makes,
+          for the same reason: there is no room for both on a phone and no reason to
+          hide either on a laptop.
+        */}
+        {listOpen && (
+          <nav
+            aria-label={t('band.songList')}
+            className="scroll-slim w-full shrink-0 overflow-y-auto border-r border-(--color-line) py-1 md:w-60"
           >
-            <SongBody
-              song={viewing.song}
-              options={{
-                showChords: prefs.showChords,
-                showBass: false,
-                capo: viewing.item.capoOverride ?? prefs.capo,
-                transpose: extraTranspose,
-              }}
-            />
-          </div>
-        ) : (
-          <p className="mt-10 text-center text-sm text-(--color-muted)">
-            {live.set ? t('band.leaderNotOnSong') : t('band.waiting')}
-          </p>
+            {(live.set?.items ?? []).map((item, index) => {
+              const song = item.kind === 'song' ? live.songs[item.songId] : undefined;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => {
+                    // Choosing one is choosing to read on your own; the leader is not
+                    // told, and nobody else's screen moves.
+                    setLocal(index);
+                    setListOpen(false);
+                  }}
+                  aria-current={index === itemIndex ? 'true' : undefined}
+                  className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm ${
+                    index === itemIndex ? 'bg-(--color-chord)/15 font-semibold' : ''
+                  }`}
+                >
+                  <span className="w-4 shrink-0 text-right text-xs tabular-nums text-(--color-muted)">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {item.kind === 'song'
+                      ? (song?.title ?? '…')
+                      : item.kind === 'note'
+                        ? item.text || t('sets.note')
+                        : item.label || t('sets.gap')}
+                  </span>
+                  {index === state.itemIndex && (
+                    <span className="shrink-0 text-[0.7rem] text-(--color-chord)">
+                      {t('band.hereNow')}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {!live.set && (
+              <p className="px-3 py-4 text-xs text-(--color-muted)">{t('band.noLiveSet')}</p>
+            )}
+          </nav>
         )}
-      </main>
+
+        <main
+          id="main"
+          ref={container}
+          className={`min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
+            fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
+          }`}
+          onTouchStart={(e) => {
+            const x = e.touches[0]?.clientX ?? 0;
+            const handler = (end: TouchEvent): void => {
+              const dx = (end.changedTouches[0]?.clientX ?? 0) - x;
+              if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
+              window.removeEventListener('touchend', handler);
+            };
+            window.addEventListener('touchend', handler);
+          }}
+        >
+          {viewing ? (
+            <div
+              ref={content}
+              style={{
+                fontSize: `${fit.fontPx}px`,
+                columnCount: fit.columns,
+                columnGap: '2.5em',
+                visibility: fit.measuring ? 'hidden' : 'visible',
+              }}
+            >
+              <SongBody
+                song={viewing.song}
+                options={{
+                  showChords: prefs.showChords,
+                  showBass: false,
+                  capo: viewing.item.capoOverride ?? prefs.capo,
+                  transpose: extraTranspose,
+                }}
+              />
+            </div>
+          ) : (
+            <p className="mt-10 text-center text-sm text-(--color-muted)">
+              {live.set ? t('band.leaderNotOnSong') : t('band.waiting')}
+            </p>
+          )}
+        </main>
+      </div>
 
       {name === '' && (
         <form

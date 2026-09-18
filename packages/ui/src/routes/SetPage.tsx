@@ -79,7 +79,6 @@ const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
   { keys: '←', label: 'keys.prevSong' },
   { keys: 'Space', label: 'keys.sendLive' },
-  { keys: 'b', label: 'keys.black' },
   { keys: 'c', label: 'keys.clear' },
   { keys: 'm', label: 'keys.autoManual' },
   { keys: '?', label: 'keys.help' },
@@ -395,7 +394,6 @@ export function SetPage() {
       ' ': () => {
         if (!auto) sendLive();
       },
-      b: () => patch({ output: state.output === 'black' ? 'live' : 'black' }),
       c: () => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' }),
       m: () => setAuto(!auto),
       '?': () => setHelp((open) => !open),
@@ -1193,14 +1191,6 @@ function LeadControls({
       >
         {t('lead.clear')}
       </Button>
-      <Button
-        size="sm"
-        active={state.output === 'black'}
-        onClick={() => patch({ output: state.output === 'black' ? 'live' : 'black' })}
-      >
-        {t('lead.black')}
-      </Button>
-
       <Tempo state={state} patch={patch} clockOffset={clockOffset} />
 
       <Button size="sm" active={devicesOpen} onClick={onDevices} aria-expanded={devicesOpen}>
@@ -1292,12 +1282,12 @@ function DevicesPanel({
             <span className="min-w-0 flex-1 truncate">
               {device.name || t('lead.unnamedDevice')}
             </span>
-            <span className="shrink-0 text-[0.65rem] uppercase text-(--color-muted)">
+            <span className="shrink-0 text-[0.7rem] text-(--color-muted)">
               {device.role === 'stage'
                 ? t('lead.roleStage')
                 : device.role === 'leader'
                   ? t('lead.roleLeader')
-                  : ''}
+                  : t('lead.roleBand')}
             </span>
           </li>
         ))}

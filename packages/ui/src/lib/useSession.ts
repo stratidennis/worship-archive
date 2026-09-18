@@ -209,6 +209,27 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
     };
   }, [enabled]);
 
+  /*
+    Say who we are again when that changes.
+
+    `hello` was only sent on connect, so a musician who typed their name *after* joining
+    — which is what everybody does, because the field is at the bottom of the page they
+    just opened — stayed "Muzician" in the leader's list until they reloaded. The one
+    thing the name is for is the leader knowing who is in the room.
+  */
+  useEffect(() => {
+    const ws = socket.current;
+    if (!enabled || ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(
+      JSON.stringify({
+        t: 'hello',
+        role,
+        name,
+        deviceId: myDeviceId.current,
+      } satisfies ClientMessage),
+    );
+  }, [enabled, role, name, status]);
+
   // Re-measure the clock offset periodically; laptops drift, and phones adjust theirs.
   useEffect(() => {
     const timer = setInterval(() => {

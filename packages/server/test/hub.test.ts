@@ -159,7 +159,7 @@ describe('driving the service', () => {
 
   it('bumps rev on every change, so stale frames can be ignored', async () => {
     const before = hub.getState().rev;
-    hub.patch({ output: 'black' });
+    hub.patch({ output: 'cleared' });
     hub.patch({ output: 'live' });
     expect(hub.getState().rev).toBe(before + 2);
   });

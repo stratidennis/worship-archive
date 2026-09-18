@@ -33,6 +33,16 @@ export function JoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [path, setPath] = useState('/band');
+  /**
+   * Chords on the stage display, or only the words.
+   *
+   * `/stage` has always read `?chords=0`; it was simply not offered anywhere, so you had
+   * to know. A screen facing the congregation usually wants words alone, and one facing
+   * the drummer usually wants chords — the same URL, set up once, at the moment the
+   * screen is being pointed at something.
+   */
+  const [stageChords, setStageChords] = useState(true);
+  const query = path === '/stage' && !stageChords ? '?chords=0' : '';
 
   useHeader({ back: true });
 
@@ -71,12 +81,12 @@ export function JoinPage() {
 
   const url = useMemo(() => {
     if (location.hostname && !/^(localhost|127\.|\[?::1)/.test(location.hostname)) {
-      return `${location.protocol}//${location.host}${path}`;
+      return `${location.protocol}//${location.host}${path}${query}`;
     }
     // Opened on the host itself: keep this port, but use an address a phone can route to.
     const first = host?.addresses[0] ?? host?.hostname;
-    return first ? `${address(first)}${path}` : null;
-  }, [host, address, path]);
+    return first ? `${address(first)}${path}${query}` : null;
+  }, [host, address, path, query]);
 
   useEffect(() => {
     if (!url) return;
@@ -99,7 +109,7 @@ export function JoinPage() {
     const rows: { url: string; hint: string }[] = [];
     const seen = new Set<string>();
     const add = (hostname: string, hint: string): void => {
-      const full = `${address(hostname)}${path}`;
+      const full = `${address(hostname)}${path}${query}`;
       if (seen.has(full)) return;
       seen.add(full);
       rows.push({ url: full, hint });
@@ -107,7 +117,7 @@ export function JoinPage() {
     add(host.hostname, t('join.usuallyWorks'));
     for (const ip of host.addresses) add(ip, t('join.alwaysWorks'));
     return rows;
-  }, [host, address, path, t]);
+  }, [host, address, path, query, t]);
 
   return (
     <Scroll>
@@ -136,6 +146,17 @@ export function JoinPage() {
             </Segment>
           ))}
         </Segmented>
+
+        {path === '/stage' && (
+          <Segmented label={t('song.chords')} className="ml-2 mt-5">
+            <Segment active={stageChords} onClick={() => setStageChords(true)}>
+              {t('join.stageWithChords')}
+            </Segment>
+            <Segment active={!stageChords} onClick={() => setStageChords(false)}>
+              {t('join.stageWordsOnly')}
+            </Segment>
+          </Segmented>
+        )}
 
         {qr && (
           <div className="mt-5 flex flex-col items-center gap-3">
