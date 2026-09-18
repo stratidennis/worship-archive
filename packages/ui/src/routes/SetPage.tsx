@@ -228,17 +228,6 @@ export function SetPage() {
     });
   };
 
-  // Songs are numbered among themselves, not by position in the running order. A list
-  // that reads 1, _, 3, _ looks broken; musicians say "the third song".
-  const songNumbers = useMemo(() => {
-    const map = new Map<number, number>();
-    let n = 0;
-    set?.items.forEach((item, index) => {
-      if (item.kind === 'song') map.set(index, ++n);
-    });
-    return map;
-  }, [set]);
-
   const inSet = useMemo(
     () =>
       new Set(
@@ -266,13 +255,7 @@ export function SetPage() {
 
   return (
     <div className="flex h-dvh flex-col print:h-auto">
-      <PrintableRunningOrder
-        set={set}
-        songs={songs}
-        songNumbers={songNumbers}
-        t={t}
-        formatDate={formatDate}
-      />
+      <PrintableRunningOrder set={set} songs={songs} t={t} formatDate={formatDate} />
 
       <AppHeader
         current="home"
@@ -410,7 +393,7 @@ export function SetPage() {
                     className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
                   >
                     <span className="w-4 shrink-0 text-right text-xs tabular-nums text-(--color-muted)">
-                      {songNumbers.get(index) ?? ''}
+                      {index + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate">
                       {item.kind === 'song'
