@@ -64,7 +64,9 @@ function trayImage(): Electron.NativeImage {
   const image = nativeImage.createFromPath(join(RESOURCES, 'build', 'tray-32.png'));
   if (process.platform === 'darwin') {
     const small = nativeImage.createFromPath(join(RESOURCES, 'build', 'tray-16.png'));
-    // A macOS menu-bar icon must be a template image or it looks wrong in dark mode.
+    // Not a template image: a template is flattened to a black-or-white silhouette,
+    // and the mark is a single brand colour that already reads on a light menu bar and
+    // a dark one. Templating it would throw the only thing that identifies it away.
     small.setTemplateImage(false);
     return small.isEmpty() ? image : small;
   }

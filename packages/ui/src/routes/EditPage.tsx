@@ -29,6 +29,7 @@ import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
 import { Modal } from '../components/Modal.js';
+import { SaveBadge, type SaveState } from '../components/SaveBadge.js';
 import { Button, Checkbox, Field as UiField, Input, Select } from '../components/ui.js';
 import {
   IconClose,
@@ -47,8 +48,6 @@ const TYPE_KEYS: Record<string, BlockType> = {
   F7: 'Chorus',
   F8: 'Bridge',
 };
-
-type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 /** The same four the reading view tints — a cue is not a verse, in either place. */
 const CUE_TYPES = new Set<BlockType>(['Intro', 'Instrumental', 'Solo', 'Note']);
@@ -199,8 +198,8 @@ export function EditPage() {
           />
         }
       >
-        <SaveBadge state={saveState} />
-        <div className="flex items-center gap-1 text-sm">
+        <div className="flex items-center gap-1.5 text-sm">
+          <SaveBadge state={saveState} />
           <Btn onClick={song.undo} disabled={!song.canUndo} title={t('edit.undo')}>
             <IconUndo size={16} />
           </Btn>
@@ -632,26 +631,6 @@ function Field({
         placeholder={placeholder}
       />
     </UiField>
-  );
-}
-
-function SaveBadge({ state }: { state: SaveState }) {
-  const { t } = useT();
-  const text: Record<SaveState, string> = {
-    idle: '',
-    dirty: t('save.dirty'),
-    saving: t('save.saving'),
-    saved: t('save.saved'),
-    error: t('save.error'),
-  };
-  if (!text[state]) return null;
-  return (
-    <span
-      className={`text-xs ${state === 'error' ? 'text-red-500' : 'text-(--color-muted)'}`}
-      role="status"
-    >
-      {text[state]}
-    </span>
   );
 }
 

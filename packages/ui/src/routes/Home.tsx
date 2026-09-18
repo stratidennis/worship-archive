@@ -77,7 +77,7 @@ export function Home() {
   // and this is the very first thing the app shows.
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-4 px-4">
-      <Logo className="h-12 animate-pulse" />
+      <Logo className="h-12 animate-pulse text-(--color-chord)" label={t('app.name')} />
       <p className="text-center text-sm text-(--color-muted)">
         {creating ? t('set.creatingFirst') : t('set.opening')}
       </p>

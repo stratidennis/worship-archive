@@ -81,12 +81,15 @@ export function ResizeHandle({
         if (event.key === 'ArrowLeft') onWidth(clampSidebar(width - 16));
         if (event.key === 'ArrowRight') onWidth(clampSidebar(width + 16));
       }}
-      className="group relative hidden w-1.5 shrink-0 cursor-col-resize touch-none bg-(--color-line) md:block"
+      className="group relative hidden w-px shrink-0 cursor-col-resize touch-none bg-(--color-line) md:block"
       style={{ touchAction: 'none' }}
     >
-      {/* A wider invisible target than the visible line: 6px is hard to hit. */}
+      {/* The line is a hairline, because it divides two panes rather than being a
+          control in its own right. The target is not: 1px is impossible to hit, so an
+          invisible 13px band sits over it, and the accent widens under the pointer so
+          there is still something to aim at. */}
       <span className="absolute inset-y-0 -left-1.5 -right-1.5 block" />
-      <span className="absolute inset-y-0 left-0 w-full bg-(--color-chord) opacity-0 transition-opacity group-hover:opacity-70 group-focus-visible:opacity-70" />
+      <span className="absolute inset-y-0 -left-px -right-px bg-(--color-chord) opacity-0 transition-opacity group-hover:opacity-80 group-focus-visible:opacity-80" />
     </div>
   );
 }

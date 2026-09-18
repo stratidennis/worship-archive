@@ -24,6 +24,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
 
   return (
     <IconButton
+      variant="ghost"
       label={label}
       onClick={() => setPrefs({ theme: dark ? 'light' : 'dark' })}
       className={className}

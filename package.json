@@ -27,7 +27,8 @@
     "abi:electron": "node tools/src/native-abi.mjs electron",
     "smoke:desktop": "node packages/desktop/scripts/smoke.mjs",
     "dist:desktop": "pnpm --filter @worship/desktop dist",
-    "icons": "python3 tools/src/make-icons.py"
+    "icons": "python3 tools/src/make-icons.py",
+    "trace:logo": "python3 tools/src/trace-logo.py"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

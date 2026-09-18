@@ -30,6 +30,7 @@ import {
   House,
   Library,
   ListMusic,
+  LoaderCircle,
   Minus,
   Moon,
   Music4,
@@ -101,3 +102,4 @@ export const IconMergeUp = make(ArrowUpToLine);
 export const IconPeople = make(Users);
 export const IconAlert = make(TriangleAlert);
 export const IconFilter = make(Filter);
+export const IconSpinner = make(LoaderCircle);

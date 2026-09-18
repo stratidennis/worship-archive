@@ -62,11 +62,6 @@ def app_icon(mark: Image.Image, size: int, *, scale: float, inset: float = 0.0):
     return canvas
 
 
-def scaled_to_height(image: Image.Image, height: int) -> Image.Image:
-    width = round(image.width * height / image.height)
-    return image.resize((width, height), Image.LANCZOS)
-
-
 def main() -> None:
     mark = Image.open(MARK).convert("RGBA")
 
@@ -82,10 +77,8 @@ def main() -> None:
         UI_PUBLIC / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)]
     )
 
-    # In the interface: twice the size they are drawn at, for a retina screen.
-    scaled_to_height(mark, 96).save(UI_PUBLIC / "logo-mark.png")
-    wordmark = Image.open(ROOT / "brand" / "logo-wordmark.png").convert("RGBA")
-    scaled_to_height(wordmark, 128).save(UI_PUBLIC / "logo-wordmark.png")
+    # Nothing here for the interface itself: it draws the logo from the outlines in
+    # `logo-paths.ts` (see `pnpm trace:logo`), so that it can be recoloured.
 
     # The desktop app. macOS insets its icons inside the canvas — a full-bleed one looks
     # a size larger than everything beside it in the dock — and Windows does not.

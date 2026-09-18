@@ -1,49 +1,66 @@
+import { MARK_PATHS, MARK_VIEWBOX, WORDMARK_PATHS, WORDMARK_VIEWBOX } from './logo-paths.js';
+
 /**
  * The mark, and the mark with the name beside it.
  *
- * A PNG rather than an inline SVG: the art is what it is, and re-drawing it by hand in
- * paths would mean the logo in the header could drift away from the one on the taskbar.
- * Both files are generated from `brand/` by `pnpm icons`, at twice the size they are
- * ever drawn at, so they stay sharp on a retina screen.
+ * Outlines rather than a picture, so both take `currentColor`. That is the whole point:
+ * the header's home link colours its own logo the way it colours its own label — muted
+ * when you are somewhere else, accent when you are here, following the hover in
+ * between — and a PNG cannot do that. The paths come from `brand/` via
+ * `pnpm trace:logo`; see `logo-paths.ts`.
  *
- * `alt=""` and `aria-hidden` wherever the name is already on the page — a screen reader
- * announcing "Worship Archive" twice in a row is noise, not branding.
+ * `fill-rule="evenodd"` is load-bearing on the wordmark: the counters in the letters
+ * are separate rings, and without it every `o` fills in solid.
+ *
+ * `alt`/`aria-label` are deliberately absent by default. Wherever these appear the name
+ * is already on the page or in the window title, and a screen reader announcing
+ * "Worship Archive" twice in a row is noise rather than branding — pass `label` on the
+ * one screen where the logo really is the only thing saying what this is.
  */
-export function Logo({
-  className = '',
-  decorative = true,
-  alt = 'Worship Archive',
+function Svg({
+  viewBox,
+  paths,
+  className,
+  label,
 }: {
-  className?: string;
-  decorative?: boolean;
-  alt?: string;
+  viewBox: string;
+  paths: readonly string[];
+  className: string;
+  label?: string | undefined;
 }) {
   return (
-    <img
-      src="/logo-mark.png"
-      width={54}
-      height={48}
-      alt={decorative ? '' : alt}
-      {...(decorative ? { 'aria-hidden': true } : {})}
-      className={`w-auto select-none ${className}`}
+    <svg
+      viewBox={viewBox}
+      fill="currentColor"
+      fillRule="evenodd"
+      className={className}
+      {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
+    >
+      {paths.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+export function Logo({ className = '', label }: { className?: string; label?: string }) {
+  return (
+    <Svg
+      viewBox={MARK_VIEWBOX}
+      paths={MARK_PATHS}
+      className={`w-auto ${className}`}
+      label={label}
     />
   );
 }
 
-export function Wordmark({
-  className = '',
-  alt = 'Worship Archive',
-}: {
-  className?: string;
-  alt?: string;
-}) {
+export function Wordmark({ className = '', label }: { className?: string; label?: string }) {
   return (
-    <img
-      src="/logo-wordmark.png"
-      width={176}
-      height={64}
-      alt={alt}
-      className={`w-auto select-none ${className}`}
+    <Svg
+      viewBox={WORDMARK_VIEWBOX}
+      paths={WORDMARK_PATHS}
+      className={`w-auto ${className}`}
+      label={label}
     />
   );
 }

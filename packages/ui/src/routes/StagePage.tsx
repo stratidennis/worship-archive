@@ -110,7 +110,7 @@ export function StagePage() {
           /* A screen at the front of a room with nothing on it yet. Better that it look
              like a thing that is on and waiting than like a thing that failed. */
           <div className="mt-[22vh] flex flex-col items-center gap-6">
-            <Logo className="h-20 opacity-25" />
+            <Logo className="h-20 text-(--color-chord) opacity-25" />
             <p className="text-center text-lg text-(--color-muted)">
               {live.set ? '' : t('band.waiting')}
             </p>

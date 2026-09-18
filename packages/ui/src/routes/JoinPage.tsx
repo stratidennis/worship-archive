@@ -65,7 +65,7 @@ export function JoinPage() {
         <div className="mx-auto max-w-2xl px-4 py-8">
           {/* The one screen someone sees before they have any idea what this is: they
               are standing in a room being handed a QR code. */}
-          <Wordmark className="mb-5 h-8" />
+          <Wordmark className="mb-5 h-8 text-(--color-chord)" label={t('app.name')} />
           <h1 className="text-2xl font-bold">{t('join.title')}</h1>
           <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
 

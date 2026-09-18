@@ -12,9 +12,9 @@ export function StatusDot({ status }: { status: ConnectionStatus }) {
   const { t } = useT();
   const colour =
     status === 'live'
-      ? 'oklch(70% 0.17 150)'
+      ? 'var(--color-ok)'
       : status === 'connecting'
-        ? 'oklch(78% 0.15 85)'
+        ? 'var(--color-cue)'
         : 'oklch(62% 0.21 25)';
   const label = t(
     status === 'live'

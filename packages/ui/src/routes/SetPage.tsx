@@ -26,6 +26,7 @@ import { DatePicker } from '../components/DatePicker.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
+import { SaveBadge, type SaveState } from '../components/SaveBadge.js';
 import {
   Button,
   ButtonLink,
@@ -70,8 +71,6 @@ import { PrintableSet } from '../components/PrintableSet.js';
  * Now the same list you built the set with is the list you drive it from — turning the
  * switch off puts the controls away and leaves the screens exactly where they were.
  */
-
-type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
@@ -561,7 +560,6 @@ export function SetPage() {
           />
         }
       >
-        <SaveBadge state={saveState} />
         <Button
           active={leading}
           onClick={toggleLead}
@@ -571,6 +569,7 @@ export function SetPage() {
           <span className="hidden sm:inline">{t('app.lead')}</span>
         </Button>
         <IconButton
+          variant="ghost"
           label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
           onClick={() => setPrefs({ setHeaderExpanded: !expanded })}
           aria-expanded={expanded}
@@ -600,6 +599,10 @@ export function SetPage() {
             <span className="text-xs text-(--color-muted)">
               {t('set.itemCount', { count: set.items.length })}
             </span>
+            {/* Beside the item count rather than up in the header: it is the same kind
+                of fact about the set, and in the header its appearing and disappearing
+                pushed the navigation onto a second row every time anything was saved. */}
+            <SaveBadge state={saveState} quietWhenDirty />
 
             <span className="ml-auto flex flex-wrap items-center gap-1.5">
               {/* Whether chords are showing is a view preference, not a leading
@@ -689,7 +692,16 @@ export function SetPage() {
                     key={index}
                     {...drag.rowProps(index)}
                     aria-current={onAir ? 'true' : undefined}
-                    className={`group flex items-center gap-1 px-2 py-1.5 text-sm ${
+                    onClick={(event) => {
+                      // The whole row opens it, not just the title text in the middle of
+                      // it. The grip and the ✕ are buttons in their own right and answer
+                      // for themselves; everything else — the padding, the gaps, the key
+                      // on the right — is the row.
+                      if ((event.target as HTMLElement).closest('button,[role="button"]'))
+                        return;
+                      selectItem(index);
+                    }}
+                    className={`group flex cursor-pointer items-center gap-1 px-2 py-1.5 text-sm ${
                       onAir
                         ? 'rounded-md bg-(--color-chord)/25 font-semibold ring-1 ring-(--color-chord)'
                         : chosen
@@ -752,26 +764,23 @@ export function SetPage() {
             </ol>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Search and filters on one line: the panel is 288px wide by default and
-                  a second full row of chrome above a list of songs is most of what you
-                  came here to look at. */}
-              <div className="relative m-2 mt-0 flex shrink-0 items-center gap-1.5">
-                <Input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t('sets.searchSong')}
-                  aria-label={t('sets.searchSong')}
-                  autoComplete="off"
-                  className="min-w-0 flex-1"
-                />
-                <ArchiveFilters facets={facets} value={filters} onChange={setFilters} />
-              </div>
+              <ArchiveSearch
+                query={query}
+                onQuery={setQuery}
+                facets={facets}
+                value={filters}
+                onChange={setFilters}
+              />
               <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
                 {shown.map((song) => (
                   <li key={song.id}>
                     <div
-                      className={`group flex items-center gap-1 pl-3 pr-1.5 text-sm hover:bg-(--color-line)/40 ${
+                      onClick={(event) => {
+                        if ((event.target as HTMLElement).closest('button,[role="button"]'))
+                          return;
+                        setSelection({ kind: 'candidate', songId: song.id });
+                      }}
+                      className={`group flex cursor-pointer items-center gap-1 pl-3 pr-1.5 text-sm hover:bg-(--color-line)/40 ${
                         selection?.kind === 'candidate' && selection.songId === song.id
                           ? 'bg-(--color-chord)/15'
                           : ''
@@ -934,22 +943,32 @@ export function SetPage() {
 }
 
 /**
- * The archive filters, in a popover.
+ * Searching the archive, and filtering it.
  *
- * A popover rather than a second row of chips, because the panel is 288px wide by
- * default and the chips would have been three rows of them above the list of songs you
- * came here to read.
+ * Search and filters on one line, because the panel is 288px wide by default and a
+ * second full row of chrome above a list of songs is most of what you came here to look
+ * at. The filters are a popover for the same reason — as chips they were three rows.
+ *
+ * The popover is measured against the **row**, not against the button at the end of it,
+ * and is exactly the row's width. Hung off the button it was anchored to a 36px box at
+ * the panel's right edge and opened leftwards from there, so on a narrowed sidebar its
+ * left half was off the side of the screen. Anchored to the row it cannot leave the
+ * panel at any width, and it lines up with the field it filters.
  *
  * It edits a **draft**. Apply commits it; Cancel, Escape and clicking away all discard
  * it — three ways to do the same thing rather than one of them quietly meaning the
- * opposite. The button carries a dot while anything is filtered, so a list that looks
- * short can always be explained without opening this.
+ * opposite. The button stays lit while anything is filtered, so a list that looks short
+ * can always be explained without opening this.
  */
-function ArchiveFilters({
+function ArchiveSearch({
+  query,
+  onQuery,
   facets,
   value,
   onChange,
 }: {
+  query: string;
+  onQuery: (value: string) => void;
   facets: { collections: [string, number][]; keys: [string, number][] };
   value: { collection: string; key: string };
   onChange: (next: { collection: string; key: string }) => void;
@@ -982,25 +1001,36 @@ function ArchiveFilters({
   }, [open, close]);
 
   return (
-    <div ref={wrapper} className="relative shrink-0">
-      <IconButton
-        label={t('set.filters')}
-        active={open || active}
-        aria-expanded={open}
-        onClick={() => {
-          // Always open on what is actually applied, not on last time's abandoned draft.
-          setDraft(value);
-          setOpen((current) => !current);
-        }}
-      >
-        <IconFilter size={16} />
-      </IconButton>
+    <div ref={wrapper} className="relative m-2 mt-0 shrink-0">
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="search"
+          value={query}
+          onChange={(event) => onQuery(event.target.value)}
+          placeholder={t('sets.searchSong')}
+          aria-label={t('sets.searchSong')}
+          autoComplete="off"
+          className="min-w-0 flex-1"
+        />
+        <IconButton
+          label={t('set.filters')}
+          active={open || active}
+          aria-expanded={open}
+          onClick={() => {
+            // Always open on what is actually applied, not on last time's abandoned draft.
+            setDraft(value);
+            setOpen((current) => !current);
+          }}
+        >
+          <IconFilter size={16} />
+        </IconButton>
+      </div>
 
       {open && (
         <div
           role="dialog"
           aria-label={t('set.filters')}
-          className="absolute right-0 top-11 z-30 w-64 rounded-xl border border-(--color-line) bg-(--color-surface) p-3 shadow-xl"
+          className="modal-panel absolute inset-x-0 top-full z-30 mt-1.5 rounded-xl border border-(--color-line) bg-(--color-surface) p-3 shadow-xl"
         >
           {facets.collections.length > 0 && (
             <FilterGroup
@@ -1020,11 +1050,14 @@ function ArchiveFilters({
             className={facets.collections.length > 0 ? 'mt-3' : ''}
           />
 
-          <div className="mt-4 flex items-center gap-2">
+          {/* Wrapping, and the clear button keeps its own line rather than breaking in
+              half: the panel can be dragged down to 220px and two words on two lines in
+              a button look like a rendering fault. */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant="ghost"
-              className="mr-auto text-(--color-muted)"
+              className="mr-auto whitespace-nowrap text-(--color-muted)"
               disabled={draft.collection === '' && draft.key === ''}
               onClick={() => setDraft({ collection: '', key: '' })}
             >
@@ -1256,7 +1289,7 @@ function DevicesPanel({
           <li key={device.id} className="flex items-center gap-1.5">
             <span
               className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: 'oklch(70% 0.17 150)' }}
+              style={{ background: 'var(--color-ok)' }}
             />
             <span className="min-w-0 flex-1 truncate">
               {device.name || t('lead.unnamedDevice')}
@@ -1522,25 +1555,5 @@ function Action({ onClick, children }: { onClick: () => void; children: React.Re
     <Button size="sm" onClick={onClick}>
       {children}
     </Button>
-  );
-}
-
-function SaveBadge({ state }: { state: SaveState }) {
-  const { t } = useT();
-  const text: Record<SaveState, string> = {
-    idle: '',
-    dirty: t('save.dirty'),
-    saving: t('save.saving'),
-    saved: t('save.saved'),
-    error: t('save.error'),
-  };
-  if (!text[state]) return null;
-  return (
-    <span
-      className={`text-xs ${state === 'error' ? 'text-red-500' : 'text-(--color-muted)'}`}
-      role="status"
-    >
-      {text[state]}
-    </span>
   );
 }
