@@ -32,6 +32,14 @@ export interface Session {
   patch: (patch: Partial<Omit<SessionState, 'rev'>>) => void;
   /** Bumped when the host says the library changed on disk. */
   libraryRev: number;
+  /**
+   * True once the host's state has actually arrived.
+   *
+   * Before the first frame, `state` is the *initial* session — no set, item zero — and
+   * acting on it would be acting on a guess. The leader switch uses this to decide
+   * whether the service is already somewhere before it moves it.
+   */
+  synced: boolean;
 }
 
 const MIN_BACKOFF = 500;
@@ -60,12 +68,19 @@ function deviceId(): string {
   }
 }
 
-export function useSession(role: DeviceRole, name: string): Session {
+/**
+ * @param enabled Whether to hold a connection at all. Leading is a switch on the set
+ * page now, so the page is mounted long before — and long after — anyone is leading
+ * from it. A socket that opened on mount would put a phantom "leader" in everyone's
+ * device list for the whole time the set was merely being edited.
+ */
+export function useSession(role: DeviceRole, name: string, enabled = true): Session {
   const [state, setState] = useState<SessionState>(INITIAL_SESSION);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [clockOffset, setClockOffset] = useState(0);
   const [libraryRev, setLibraryRev] = useState(0);
+  const [synced, setSynced] = useState(false);
 
   const socket = useRef<WebSocket | null>(null);
   const backoff = useRef(MIN_BACKOFF);
@@ -77,6 +92,13 @@ export function useSession(role: DeviceRole, name: string): Session {
   if (!myDeviceId.current) myDeviceId.current = deviceId();
 
   useEffect(() => {
+    if (!enabled) {
+      setStatus('offline');
+      setDevices([]);
+      setSynced(false);
+      setState(INITIAL_SESSION);
+      return;
+    }
     closed.current = false;
 
     const connect = (): void => {
@@ -123,6 +145,7 @@ export function useSession(role: DeviceRole, name: string): Session {
           case 'session':
             // Ignore a frame that lost a race with a newer one.
             setState((current) => (message.state.rev >= current.rev ? message.state : current));
+            setSynced(true);
             break;
           case 'devices':
             setDevices(message.devices);
@@ -183,7 +206,7 @@ export function useSession(role: DeviceRole, name: string): Session {
         ws.close();
       }
     };
-  }, []);
+  }, [enabled]);
 
   // Re-measure the clock offset periodically; laptops drift, and phones adjust theirs.
   useEffect(() => {
@@ -202,5 +225,5 @@ export function useSession(role: DeviceRole, name: string): Session {
     ws.send(JSON.stringify({ t: 'patch', patch: value } satisfies ClientMessage));
   }, []);
 
-  return { state, devices, status, clockOffset, patch, libraryRev };
+  return { state, devices, status, clockOffset, patch, libraryRev, synced };
 }

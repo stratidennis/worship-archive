@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { adminApi, type CleanupAudit, type CleanupSuggestion } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Page, Scroll } from '../components/Page.js';
 import { IconChevronDown, IconChevronRight } from '../components/icons.js';
+import { Button, Checkbox, IconButton } from '../components/ui.js';
 
 /**
  * Reviewing chord-spelling fixes — D12.
@@ -91,161 +93,167 @@ export function CleanupPage() {
   };
 
   return (
-    <>
+    <Page>
       <AppHeader current="settings" back />
-      <div className="mx-auto max-w-3xl px-4 pb-24 pt-5">
-        <header className="mb-4">
-          <h1 className="text-2xl font-bold">{t('cleanup.title')}</h1>
-          <p className="mt-1 max-w-prose text-sm text-(--color-muted)">{t('cleanup.intro')}</p>
-        </header>
-
-        {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-
-        {applied && (
-          <p className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm" role="status">
-            {t('cleanup.applied', {
-              chords: applied.chords,
-              songs: t('cleanup.songsAffected', { count: applied.songs }),
-            })}
-            {applied.stale > 0 && ` ${t('cleanup.stale', { count: applied.stale })}`}
-            <span className="mt-1 block text-xs text-(--color-muted)">
-              {t('cleanup.undoHint')}
-            </span>
-          </p>
-        )}
-
-        {!audit && !error && (
-          <p className="text-sm text-(--color-muted)">{t('cleanup.scanning')}</p>
-        )}
-
-        {audit && audit.suggestions.length === 0 && (
-          <p className="mt-8 text-center text-sm text-(--color-muted)">
-            {t('cleanup.nothing')}
-          </p>
-        )}
-
-        {audit && audit.suggestions.length > 0 && (
-          <>
-            <p className="mb-3 text-sm text-(--color-muted)">
-              {t('cleanup.summary', {
-                chords: audit.suggestions.length,
-                songs: t('cleanup.songsAffected', { count: audit.songsAffected }),
-                scanned: audit.chordsScanned,
-              })}
+      <Scroll>
+        <div className="mx-auto max-w-3xl px-4 pb-24 pt-5">
+          <header className="mb-4">
+            <h1 className="text-2xl font-bold">{t('cleanup.title')}</h1>
+            <p className="mt-1 max-w-prose text-sm text-(--color-muted)">
+              {t('cleanup.intro')}
             </p>
+          </header>
 
-            <div className="mb-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => toggle(audit.suggestions.map(keyOf), true)}
-                className="rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
-              >
-                {t('cleanup.selectAll')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setChosen(new Set())}
-                className="rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
-              >
-                {t('cleanup.selectNone')}
-              </button>
-            </div>
+          {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
-            <ul className="space-y-2">
-              {bySpelling.map(([raw, group]) => {
-                const keys = group.map(keyOf);
-                const allChosen = keys.every((k) => chosen.has(k));
-                const someChosen = !allChosen && keys.some((k) => chosen.has(k));
-                const open = expanded.has(raw);
-                return (
-                  <li key={raw} className="rounded-lg border border-(--color-line) px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={allChosen}
-                        ref={(node) => {
-                          if (node) node.indeterminate = someChosen;
-                        }}
-                        onChange={(event) => toggle(keys, event.target.checked)}
-                        aria-label={`${raw} → ${group[0]!.fixed}`}
-                      />
-                      <code className="rounded bg-(--color-line) px-1.5 py-0.5 font-mono text-sm">
-                        {raw}
-                      </code>
-                      <span className="text-xs text-(--color-muted)">
-                        {t('cleanup.becomes')}
-                      </span>
-                      <code className="rounded bg-(--color-chord) px-1.5 py-0.5 font-mono text-sm text-white">
-                        {group[0]!.fixed}
-                      </code>
-                      <span className="text-xs text-(--color-muted)">
-                        {t('cleanup.occurrences', { count: group.length })} · {group[0]!.reason}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpanded((current) => {
-                            const next = new Set(current);
-                            if (next.has(raw)) next.delete(raw);
-                            else next.add(raw);
-                            return next;
-                          })
-                        }
-                        aria-expanded={open}
-                        className="ml-auto rounded px-2 py-1 text-xs text-(--color-muted) hover:bg-(--color-line)"
-                      >
-                        {open ? <IconChevronDown size={15} /> : <IconChevronRight size={15} />}
-                      </button>
-                    </div>
-
-                    {open && (
-                      <ul className="mt-2 space-y-1 border-t border-(--color-line) pt-2 text-xs">
-                        {group.map((suggestion) => (
-                          <li key={keyOf(suggestion)} className="flex items-baseline gap-2">
-                            <input
-                              type="checkbox"
-                              checked={chosen.has(keyOf(suggestion))}
-                              onChange={(event) =>
-                                toggle([keyOf(suggestion)], event.target.checked)
-                              }
-                              aria-label={suggestion.title}
-                            />
-                            <Link
-                              to={`/song/${encodeURIComponent(suggestion.songId)}`}
-                              className="shrink-0 truncate font-medium hover:underline"
-                              style={{ maxWidth: '12rem' }}
-                            >
-                              {suggestion.title}
-                            </Link>
-                            <span className="min-w-0 flex-1 truncate text-(--color-muted)">
-                              {suggestion.context || '—'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                );
+          {applied && (
+            <p
+              className="mb-4 rounded-lg border border-(--color-line) p-3 text-sm"
+              role="status"
+            >
+              {t('cleanup.applied', {
+                chords: applied.chords,
+                songs: t('cleanup.songsAffected', { count: applied.songs }),
               })}
-            </ul>
+              {applied.stale > 0 && ` ${t('cleanup.stale', { count: applied.stale })}`}
+              <span className="mt-1 block text-xs text-(--color-muted)">
+                {t('cleanup.undoHint')}
+              </span>
+            </p>
+          )}
 
-            {chosen.size > 0 && (
-              <div className="fixed inset-x-0 bottom-0 border-t border-(--color-line) bg-(--color-stage-bg) px-4 py-3">
-                <div className="mx-auto flex max-w-3xl items-center justify-end">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void apply()}
-                    className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    {busy ? t('cleanup.applying') : t('cleanup.apply', { count: chosen.size })}
-                  </button>
-                </div>
+          {!audit && !error && (
+            <p className="text-sm text-(--color-muted)">{t('cleanup.scanning')}</p>
+          )}
+
+          {audit && audit.suggestions.length === 0 && (
+            <p className="mt-8 text-center text-sm text-(--color-muted)">
+              {t('cleanup.nothing')}
+            </p>
+          )}
+
+          {audit && audit.suggestions.length > 0 && (
+            <>
+              <p className="mb-3 text-sm text-(--color-muted)">
+                {t('cleanup.summary', {
+                  chords: audit.suggestions.length,
+                  songs: t('cleanup.songsAffected', { count: audit.songsAffected }),
+                  scanned: audit.chordsScanned,
+                })}
+              </p>
+
+              <div className="mb-3 flex gap-2">
+                <Button size="sm" onClick={() => toggle(audit.suggestions.map(keyOf), true)}>
+                  {t('cleanup.selectAll')}
+                </Button>
+                <Button size="sm" onClick={() => setChosen(new Set())}>
+                  {t('cleanup.selectNone')}
+                </Button>
               </div>
-            )}
-          </>
-        )}
-      </div>
-    </>
+
+              <ul className="space-y-2">
+                {bySpelling.map(([raw, group]) => {
+                  const keys = group.map(keyOf);
+                  const allChosen = keys.every((k) => chosen.has(k));
+                  const someChosen = !allChosen && keys.some((k) => chosen.has(k));
+                  const open = expanded.has(raw);
+                  return (
+                    <li key={raw} className="rounded-lg border border-(--color-line) px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Checkbox
+                          checked={allChosen}
+                          ref={(node) => {
+                            if (node) node.indeterminate = someChosen;
+                          }}
+                          onChange={(event) => toggle(keys, event.target.checked)}
+                          aria-label={`${raw} → ${group[0]!.fixed}`}
+                        />
+                        <code className="rounded bg-(--color-line) px-1.5 py-0.5 font-mono text-sm">
+                          {raw}
+                        </code>
+                        <span className="text-xs text-(--color-muted)">
+                          {t('cleanup.becomes')}
+                        </span>
+                        <code className="rounded bg-(--color-chord) px-1.5 py-0.5 font-mono text-sm text-white">
+                          {group[0]!.fixed}
+                        </code>
+                        <span className="text-xs text-(--color-muted)">
+                          {t('cleanup.occurrences', { count: group.length })} ·{' '}
+                          {group[0]!.reason}
+                        </span>
+                        <IconButton
+                          size="sm"
+                          variant="ghost"
+                          label={t('cleanup.occurrences', { count: group.length })}
+                          aria-expanded={open}
+                          className="ml-auto"
+                          onClick={() =>
+                            setExpanded((current) => {
+                              const next = new Set(current);
+                              if (next.has(raw)) next.delete(raw);
+                              else next.add(raw);
+                              return next;
+                            })
+                          }
+                        >
+                          {open ? (
+                            <IconChevronDown size={15} />
+                          ) : (
+                            <IconChevronRight size={15} />
+                          )}
+                        </IconButton>
+                      </div>
+
+                      {open && (
+                        <ul className="mt-2 space-y-1 border-t border-(--color-line) pt-2 text-xs">
+                          {group.map((suggestion) => (
+                            <li key={keyOf(suggestion)} className="flex items-baseline gap-2">
+                              <Checkbox
+                                checked={chosen.has(keyOf(suggestion))}
+                                onChange={(event) =>
+                                  toggle([keyOf(suggestion)], event.target.checked)
+                                }
+                                aria-label={suggestion.title}
+                              />
+                              <Link
+                                to={`/song/${encodeURIComponent(suggestion.songId)}`}
+                                className="shrink-0 truncate font-medium hover:underline"
+                                style={{ maxWidth: '12rem' }}
+                              >
+                                {suggestion.title}
+                              </Link>
+                              <span className="min-w-0 flex-1 truncate text-(--color-muted)">
+                                {suggestion.context || '—'}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {chosen.size > 0 && (
+                <div className="fixed inset-x-0 bottom-0 border-t border-(--color-line) bg-(--color-stage-bg) px-4 py-3">
+                  <div className="mx-auto flex max-w-3xl items-center justify-end">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void apply()}
+                      className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {busy
+                        ? t('cleanup.applying')
+                        : t('cleanup.apply', { count: chosen.size })}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Scroll>
+    </Page>
   );
 }

@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { I18nProvider, useT } from './lib/i18n.js';
 import { useTheme } from './lib/theme.js';
 import { Library } from './routes/Library.js';
@@ -7,7 +7,6 @@ import { EditPage } from './routes/EditPage.js';
 import { SetsPage } from './routes/SetsPage.js';
 import { SetPage } from './routes/SetPage.js';
 import { Home } from './routes/Home.js';
-import { LeadPage } from './routes/LeadPage.js';
 import { BandPage } from './routes/BandPage.js';
 import { StagePage } from './routes/StagePage.js';
 import { JoinPage } from './routes/JoinPage.js';
@@ -58,7 +57,9 @@ const router = createBrowserRouter([
   { path: '/edit/:id', element: page(<EditPage />) },
   { path: '/sets', element: page(<SetsPage />) },
   { path: '/sets/:id', element: page(<SetPage />) },
-  { path: '/lead', element: page(<LeadPage />) },
+  // Leading is a switch on the set, not a screen of its own. The old address still
+  // exists because it is in the desktop app's menus and in people's bookmarks.
+  { path: '/lead', element: <Navigate to="/" replace /> },
   { path: '/band', element: page(<BandPage />) },
   { path: '/stage', element: page(<StagePage />) },
   { path: '/join', element: page(<JoinPage />) },

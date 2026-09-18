@@ -42,6 +42,7 @@ import {
   Sun,
   Trash2,
   Undo2,
+  Users,
   X,
   type LucideProps,
 } from 'lucide-react';
@@ -84,3 +85,4 @@ export const IconMusic = make(Music4);
 export const IconUp = make(ArrowUp);
 export const IconDown = make(ArrowDown);
 export const IconMergeUp = make(ArrowUpToLine);
+export const IconPeople = make(Users);

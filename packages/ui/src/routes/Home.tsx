@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { chooseSet, lastSet } from '../lib/lastSet.js';
+import { nextSunday } from '../lib/setName.js';
 import { useT } from '../lib/i18n.js';
 
 /**
@@ -76,11 +77,4 @@ export function Home() {
       {creating ? t('set.creatingFirst') : t('set.opening')}
     </p>
   );
-}
-
-/** The next Sunday, as an ISO date — the default for a new service. */
-function nextSunday(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7));
-  return d.toISOString().slice(0, 10);
 }

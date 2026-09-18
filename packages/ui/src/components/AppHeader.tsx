@@ -1,11 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { ThemeToggle } from './ThemeToggle.js';
-import { IconButton } from './ui.js';
+import { ButtonLink, IconButton, Segmented, segmentClasses } from './ui.js';
 import {
   IconBack,
   IconHome,
-  IconLead,
   IconLibrary,
   IconSets,
   IconSettings,
@@ -20,12 +19,16 @@ import {
  * where you are and get anywhere from here matters more during a service than any
  * per-page tailoring, so pages now contribute *actions* and nothing else.
  *
+ * Three destinations, not four. "Lead" used to be one of them and is now a switch on
+ * the set itself — leading is a mode you turn on where the service already is, not a
+ * separate screen you travel to and have to come back from.
+ *
  * The performance views (`/band`, `/stage`) still opt out. Nothing belongs on a stage
  * display except the song, and a musician following the leader should not be one stray
  * tap from a settings page.
  */
 
-export type Destination = 'home' | 'library' | 'sets' | 'lead' | 'settings';
+export type Destination = 'home' | 'library' | 'sets' | 'settings';
 
 const DESTINATIONS: {
   key: Destination;
@@ -36,7 +39,6 @@ const DESTINATIONS: {
   { key: 'home', to: '/', label: 'nav.home', Icon: IconHome },
   { key: 'library', to: '/library', label: 'app.library', Icon: IconLibrary },
   { key: 'sets', to: '/sets', label: 'app.sets', Icon: IconSets },
-  { key: 'lead', to: '/lead', label: 'app.lead', Icon: IconLead },
 ];
 
 export function AppHeader({
@@ -80,45 +82,36 @@ export function AppHeader({
 
   return (
     /*
-      A raised bar, not a page that happens to start with links.
+      A fixed bar, not a page that happens to start with links.
 
-      `--color-surface` sits one step off the page colour and a shadow lifts it, so the
-      chrome reads as a fixed thing the content scrolls under rather than as the first
-      row of the content. The navigation itself is one grouped segment — a single
-      bordered strip with the current page filled in — which says "these five are the
-      same kind of thing" far faster than five separate buttons did.
+      `shrink-0` rather than `sticky top-0`: the page around it is one viewport tall
+      (see `Page`), so the header is a real row and the content scrolls in its own box
+      underneath. `--color-surface` sits one step off the page colour and a hairline
+      plus a soft shadow lift it, so the chrome reads as a thing the content passes
+      beneath rather than as the first row of the content.
     */
-    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-(--color-line) bg-(--color-surface) px-3 py-2 shadow-[0_1px_0_0_var(--color-line),0_6px_16px_-12px_rgb(0_0_0/0.5)] print:hidden sm:px-4">
+    <header className="relative z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-(--color-line) bg-(--color-surface) px-3 py-2 shadow-[0_1px_0_0_var(--color-line),0_6px_16px_-12px_rgb(0_0_0/0.5)] print:hidden sm:px-4">
       {back && (
         <IconButton label={backLabel} onClick={goBack} className="shrink-0">
           <IconBack size={17} />
         </IconButton>
       )}
 
-      <nav
-        aria-label={t('nav.where')}
-        className="flex shrink-0 items-center overflow-hidden rounded-lg border border-(--color-line) bg-(--color-raised)"
-      >
-        {DESTINATIONS.map(({ key, to, label, Icon }, index) => (
+      <Segmented label={t('nav.where')} className="shrink-0">
+        {DESTINATIONS.map(({ key, to, label, Icon }) => (
           <Link
             key={key}
             to={to}
             aria-current={current === key ? 'page' : undefined}
             title={t(label)}
-            className={`flex h-9 items-center gap-1.5 px-2.5 text-sm font-medium transition-colors ${
-              index > 0 ? 'border-l border-(--color-line)' : ''
-            } ${
-              current === key
-                ? 'bg-(--color-chord) text-white'
-                : 'text-(--color-muted) hover:bg-(--color-line) hover:text-(--color-stage-fg)'
-            }`}
+            className={segmentClasses(current === key)}
           >
             <Icon size={16} />
             {/* The label is for a mouse and a wide screen; the icon carries it on a phone. */}
             <span className="hidden sm:inline">{t(label)}</span>
           </Link>
         ))}
-      </nav>
+      </Segmented>
 
       {title && (
         <div className="order-last min-w-0 basis-full sm:order-none sm:basis-auto">{title}</div>
@@ -127,19 +120,16 @@ export function AppHeader({
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {children}
         <ThemeToggle />
-        <Link
+        <ButtonLink
           to="/settings"
+          {...(current === 'settings' ? { variant: 'primary' as const } : {})}
           aria-current={current === 'settings' ? 'page' : undefined}
           aria-label={t('settings.title')}
           title={t('settings.title')}
-          className={`grid h-9 w-9 place-items-center rounded-lg border transition-colors ${
-            current === 'settings'
-              ? 'border-(--color-chord) bg-(--color-chord) text-white'
-              : 'border-(--color-line) bg-(--color-surface) hover:bg-(--color-line)'
-          }`}
+          className="w-9 px-0"
         >
           <IconSettings size={17} />
-        </Link>
+        </ButtonLink>
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import { usePrefs } from '../lib/settings.js';
 import { useT } from '../lib/i18n.js';
 import { IconMoon, IconSun } from './icons.js';
+import { IconButton } from './ui.js';
 
 /**
  * One button: light or dark, right now.
@@ -22,14 +23,12 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   const label = dark ? t('nav.themeToLight') : t('nav.themeToDark');
 
   return (
-    <button
-      type="button"
+    <IconButton
+      label={label}
       onClick={() => setPrefs({ theme: dark ? 'light' : 'dark' })}
-      aria-label={label}
-      title={label}
-      className={`grid h-9 w-9 place-items-center rounded-lg border border-(--color-line) bg-(--color-surface) transition-colors hover:bg-(--color-line) ${className}`}
+      className={className}
     >
       {dark ? <IconSun size={17} /> : <IconMoon size={17} />}
-    </button>
+    </IconButton>
   );
 }

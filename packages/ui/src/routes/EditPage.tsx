@@ -28,13 +28,14 @@ import { confirmAction } from '../lib/desktop.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
-import { Button, Field as UiField, Input } from '../components/ui.js';
+import { Button, Checkbox, Field as UiField, Input, Select } from '../components/ui.js';
 import {
   IconClose,
   IconDown,
   IconMergeUp,
   IconRedo,
   IconSave,
+  IconTrash,
   IconUndo,
   IconUp,
 } from '../components/icons.js';
@@ -180,7 +181,7 @@ export function EditPage() {
     return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col print:block print:h-auto">
       <AppHeader
         back
         title={
@@ -189,7 +190,11 @@ export function EditPage() {
             onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}
             placeholder={t('edit.title')}
             aria-label={t('edit.title')}
-            className="w-full min-w-40 bg-transparent text-base font-bold outline-none focus:bg-(--color-chord)/5 sm:w-64"
+            /* Not the boxed `Input`: this is the document's title, and a form field in
+               the header would read as one control among many rather than as the name
+               of the thing. It still takes the same height and focus colour, so it
+               lines up with everything beside it. */
+            className="h-9 w-full min-w-40 rounded-lg border border-transparent bg-transparent px-2 text-base font-bold outline-none transition-colors placeholder:font-normal placeholder:text-(--color-muted) hover:border-(--color-line) focus:border-(--color-chord) sm:w-64"
           />
         }
       >
@@ -204,16 +209,15 @@ export function EditPage() {
           <Btn onClick={() => setPreview(!preview)} active={preview}>
             {t('edit.preview')}
           </Btn>
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={() => void save()}
             disabled={!dirty || saveState === 'saving'}
             title={t('edit.saveShortcut')}
-            className="flex h-9 items-center gap-1.5 rounded-md border border-(--color-chord) bg-(--color-chord) px-3 text-sm font-semibold text-white disabled:border-(--color-line) disabled:bg-transparent disabled:text-(--color-muted)"
           >
             <IconSave size={16} />
             {t('edit.save')}
-          </button>
+          </Button>
         </div>
       </AppHeader>
 
@@ -254,14 +258,15 @@ export function EditPage() {
                   form fields per section competing with them.
                 */}
                 <div className="mb-1 flex flex-wrap items-center gap-1.5 text-xs opacity-45 transition-opacity focus-within:opacity-100 group-hover/block:opacity-100">
-                  <select
+                  <Select
+                    tight
                     value={block.type}
                     onChange={(e) =>
                       edit((s) =>
                         updateBlock(s, block.id, { type: e.target.value as BlockType }),
                       )
                     }
-                    className="cursor-pointer rounded border border-transparent bg-transparent px-1 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wider text-(--color-muted) hover:border-(--color-line)"
+                    className="w-32 font-semibold uppercase tracking-wider"
                     aria-label={t('edit.sectionType')}
                   >
                     {BLOCK_TYPES.map((type) => (
@@ -269,10 +274,11 @@ export function EditPage() {
                         {blockName(type)}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <span className="font-mono text-(--color-muted)">{block.id}</span>
 
-                  <input
+                  <Input
+                    tight
                     value={block.label ?? ''}
                     onChange={(e) =>
                       edit(
@@ -282,10 +288,11 @@ export function EditPage() {
                     }
                     placeholder={t('edit.label')}
                     aria-label={t('edit.label')}
-                    className="w-32 rounded border border-transparent bg-transparent px-1 py-1 outline-none focus:border-(--color-line)"
+                    className="w-32"
                   />
 
-                  <select
+                  <Select
+                    tight
                     value={block.singers ?? ''}
                     onChange={(e) =>
                       edit((s) =>
@@ -294,7 +301,7 @@ export function EditPage() {
                         }),
                       )
                     }
-                    className="rounded border border-(--color-line) bg-transparent px-1.5 py-1"
+                    className="w-28"
                     aria-label={t('edit.whoSingsLabel')}
                   >
                     <option value="">{t('edit.whoSings')}</option>
@@ -303,11 +310,12 @@ export function EditPage() {
                         {singerName(who)}
                       </option>
                     ))}
-                  </select>
+                  </Select>
 
                   <label className="flex items-center gap-1 text-(--color-muted)">
                     ×
-                    <input
+                    <Input
+                      tight
                       type="number"
                       min={1}
                       value={block.repeat ?? ''}
@@ -318,7 +326,7 @@ export function EditPage() {
                           }),
                         )
                       }
-                      className="w-12 rounded border border-(--color-line) bg-transparent px-1 py-1"
+                      className="w-14"
                       aria-label={t('edit.repeats')}
                     />
                   </label>
@@ -327,8 +335,7 @@ export function EditPage() {
                     className="flex items-center gap-1 text-(--color-muted)"
                     title={t('edit.linkedHint')}
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={block.linkToPrevious}
                       onChange={(e) =>
                         edit((s) =>
@@ -342,8 +349,7 @@ export function EditPage() {
                     className="flex items-center gap-1 text-(--color-muted)"
                     title={t('edit.bandOnlyHint')}
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={block.bandOnly}
                       onChange={(e) =>
                         edit((s) => updateBlock(s, block.id, { bandOnly: e.target.checked }))
@@ -466,8 +472,9 @@ export function EditPage() {
             </div>
 
             <div className="mt-8 border-t border-(--color-line) pt-4">
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="danger"
                 onClick={() => {
                   void confirmAction({
                     message: t('edit.deleteConfirm', { title: current.title }),
@@ -476,10 +483,10 @@ export function EditPage() {
                     if (ok) void adminApi.deleteSong(id).then(() => navigate('/'));
                   });
                 }}
-                className="text-xs text-(--color-muted) underline hover:text-red-500"
               >
+                <IconTrash size={14} />
                 {t('edit.deleteSong')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -495,29 +502,18 @@ export function EditPage() {
               <h2 className="text-lg font-bold">{t('edit.unsavedTitle')}</h2>
               <p className="mt-1 text-sm text-(--color-muted)">{t('edit.unsavedBody')}</p>
               <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => blocker.reset?.()}
-                  className="rounded-md border border-(--color-line) px-3 py-1.5 text-sm hover:bg-(--color-line)"
-                >
-                  {t('edit.stay')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => blocker.proceed?.()}
-                  className="rounded-md border border-(--color-line) px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
-                >
+                <Button onClick={() => blocker.reset?.()}>{t('edit.stay')}</Button>
+                <Button variant="danger" onClick={() => blocker.proceed?.()}>
                   {t('edit.discard')}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="primary"
                   onClick={() => {
                     void save().then((ok) => (ok ? blocker.proceed?.() : blocker.reset?.()));
                   }}
-                  className="rounded-md border border-(--color-chord) bg-(--color-chord) px-3 py-1.5 text-sm font-semibold text-white"
                 >
                   {t('edit.save')}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

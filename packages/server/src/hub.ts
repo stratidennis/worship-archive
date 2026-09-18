@@ -79,7 +79,16 @@ export class SessionHub {
     if (!this.statePath || !existsSync(this.statePath)) return;
     try {
       const saved = JSON.parse(readFileSync(this.statePath, 'utf8')) as Partial<SessionState>;
-      this.state = { ...INITIAL_SESSION, ...saved, rev: (saved.rev ?? 0) + 1 };
+      // Only the fields the protocol still has. A file written by an older version
+      // carries keys that have since been removed — `mode` and `blockId`, from when a
+      // leader could push a single section — and spreading it whole would put them back
+      // into every frame sent to every device, for as long as the file survived.
+      const known = Object.fromEntries(
+        Object.keys(INITIAL_SESSION)
+          .filter((key) => key in saved)
+          .map((key) => [key, saved[key as keyof SessionState]]),
+      ) as Partial<SessionState>;
+      this.state = { ...INITIAL_SESSION, ...known, rev: (saved.rev ?? 0) + 1 };
     } catch {
       // A corrupt file must not stop the host from starting. A fresh session is a far
       // better outcome than no server at all.

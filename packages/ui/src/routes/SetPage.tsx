@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { semitonesBetween, type ServiceSet, type SetItem, type Song } from '@worship/core';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  semitonesBetween,
+  type ServiceSet,
+  type SessionState,
+  type SetItem,
+  type Song,
+} from '@worship/core';
 import { api, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { forgetSet, rememberSet } from '../lib/lastSet.js';
@@ -8,44 +14,75 @@ import { moveItem } from '../lib/reorder.js';
 import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
-import { useT, type Translator } from '../lib/i18n.js';
-import { confirmAction } from '../lib/desktop.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
+import { useSession } from '../lib/useSession.js';
+import { useT, type TranslationKey, type Translator } from '../lib/i18n.js';
+import { nextSunday } from '../lib/setName.js';
 import { SongBody } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Page, Scroll } from '../components/Page.js';
 import { ResizeHandle } from '../components/ResizeHandle.js';
 import { DatePicker } from '../components/DatePicker.js';
-import { Button, IconButton, Input, Textarea } from '../components/ui.js';
-import { setName } from '../lib/setName.js';
+import { BeatLed } from '../components/BeatLed.js';
+import { Shortcuts } from '../components/Shortcuts.js';
+import { StatusDot } from '../components/StatusDot.js';
+import {
+  Button,
+  ButtonLink,
+  IconButton,
+  Input,
+  Segment,
+  Segmented,
+  Select,
+  Textarea,
+} from '../components/ui.js';
 import {
   IconCheck,
   IconChevronDown,
   IconChevronUp,
+  IconClose,
   IconEdit,
   IconGrip,
+  IconLead,
+  IconPeople,
   IconPlus,
-  IconClose,
 } from '../components/icons.js';
 import { PrintableRunningOrder } from '../components/PrintableRunningOrder.js';
 
 /**
- * The set workspace — where the app opens and where most of the work happens.
+ * The set workspace — where the app opens, and where the service is both built and led.
  *
  * Three panes, and the reason for each:
  *
  *  - **The running order, on the left.** Always visible, drag to reorder. This is the
  *    thing being built, so it never hides behind a tab or a dialog.
- *  - **A preview, in the middle.** Clicking anything shows the actual song. Adding a
- *    song to a service without reading it first is how the wrong arrangement ends up in
- *    front of a congregation, so the picker deliberately does not add on click —
- *    it shows, and adding is a second, separate decision.
- *  - **A header that collapses.** All the chrome — title, date, tools, navigation —
- *    folds away, because during a service the only thing that should be on screen is
- *    the song.
+ *  - **A preview, in the middle.** Clicking anything shows the actual song, at the size
+ *    it will be led at. Adding a song to a service without reading it first is how the
+ *    wrong arrangement ends up in front of a congregation, so the picker deliberately
+ *    does not add on click — it shows, and adding is a second, separate decision.
+ *  - **A header that collapses.** All the chrome — date, tools, lead controls — folds
+ *    away, because during a service the only thing that should be on screen is the song.
+ *
+ * **Leading is a switch here, not a separate page.** It used to be `/lead`, and the
+ * separation caused the one failure that matters: going back to add a forgotten song
+ * meant leaving the console, and leaving the console looked like ending the service.
+ * Now the same list you built the set with is the list you drive it from — turning the
+ * switch off puts the controls away and leaves the screens exactly where they were.
  */
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
+  { keys: '→', label: 'keys.nextSong' },
+  { keys: '←', label: 'keys.prevSong' },
+  { keys: 'Space', label: 'keys.sendLive' },
+  { keys: 'b', label: 'keys.black' },
+  { keys: 'c', label: 'keys.clear' },
+  { keys: 'm', label: 'keys.autoManual' },
+  { keys: '?', label: 'keys.help' },
+];
 
 /**
  * The stored title, derived from the date.
@@ -79,6 +116,23 @@ export function SetPage() {
   const [hits, setHits] = useState<(SearchHit | SongSummary)[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const savedRef = useRef('');
+
+  /** Leading, or merely working on the set. Never restored from storage — see below. */
+  const [leading, setLeading] = useState(false);
+  const [auto, setAuto] = useState(true);
+  const [devicesOpen, setDevicesOpen] = useState(false);
+  const [help, setHelp] = useState(false);
+
+  /*
+    The socket only exists while the switch is on.
+
+    Not persisted across reloads on purpose. A device that came back leading would
+    immediately claim whichever set it happened to reopen and move every screen in the
+    building to song one of it — a silent, remote, hard-to-undo action to recover from a
+    refresh. Pressing Lead again is one click and is unambiguous.
+  */
+  const session = useSession('leader', t('lead.roleLeader'), leading);
+  const { state, devices, status, clockOffset, patch, synced } = session;
 
   // This device came back here, so this is the set it reopens next time.
   useEffect(() => {
@@ -147,6 +201,25 @@ export function SetPage() {
     return () => clearTimeout(timer);
   }, [set, id]);
 
+  /*
+    Take over the service, but only once the host has actually said where it is.
+
+    Before the first frame `state` is the *initial* session, whose `setId` is null —
+    adopting on that would move the screens off a running service every time a leader's
+    page reloaded.
+  */
+  useEffect(() => {
+    if (!leading || !synced) return;
+    if (state.setId !== id) patch({ setId: id, itemIndex: 0 });
+  }, [leading, synced, state.setId, id, patch]);
+
+  // In Auto, the preview is simply what the room is seeing.
+  useEffect(() => {
+    if (!leading || !auto || !synced) return;
+    if (state.setId !== id) return;
+    setSelection({ kind: 'item', index: state.itemIndex });
+  }, [leading, auto, synced, state.itemIndex, state.setId, id]);
+
   const update = useCallback((fn: (s: ServiceSet) => ServiceSet) => {
     setSet((current) => (current ? fn(current) : current));
   }, []);
@@ -171,6 +244,63 @@ export function SetPage() {
   );
 
   const drag = useDragList(reorder);
+
+  /**
+   * Selecting a row. While leading in Auto, that *is* the service moving.
+   *
+   * The same click means "show me this" when building and "put this on the screens"
+   * when leading, which is the whole reason the two views are one view: the leader is
+   * never translating between a running order and a separate console.
+   */
+  const selectItem = useCallback(
+    (index: number) => {
+      setSelection({ kind: 'item', index });
+      if (leading && auto) patch({ itemIndex: index });
+    },
+    [leading, auto, patch],
+  );
+
+  const songIndices = useMemo(
+    () => (set?.items ?? []).flatMap((item, index) => (item.kind === 'song' ? [index] : [])),
+    [set],
+  );
+
+  const cursorIndex = selection?.kind === 'item' ? selection.index : null;
+
+  const step = useCallback(
+    (delta: 1 | -1) => {
+      const from = cursorIndex ?? state.itemIndex;
+      const at = songIndices.indexOf(from);
+      const next =
+        at === -1
+          ? (songIndices[0] ?? 0)
+          : (songIndices[Math.min(Math.max(at + delta, 0), songIndices.length - 1)] ?? from);
+      selectItem(next);
+    },
+    [cursorIndex, state.itemIndex, songIndices, selectItem],
+  );
+
+  const sendLive = useCallback(() => {
+    if (cursorIndex !== null) patch({ itemIndex: cursorIndex });
+  }, [cursorIndex, patch]);
+
+  // Only while leading: a leader's hands are on an instrument, but someone merely
+  // editing a set should get the letter b when they press b.
+  useHotkeys(
+    {
+      ArrowRight: () => step(1),
+      ArrowLeft: () => step(-1),
+      ' ': () => {
+        if (!auto) sendLive();
+      },
+      b: () => patch({ output: state.output === 'black' ? 'live' : 'black' }),
+      c: () => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' }),
+      m: () => setAuto((v) => !v),
+      '?': () => setHelp((open) => !open),
+      Escape: () => setHelp(false),
+    },
+    leading,
+  );
 
   /**
    * `stay` is for the `+` beside a row in the library list.
@@ -238,20 +368,54 @@ export function SetPage() {
     [set],
   );
 
+  /** Turning the switch on also opens the tools, because that is where the controls are. */
+  const toggleLead = (): void => {
+    const next = !leading;
+    setLeading(next);
+    if (next) {
+      setPrefs({ setHeaderExpanded: true });
+      setTab('program');
+    }
+  };
+
+  const newSet = (): void => {
+    const sunday = nextSunday();
+    void api
+      .createSet({ title: sunday, date: sunday })
+      .then((created) => {
+        rememberSet(created.id);
+        navigate(`/sets/${encodeURIComponent(created.id)}`);
+      })
+      .catch((e: unknown) => setError(String(e)));
+  };
+
   if (error && !set) {
+    /*
+      A set that is gone — deleted from another device, most likely.
+
+      The full header, not a bare link: this is the one screen you can land on straight
+      from launch, because it is where the app opens, and a dead end with nothing but
+      "← Library" on it is the worst possible first thing to see.
+    */
     return (
-      <div className="p-6">
-        <Link to="/library" className="text-sm underline">
-          ← {t('app.library')}
-        </Link>
-        <p className="mt-4 text-sm text-(--color-muted)">{error}</p>
-      </div>
+      <Page>
+        <AppHeader current="home" />
+        <Scroll className="p-6">
+          <p className="text-sm text-(--color-muted)">{error}</p>
+          <ButtonLink to="/sets" className="mt-4">
+            {t('app.sets')}
+          </ButtonLink>
+        </Scroll>
+      </Page>
     );
   }
   if (!set) return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   const expanded = prefs.setHeaderExpanded;
   const selectedItem = selection?.kind === 'item' ? (set.items[selection.index] ?? null) : null;
+  /** Leading this set, as opposed to leading some other one from another device. */
+  const live = leading && synced && state.setId === id;
+  const behind = live && !auto && cursorIndex !== null && cursorIndex !== state.itemIndex;
 
   return (
     <div className="flex h-dvh flex-col print:h-auto">
@@ -273,6 +437,14 @@ export function SetPage() {
         }
       >
         <SaveBadge state={saveState} />
+        <Button
+          active={leading}
+          onClick={toggleLead}
+          title={leading ? t('lead.stop') : t('lead.start')}
+        >
+          <IconLead size={16} />
+          <span className="hidden sm:inline">{t('app.lead')}</span>
+        </Button>
         <IconButton
           label={expanded ? t('set.collapseHeader') : t('set.expandHeader')}
           onClick={() => setPrefs({ setHeaderExpanded: !expanded })}
@@ -283,8 +455,16 @@ export function SetPage() {
       </AppHeader>
 
       {expanded && (
-        <div className="shrink-0 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
+        <div className="shrink-0 border-b border-(--color-line) bg-(--color-raised) px-3 py-2 print:hidden sm:px-4">
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            {/* Starting a service is a first-class action, so it sits first rather than
+                hiding behind the sets list. Deleting one does not: it lives on that
+                list, where you can see what you are about to lose. */}
+            <Button size="sm" onClick={newSet}>
+              <IconPlus size={14} />
+              {t('sets.new')}
+            </Button>
+            <span className="mx-1 h-5 w-px shrink-0 bg-(--color-line)" />
             <Action onClick={() => addItem({ kind: 'note', text: '' })}>
               {t('sets.addNote')}
             </Action>
@@ -305,24 +485,35 @@ export function SetPage() {
             <span className="text-xs text-(--color-muted)">
               {t('set.itemCount', { count: set.items.length })}
             </span>
-            <Action
-              danger
-              className="ml-auto"
-              onClick={() => {
-                void confirmAction({
-                  message: t('sets.deleteConfirm', { title: setName(set, formatDate) }),
-                  confirmLabel: t('app.delete'),
-                }).then((ok) => {
-                  if (!ok) return;
-                  forgetSet(id);
-                  void api.deleteSet(id).then(() => navigate('/'));
-                });
-              }}
-            >
-              {t('app.delete')}
-            </Action>
+
+            {leading && (
+              <LeadControls
+                className="ml-auto"
+                state={state}
+                patch={patch}
+                clockOffset={clockOffset}
+                status={status}
+                auto={auto}
+                onAuto={setAuto}
+                showChords={prefs.showChords}
+                onChords={(showChords) => setPrefs({ showChords })}
+                devices={devices.length}
+                devicesOpen={devicesOpen}
+                onDevices={() => setDevicesOpen((open) => !open)}
+              />
+            )}
           </div>
         </div>
+      )}
+
+      {behind && (
+        <Button
+          variant="primary"
+          onClick={sendLive}
+          className="shrink-0 rounded-none border-x-0 border-t-0"
+        >
+          {t('lead.sendToScreens')}
+        </Button>
       )}
 
       <div className="flex min-h-0 flex-1 print:hidden">
@@ -337,91 +528,95 @@ export function SetPage() {
             selection === null ? 'flex' : 'hidden'
           }`}
         >
-          <div className="flex shrink-0 border-b border-(--color-line) text-sm">
+          <Segmented className="m-2 shrink-0 self-stretch">
             {(
               [
                 ['program', t('set.tabProgram')],
                 ['library', t('set.tabLibrary')],
               ] as const
             ).map(([value, label]) => (
-              <button
+              <Segment
                 key={value}
-                type="button"
+                active={tab === value}
                 onClick={() => setTab(value)}
                 aria-current={tab === value ? 'true' : undefined}
-                className={`flex-1 px-3 py-2 font-medium ${
-                  tab === value
-                    ? 'border-b-2 border-(--color-chord) text-(--color-chord)'
-                    : 'text-(--color-muted) hover:bg-(--color-line)'
-                }`}
+                className="flex-1"
               >
                 {label}
-              </button>
+              </Segment>
             ))}
-          </div>
+          </Segmented>
 
           {tab === 'program' ? (
             <ol className="scroll-slim min-h-0 flex-1 overflow-y-auto px-1.5 py-1">
               {/* The horizontal padding is for the lifted row: it is outlined and scaled up
                   slightly while dragging, and a list with no inset clips both against
                   its own overflow. */}
-              {set.items.map((item, index) => (
-                <li
-                  key={index}
-                  {...drag.rowProps(index)}
-                  className={`group flex items-center gap-1 px-2 py-1.5 text-sm ${
-                    drag.dragging !== index &&
-                    selection?.kind === 'item' &&
-                    selection.index === index
-                      ? 'rounded-md bg-(--color-chord)/15'
-                      : ''
-                  }`}
-                >
-                  <span
-                    {...drag.handleProps(index)}
-                    role="button"
-                    tabIndex={-1}
-                    aria-label={t('set.dragHandle')}
-                    title={t('set.dragHandle')}
-                    className="-my-1.5 flex shrink-0 select-none items-center py-1.5 pl-0.5 pr-1 text-(--color-muted) opacity-50 transition-opacity group-hover:opacity-100"
+              {set.items.map((item, index) => {
+                const onAir = live && index === state.itemIndex;
+                const chosen =
+                  drag.dragging !== index &&
+                  selection?.kind === 'item' &&
+                  selection.index === index;
+                return (
+                  <li
+                    key={index}
+                    {...drag.rowProps(index)}
+                    aria-current={onAir ? 'true' : undefined}
+                    className={`group flex items-center gap-1 px-2 py-1.5 text-sm ${
+                      onAir
+                        ? 'rounded-md bg-(--color-chord)/25 font-semibold ring-1 ring-(--color-chord)'
+                        : chosen
+                          ? 'rounded-md bg-(--color-chord)/15'
+                          : ''
+                    }`}
                   >
-                    <IconGrip size={15} />
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelection({ kind: 'item', index })}
-                    className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
-                  >
-                    <span className="w-4 shrink-0 text-right text-xs tabular-nums text-(--color-muted)">
-                      {index + 1}
+                    <span
+                      {...drag.handleProps(index)}
+                      role="button"
+                      tabIndex={-1}
+                      aria-label={t('set.dragHandle')}
+                      title={t('set.dragHandle')}
+                      className="-my-1.5 flex shrink-0 select-none items-center py-1.5 pl-0.5 pr-1 text-(--color-muted) opacity-50 transition-opacity group-hover:opacity-100"
+                    >
+                      <IconGrip size={15} />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {item.kind === 'song'
-                        ? (songs[item.songId]?.title ?? t('sets.missingSong'))
-                        : item.kind === 'note'
-                          ? item.text || t('sets.note')
-                          : item.label || t('sets.gap')}
-                    </span>
-                    {item.kind === 'song' && (
-                      <span className="shrink-0 font-mono text-xs text-(--color-muted)">
-                        {item.keyOverride ??
-                          songs[item.songId]?.performanceKey ??
-                          songs[item.songId]?.writtenKey ??
-                          ''}
+                    <button
+                      type="button"
+                      onClick={() => selectItem(index)}
+                      className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
+                    >
+                      <span className="w-4 shrink-0 text-right text-xs tabular-nums text-(--color-muted)">
+                        {index + 1}
                       </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeAt(index)}
-                    aria-label={t('set.removeItem')}
-                    title={t('set.removeItem')}
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-(--color-muted) opacity-0 transition-opacity focus-visible:opacity-100 hover:bg-(--color-line) group-hover:opacity-100"
-                  >
-                    <IconClose size={14} />
-                  </button>
-                </li>
-              ))}
+                      <span className="min-w-0 flex-1 truncate">
+                        {item.kind === 'song'
+                          ? (songs[item.songId]?.title ?? t('sets.missingSong'))
+                          : item.kind === 'note'
+                            ? item.text || t('sets.note')
+                            : item.label || t('sets.gap')}
+                      </span>
+                      {item.kind === 'song' && (
+                        <span className="shrink-0 font-mono text-xs text-(--color-muted)">
+                          {item.keyOverride ??
+                            songs[item.songId]?.performanceKey ??
+                            songs[item.songId]?.writtenKey ??
+                            ''}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeAt(index)}
+                      aria-label={t('set.removeItem')}
+                      title={t('set.removeItem')}
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded text-(--color-muted) opacity-0 transition-opacity focus-visible:opacity-100 hover:bg-(--color-line) group-hover:opacity-100"
+                    >
+                      <IconClose size={14} />
+                    </button>
+                  </li>
+                );
+              })}
 
               {set.items.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-(--color-muted)">
@@ -438,7 +633,7 @@ export function SetPage() {
                 placeholder={t('sets.searchSong')}
                 aria-label={t('sets.searchSong')}
                 autoComplete="off"
-                className="m-2 w-[calc(100%-1rem)] shrink-0"
+                className="mx-2 mb-2 w-[calc(100%-1rem)] shrink-0"
               />
               <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
                 {hits.map((song) => (
@@ -506,14 +701,13 @@ export function SetPage() {
               onLoaded={(song) => setSongs((s) => ({ ...s, [song.id]: song }))}
               blockName={blockName}
             >
-              <button
-                type="button"
+              <Button
+                variant="primary"
                 disabled={inSet.has(selection.songId)}
                 onClick={() => addSong(selection.songId)}
-                className="rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {inSet.has(selection.songId) ? t('set.alreadyInSet') : t('set.addToSet')}
-              </button>
+              </Button>
             </Preview>
           ) : selectedItem?.kind === 'song' ? (
             <Preview
@@ -589,8 +783,191 @@ export function SetPage() {
             </p>
           )}
         </main>
+
+        {leading && devicesOpen && (
+          <DevicesPanel devices={devices} onClose={() => setDevicesOpen(false)} />
+        )}
       </div>
+
+      {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
     </div>
+  );
+}
+
+/**
+ * Everything that reaches the other screens, in one strip.
+ *
+ * On the right of the tools row, deliberately far from the buttons that edit the set:
+ * `Black` in the middle of `Add note` and `Duplicate` is a mis-click with an audience.
+ */
+function LeadControls({
+  state,
+  patch,
+  clockOffset,
+  status,
+  auto,
+  onAuto,
+  showChords,
+  onChords,
+  devices,
+  devicesOpen,
+  onDevices,
+  className = '',
+}: {
+  state: SessionState;
+  patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
+  clockOffset: number;
+  status: 'connecting' | 'live' | 'offline';
+  auto: boolean;
+  onAuto: (value: boolean) => void;
+  showChords: boolean;
+  onChords: (value: boolean) => void;
+  devices: number;
+  devicesOpen: boolean;
+  onDevices: () => void;
+  className?: string;
+}) {
+  const { t } = useT();
+  return (
+    <span className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+      {/*
+        Auto and Manual, the one idea worth keeping wholesale from the legacy app: in
+        Manual the leader can look ahead — check the next song's key, find the bridge —
+        with nothing reaching the stage until they commit.
+      */}
+      <Segmented label={t('lead.follow')}>
+        <Segment size="sm" active={auto} onClick={() => onAuto(true)}>
+          {t('lead.auto')}
+        </Segment>
+        <Segment size="sm" active={!auto} onClick={() => onAuto(false)}>
+          {t('lead.manual')}
+        </Segment>
+      </Segmented>
+
+      <Button
+        size="sm"
+        active={state.output === 'cleared'}
+        onClick={() => patch({ output: state.output === 'cleared' ? 'live' : 'cleared' })}
+      >
+        {t('lead.clear')}
+      </Button>
+      <Button
+        size="sm"
+        active={state.output === 'black'}
+        onClick={() => patch({ output: state.output === 'black' ? 'live' : 'black' })}
+      >
+        {t('lead.black')}
+      </Button>
+
+      <Tempo state={state} patch={patch} clockOffset={clockOffset} />
+
+      <Button size="sm" active={showChords} onClick={() => onChords(!showChords)}>
+        {t('song.chords')}
+      </Button>
+
+      <Button size="sm" active={devicesOpen} onClick={onDevices} aria-expanded={devicesOpen}>
+        <IconPeople size={14} />
+        <span className="tabular-nums">{devices}</span>
+      </Button>
+
+      <StatusDot status={status} />
+    </span>
+  );
+}
+
+function Tempo({
+  state,
+  patch,
+  clockOffset,
+}: {
+  state: SessionState;
+  patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
+  clockOffset: number;
+}) {
+  const { t } = useT();
+  const [taps, setTaps] = useState<number[]>([]);
+
+  // Tapping is how musicians set tempo; typing a number is a fallback.
+  const tap = (): void => {
+    const now = Date.now();
+    const recent = [...taps, now].filter((at) => now - at < 3000).slice(-5);
+    setTaps(recent);
+    if (recent.length >= 2) {
+      const gaps = recent.slice(1).map((at, i) => at - recent[i]!);
+      const average = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+      patch({ tempo: Math.round(60000 / average), beatEpoch: now });
+    } else {
+      patch({ beatEpoch: now });
+    }
+  };
+
+  return (
+    <span className="flex items-center gap-1">
+      <Button size="sm" onClick={tap}>
+        {t('lead.tap')}
+      </Button>
+      {state.tempo !== null && (
+        <>
+          <BeatLed state={state} clockOffset={clockOffset} size="sm" />
+          <IconButton
+            size="sm"
+            label={t('lead.stopTempo')}
+            onClick={() => patch({ tempo: null, beatEpoch: null })}
+          >
+            <IconClose size={14} />
+          </IconButton>
+        </>
+      )}
+    </span>
+  );
+}
+
+/** Who is connected — opened and closed from the tools row, like a chat sidebar. */
+function DevicesPanel({
+  devices,
+  onClose,
+}: {
+  devices: { id: string; name: string; role: string }[];
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  return (
+    <aside
+      aria-label={t('lead.connected', { count: devices.length })}
+      className="scroll-slim hidden w-52 shrink-0 flex-col overflow-y-auto border-l border-(--color-line) bg-(--color-surface) px-3 py-2 sm:flex"
+    >
+      <div className="mb-2 flex items-center gap-1">
+        <p className="min-w-0 flex-1 truncate text-xs uppercase tracking-wider text-(--color-muted)">
+          {t('lead.connected', { count: devices.length })}
+        </p>
+        <IconButton size="sm" label={t('app.close')} variant="ghost" onClick={onClose}>
+          <IconClose size={14} />
+        </IconButton>
+      </div>
+      <ul className="space-y-1 text-sm">
+        {devices.map((device) => (
+          <li key={device.id} className="flex items-center gap-1.5">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: 'oklch(70% 0.17 150)' }}
+            />
+            <span className="min-w-0 flex-1 truncate">
+              {device.name || t('lead.unnamedDevice')}
+            </span>
+            <span className="shrink-0 text-[0.65rem] uppercase text-(--color-muted)">
+              {device.role === 'stage'
+                ? t('lead.roleStage')
+                : device.role === 'leader'
+                  ? t('lead.roleLeader')
+                  : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <ButtonLink to="/join" size="sm" className="mt-3 w-full">
+        {t('lead.qr')}
+      </ButtonLink>
+    </aside>
   );
 }
 
@@ -640,11 +1017,11 @@ function AddButton({
 /**
  * The middle pane: the song exactly as it will look when it is led.
  *
- * Same fit-to-one-screen renderer as `/lead`, `/band` and `/stage`, and that matters
- * more than it sounds. The decision being made here is "does this song work in this
- * service" — and part of that is whether it is legible, whether it needs three columns,
- * whether it is one of the few that does not fit at all. A preview at a comfortable
- * reading size would answer a question nobody is asking.
+ * Same fit-to-one-screen renderer as `/band` and `/stage`, and that matters more than it
+ * sounds. The decision being made here is "does this song work in this service" — and
+ * part of that is whether it is legible, whether it needs three columns, whether it is
+ * one of the few that does not fit at all. A preview at a comfortable reading size would
+ * answer a question nobody is asking.
  */
 function Preview({
   song,
@@ -710,15 +1087,15 @@ function Preview({
               .join(' · ')}
           </p>
         </div>
-        <Link
+        <ButtonLink
           to={`/edit/${encodeURIComponent(song.id)}`}
+          size="sm"
           aria-label={t('song.edit')}
           title={t('song.edit')}
-          className="flex h-8 items-center gap-1.5 rounded-md border border-(--color-line) px-2 text-sm hover:bg-(--color-line)"
         >
           <IconEdit size={15} />
           <span className="hidden lg:inline">{t('song.edit')}</span>
-        </Link>
+        </ButtonLink>
         {children}
       </div>
       <div
@@ -757,7 +1134,13 @@ function Preview({
   );
 }
 
-/** Key and capo for this set only — changing Sunday's key must not edit the library. */
+/**
+ * Key and capo for this set only — changing Sunday's key must not edit the library.
+ *
+ * Both are the shared controls now. They were a bare `<select>` and a bare number box
+ * with hand-written borders, sitting beside buttons that had none of the same
+ * proportions; a capo of 3 could also be typed as 300.
+ */
 function SongControls({
   item,
   song,
@@ -771,13 +1154,15 @@ function SongControls({
   const nativeKey = song?.performanceKey ?? song?.writtenKey ?? null;
 
   return (
-    <span className="flex items-center gap-2 text-xs">
-      <label className="flex items-center gap-1">
+    <span className="flex flex-wrap items-center gap-2 text-xs">
+      <label className="flex items-center gap-1.5">
         <span className="text-(--color-muted)">{t('sets.key')}</span>
-        <select
+        <Select
           value={item.keyOverride ?? ''}
           onChange={(e) => onPatch({ keyOverride: e.target.value || null })}
-          className="rounded border border-(--color-line) bg-transparent px-1 py-0.5"
+          aria-label={t('sets.key')}
+          tight
+          className="w-24"
         >
           <option value="">{nativeKey ?? '—'}</option>
           {KEYS.map((k) => (
@@ -785,44 +1170,35 @@ function SongControls({
               {k}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
-      <label className="flex items-center gap-1">
+      <label className="flex items-center gap-1.5">
         <span className="text-(--color-muted)">{t('sets.capo')}</span>
-        <input
-          type="number"
-          min={0}
-          max={11}
-          value={item.capoOverride ?? ''}
+        <Select
+          value={item.capoOverride === null ? '' : String(item.capoOverride)}
           onChange={(e) =>
-            onPatch({ capoOverride: e.target.value ? Number(e.target.value) : null })
+            onPatch({ capoOverride: e.target.value === '' ? null : Number(e.target.value) })
           }
-          className="w-12 rounded border border-(--color-line) bg-transparent px-1 py-0.5"
-        />
+          aria-label={t('sets.capo')}
+          tight
+          className="w-20"
+        >
+          <option value="">—</option>
+          {Array.from({ length: 12 }, (_, fret) => (
+            <option key={fret} value={fret}>
+              {fret}
+            </option>
+          ))}
+        </Select>
       </label>
     </span>
   );
 }
 
 /** The tools row's buttons, which are just the shared control with a shorter name. */
-function Action({
-  onClick,
-  children,
-  danger,
-  className = '',
-}: {
-  onClick: () => void;
-  children: React.ReactNode;
-  danger?: boolean;
-  className?: string;
-}) {
+function Action({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
-    <Button
-      size="sm"
-      variant={danger ? 'danger' : 'default'}
-      onClick={onClick}
-      className={className}
-    >
+    <Button size="sm" onClick={onClick}>
       {children}
     </Button>
   );

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
@@ -75,10 +75,10 @@ afterEach(async () => {
 
 describe('joining', () => {
   it('sends the current state immediately, with nothing to re-select', async () => {
-    hub.patch({ setId: 'set-1', itemIndex: 3, blockId: 'C2' });
+    hub.patch({ setId: 'set-1', itemIndex: 3, transpose: 2 });
     const client = await connect();
     const frame = await waitFor(client, 'session');
-    expect(frame.state).toMatchObject({ setId: 'set-1', itemIndex: 3, blockId: 'C2' });
+    expect(frame.state).toMatchObject({ setId: 'set-1', itemIndex: 3, transpose: 2 });
     client.ws.close();
   });
 
@@ -149,10 +149,10 @@ describe('driving the service', () => {
     const leader = await connect();
     const stage = await connect();
 
-    send(leader, { t: 'patch', patch: { itemIndex: 5, blockId: 'V2' } });
+    send(leader, { t: 'patch', patch: { itemIndex: 5, output: 'cleared' } });
     const frame = await waitFor(stage, 'session', (m) => m.state.itemIndex === 5);
 
-    expect(frame.state).toMatchObject({ itemIndex: 5, blockId: 'V2' });
+    expect(frame.state).toMatchObject({ itemIndex: 5, output: 'cleared' });
     leader.ws.close();
     stage.ws.close();
   });
@@ -198,8 +198,25 @@ describe('driving the service', () => {
 });
 
 describe('surviving a host restart', () => {
+  it('drops fields the protocol no longer has, rather than rebroadcasting them', () => {
+    const statePath = join(dir, 'session.json');
+    writeFileSync(
+      statePath,
+      JSON.stringify({ setId: 'set-3', itemIndex: 2, mode: 'block', blockId: 'V2', rev: 7 }),
+      'utf8',
+    );
+
+    const revived = new SessionHub(server, { statePath });
+    const state = revived.getState() as unknown as Record<string, unknown>;
+    expect(state['setId']).toBe('set-3');
+    expect(state['itemIndex']).toBe(2);
+    expect(state).not.toHaveProperty('mode');
+    expect(state).not.toHaveProperty('blockId');
+    revived.close();
+  });
+
   it('reloads the session from disk, so nobody jumps back to song one', async () => {
-    hub.patch({ setId: 'set-9', itemIndex: 4, blockId: 'B1', tempo: 96 });
+    hub.patch({ setId: 'set-9', itemIndex: 4, transpose: -1, tempo: 96 });
     // Let the debounced write land.
     await new Promise((resolve) => setTimeout(resolve, 400));
     hub.close();
@@ -208,7 +225,7 @@ describe('surviving a host restart', () => {
     expect(revived.getState()).toMatchObject({
       setId: 'set-9',
       itemIndex: 4,
-      blockId: 'B1',
+      transpose: -1,
       tempo: 96,
     });
     // rev moves forward, so reconnecting clients accept the restored frame.
@@ -217,10 +234,9 @@ describe('surviving a host restart', () => {
     hub = new SessionHub(server, {});
   });
 
-  it('starts clean rather than refusing to run when the file is corrupt', async () => {
+  it('starts clean rather than refusing to run when the file is corrupt', () => {
     const path = join(dir, 'broken.json');
     rmSync(path, { force: true });
-    const { writeFileSync } = await import('node:fs');
     writeFileSync(path, '{ not json', 'utf8');
     const revived = new SessionHub(server, { statePath: path });
     expect(revived.getState().itemIndex).toBe(0);

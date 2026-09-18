@@ -34,16 +34,9 @@ export function StagePage() {
 
   const viewing = songAt(live.set, live.songs, state.itemIndex);
 
-  const song = useMemo(() => {
-    if (!viewing) return null;
-    if (state.mode === 'block' && state.blockId) {
-      return {
-        ...viewing.song,
-        blocks: viewing.song.blocks.filter((b) => b.id === state.blockId),
-      };
-    }
-    return viewing.song;
-  }, [viewing, state.mode, state.blockId]);
+  // The whole song, always. The leader can no longer push a single section, so there is
+  // nothing left here that could show the room less than it is singing.
+  const song = viewing?.song ?? null;
 
   const extraTranspose = useMemo(() => {
     if (!viewing?.item.keyOverride) return state.transpose;
@@ -57,7 +50,7 @@ export function StagePage() {
     // handheld device would.
     maxFontPx: 72,
     minFontPx: 14,
-    key: `${song?.id ?? ''}:${state.blockId}:${state.mode}:${showChords}:${extraTranspose}`,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.

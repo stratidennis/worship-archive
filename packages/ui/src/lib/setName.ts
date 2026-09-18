@@ -15,3 +15,15 @@ export function setName(
   if (set.date) return format(set.date);
   return set.title.trim() || format(null);
 }
+
+/**
+ * The next Sunday, as an ISO date — the default for a new service.
+ *
+ * Today never counts, even on a Sunday: a set created during a service is the one being
+ * planned for next week, not a second copy of the one currently running.
+ */
+export function nextSunday(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7));
+  return d.toISOString().slice(0, 10);
+}

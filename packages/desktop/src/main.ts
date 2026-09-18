@@ -223,9 +223,11 @@ function buildMenu(): void {
     {
       label: 'Fișier',
       submenu: [
-        { label: 'Bibliotecă', accelerator: 'CmdOrCtrl+1', click: go('/') },
-        { label: 'Programe', accelerator: 'CmdOrCtrl+2', click: go('/sets') },
-        { label: 'Condu serviciul', accelerator: 'CmdOrCtrl+3', click: go('/lead') },
+        // Leading is a switch on the current programme, not a destination, so there is
+        // no menu entry that takes you to it any more.
+        { label: 'Programul curent', accelerator: 'CmdOrCtrl+1', click: go('/') },
+        { label: 'Bibliotecă', accelerator: 'CmdOrCtrl+2', click: go('/library') },
+        { label: 'Programe', accelerator: 'CmdOrCtrl+3', click: go('/sets') },
         { type: 'separator' },
         { label: 'Importă cântări…', accelerator: 'CmdOrCtrl+I', click: go('/import') },
         { label: 'Conectează un dispozitiv…', accelerator: 'CmdOrCtrl+J', click: go('/join') },
@@ -302,7 +304,6 @@ function buildTray(): void {
         },
         { type: 'separator' },
         { label: 'Deschide fereastra', click: (): void => void createWindow() },
-        { label: 'Condu serviciul', click: (): void => void createWindow('/lead') },
         { label: 'Conectează un dispozitiv…', click: (): void => void createWindow('/join') },
         { type: 'separator' },
         {

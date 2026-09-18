@@ -10,8 +10,9 @@ import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
-import { StatusDot } from './LeadPage.js';
-import { IconHome, IconMinus, IconMusic, IconPlus } from '../components/icons.js';
+import { StatusDot } from '../components/StatusDot.js';
+import { Button, IconButton, Input, Stepper } from '../components/ui.js';
+import { IconHome, IconMusic } from '../components/icons.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -49,9 +50,7 @@ export function BandPage() {
   const live = useLiveSet(state.setId, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
-  const [local, setLocal] = useState<{ itemIndex: number; blockId: string | null } | null>(
-    null,
-  );
+  const [local, setLocal] = useState<number | null>(null);
   const [help, setHelp] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -59,19 +58,18 @@ export function BandPage() {
 
   // Following again whenever the leader moves would yank the page away mid-glance, so
   // breaking away is sticky until the musician chooses to come back.
-  const position = local ?? { itemIndex: state.itemIndex, blockId: state.blockId };
+  const itemIndex = local ?? state.itemIndex;
   const following = local === null;
 
-  const viewing = songAt(live.set, live.songs, position.itemIndex);
+  const viewing = songAt(live.set, live.songs, itemIndex);
 
   const step = (delta: 1 | -1): void => {
-    const at = songIndices.indexOf(position.itemIndex);
+    const at = songIndices.indexOf(itemIndex);
     const next =
       at === -1
         ? (songIndices[0] ?? 0)
-        : (songIndices[Math.min(Math.max(at + delta, 0), songIndices.length - 1)] ??
-          position.itemIndex);
-    setLocal({ itemIndex: next, blockId: null });
+        : (songIndices[Math.min(Math.max(at + delta, 0), songIndices.length - 1)] ?? itemIndex);
+    setLocal(next);
   };
 
   useHotkeys({
@@ -122,15 +120,15 @@ export function BandPage() {
 
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${viewing?.song.id ?? ''}:${position.blockId}:${prefs.showChords}:${extraTranspose}:${prefs.capo}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${extraTranspose}:${prefs.capo}`,
   });
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--color-line) px-3 py-1.5">
+      <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-(--color-line) bg-(--color-surface) px-3 py-1.5">
         <Link
           to="/"
-          className="grid h-7 w-7 shrink-0 place-items-center rounded border border-(--color-line) hover:bg-(--color-line)"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-(--color-line) hover:bg-(--color-line)"
           aria-label={t('nav.homeHint')}
           title={t('nav.homeHint')}
         >
@@ -141,51 +139,54 @@ export function BandPage() {
         </span>
         <BeatLed state={state} clockOffset={clockOffset} size="sm" />
 
-        <Small
-          onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}
-          label={t('song.transposeDown')}
-        >
-          <IconMinus size={14} />
-        </Small>
-        <Small onClick={() => setPrefs({ transpose: 0 })} label={t('song.transposeReset')}>
-          {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
-        </Small>
-        <Small
-          onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}
-          label={t('song.transposeUp')}
-        >
-          <IconPlus size={14} />
-        </Small>
-        <Small
-          onClick={() => setPrefs({ capo: prefs.capo > 0 ? prefs.capo - 1 : 0 })}
-          label={t('song.capoDown')}
-        >
-          {t('sets.capo')} {prefs.capo}
-        </Small>
-        <Small
-          onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })}
-          label={t('song.capoUp')}
-        >
-          +
-        </Small>
-        <Small
-          onClick={() => setPrefs({ showChords: !prefs.showChords })}
-          active={prefs.showChords}
+        <Stepper
+          size="sm"
+          caption={t('song.pitch')}
+          value={prefs.transpose}
+          display={prefs.transpose > 0 ? `+${prefs.transpose}` : String(prefs.transpose)}
+          onChange={(transpose) => setPrefs({ transpose })}
+          min={-11}
+          max={11}
+          resetTo={0}
+          labels={{
+            down: t('song.transposeDown'),
+            up: t('song.transposeUp'),
+            reset: t('song.transposeReset'),
+          }}
+        />
+        <Stepper
+          size="sm"
+          caption={t('sets.capo')}
+          value={prefs.capo}
+          onChange={(capo) => setPrefs({ capo })}
+          min={0}
+          max={11}
+          resetTo={0}
+          labels={{
+            down: t('song.capoDown'),
+            up: t('song.capoUp'),
+            reset: t('song.capoLabel'),
+          }}
+        />
+        <IconButton
+          size="sm"
           label={t('song.chords')}
+          active={prefs.showChords}
+          onClick={() => setPrefs({ showChords: !prefs.showChords })}
         >
           <IconMusic size={14} />
-        </Small>
+        </IconButton>
         <StatusDot status={status} />
       </header>
 
       {!following && (
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={() => setLocal(null)}
-          className="shrink-0 bg-(--color-chord) px-4 py-1.5 text-sm font-semibold text-white"
+          className="shrink-0 rounded-none border-x-0 border-t-0"
         >
           {t('band.backToLeader')}
-        </button>
+        </Button>
       )}
 
       <main
@@ -245,45 +246,11 @@ export function BandPage() {
             }
           }}
         >
-          <input
-            name="name"
-            placeholder={t('band.yourName')}
-            aria-label={t('band.yourName')}
-            className="w-full rounded border border-(--color-line) bg-transparent px-2 py-1.5 text-sm outline-none"
-          />
+          <Input name="name" placeholder={t('band.yourName')} aria-label={t('band.yourName')} />
         </form>
       )}
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
     </div>
-  );
-}
-
-function Small({
-  onClick,
-  children,
-  active,
-  label,
-}: {
-  onClick: () => void;
-  children: React.ReactNode;
-  active?: boolean;
-  /** An icon alone means nothing read aloud. */
-  label?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={`rounded border px-1.5 py-1 text-xs font-medium tabular-nums ${
-        active
-          ? 'border-(--color-chord) bg-(--color-chord) text-white'
-          : 'border-(--color-line) hover:bg-(--color-line)'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

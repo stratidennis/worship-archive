@@ -8,17 +8,21 @@
  */
 
 export type OutputMode = 'live' | 'cleared' | 'black';
-export type ViewMode = 'song' | 'block';
 export type DeviceRole = 'leader' | 'band' | 'stage';
 
 export interface SessionState {
   /** The set being led, or null when no service is running. */
   setId: string | null;
-  /** Index into the set's items. */
+  /**
+   * Index into the set's items.
+   *
+   * A whole item, never part of one. The leader used to be able to push a single
+   * section — verse two on its own — to the stage, and it was the one feature nobody
+   * used: what a congregation needs on screen is the song they are singing, and what a
+   * musician needs is the song they are playing. Choosing a fragment only created a way
+   * for the screens to be showing less than the room was doing.
+   */
   itemIndex: number;
-  /** The block within the current song, or null for "the whole song". */
-  blockId: string | null;
-  mode: ViewMode;
   output: OutputMode;
 
   /** Beats per minute, or null when the metronome is off. */
@@ -42,8 +46,6 @@ export interface SessionState {
 export const INITIAL_SESSION: SessionState = {
   setId: null,
   itemIndex: 0,
-  blockId: null,
-  mode: 'song',
   output: 'live',
   tempo: null,
   beatsPerBar: 4,

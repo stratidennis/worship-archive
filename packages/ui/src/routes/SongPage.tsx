@@ -8,6 +8,7 @@ import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody, resolveKey } from '../components/SongBody.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { Button, ButtonLink, IconButton, Stepper } from '../components/ui.js';
 import { IconEdit, IconPrint } from '../components/icons.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 
@@ -78,7 +79,7 @@ export function SongPage() {
   const soundingKey = key ?? '—';
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col print:block print:h-auto">
       <AppHeader
         back
         title={
@@ -102,63 +103,51 @@ export function SongPage() {
           </div>
         }
       >
-        <div className="flex flex-wrap items-center gap-1 text-sm">
-          <Group label={t('song.pitch')}>
-            <Btn
-              onClick={() => setPrefs({ transpose: prefs.transpose - 1 })}
-              label={t('song.transposeDown')}
-            >
-              −
-            </Btn>
-            <Btn
-              onClick={() => setPrefs({ transpose: 0 })}
-              muted
-              label={t('song.transposeReset')}
-            >
-              {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
-            </Btn>
-            <Btn
-              onClick={() => setPrefs({ transpose: prefs.transpose + 1 })}
-              label={t('song.transposeUp')}
-            >
-              +
-            </Btn>
-          </Group>
-          <Group label={t('song.capoLabel')}>
-            <Btn
-              onClick={() => setPrefs({ capo: Math.max(0, prefs.capo - 1) })}
-              label={t('song.capoDown')}
-            >
-              −
-            </Btn>
-            <Btn onClick={() => setPrefs({ capo: 0 })} muted label={t('song.capoLabel')}>
-              {prefs.capo}
-            </Btn>
-            <Btn
-              onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })}
-              label={t('song.capoUp')}
-            >
-              +
-            </Btn>
-          </Group>
-          <Btn
-            onClick={() => setPrefs({ showChords: !prefs.showChords })}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Stepper
+            caption={t('song.pitch')}
+            value={prefs.transpose}
+            display={prefs.transpose > 0 ? `+${prefs.transpose}` : String(prefs.transpose)}
+            onChange={(transpose) => setPrefs({ transpose })}
+            min={-11}
+            max={11}
+            resetTo={0}
+            labels={{
+              down: t('song.transposeDown'),
+              up: t('song.transposeUp'),
+              reset: t('song.transposeReset'),
+            }}
+          />
+          <Stepper
+            caption={t('song.capoLabel')}
+            value={prefs.capo}
+            onChange={(capo) => setPrefs({ capo })}
+            min={0}
+            max={11}
+            resetTo={0}
+            labels={{
+              down: t('song.capoDown'),
+              up: t('song.capoUp'),
+              reset: t('song.capoLabel'),
+            }}
+          />
+          <Button
             active={prefs.showChords}
+            onClick={() => setPrefs({ showChords: !prefs.showChords })}
           >
             {t('song.chords')}
-          </Btn>
-          <Btn onClick={() => window.print()} label={t('app.print')}>
+          </Button>
+          <IconButton label={t('app.print')} onClick={() => window.print()}>
             <IconPrint size={16} />
-          </Btn>
-          <Link
+          </IconButton>
+          <ButtonLink
             to={`/edit/${encodeURIComponent(id)}`}
             aria-label={t('song.edit')}
             title={t('song.edit')}
-            className="flex min-w-8 items-center gap-1.5 rounded-md border border-(--color-line) px-2 py-1 text-sm font-medium hover:bg-(--color-line) sm:px-2.5 sm:py-1.5"
           >
             <IconEdit size={15} />
             <span className="hidden lg:inline">{t('song.edit')}</span>
-          </Link>
+          </ButtonLink>
         </div>
       </AppHeader>
 
@@ -205,47 +194,5 @@ export function SongPage() {
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
     </div>
-  );
-}
-
-function Group({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      <span className="mr-1 text-xs text-(--color-muted)">{label}</span>
-      {children}
-    </span>
-  );
-}
-
-function Btn({
-  onClick,
-  children,
-  active,
-  muted,
-  label,
-}: {
-  onClick: () => void;
-  children: React.ReactNode;
-  active?: boolean;
-  muted?: boolean;
-  /** A symbol like − or + is meaningless to a screen reader on its own. */
-  label?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={`min-w-8 rounded-md border px-2 py-1 text-sm font-medium tabular-nums transition-colors sm:min-w-9 sm:px-2.5 sm:py-1.5 ${
-        active
-          ? 'border-(--color-chord) bg-(--color-chord) text-white'
-          : muted
-            ? 'border-transparent text-(--color-muted)'
-            : 'border-(--color-line) hover:bg-(--color-line)'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
