@@ -185,7 +185,10 @@ export function importSongXml(source: string, options: SongXmlOptions = {}): Imp
   } else if (rawKey) {
     writtenKey = cleanKeyName(rawKey);
     if (writtenKey === null) {
-      notes.push({ kind: 'malformed-key', detail: `key "${rawKey}" is not a key; kept as written` });
+      notes.push({
+        kind: 'malformed-key',
+        detail: `key "${rawKey}" is not a key; kept as written`,
+      });
     }
   }
 
@@ -221,8 +224,7 @@ export function importSongXml(source: string, options: SongXmlOptions = {}): Imp
     if (!song.title) {
       // Fall back to the filename stem even when it carries no key prefix — a song
       // with no title at all is unfindable, which is worse than a slightly untidy one.
-      const fallback =
-        fromName.title ?? options.filename.replace(/\.[^.]+$/, '').trim() ?? '';
+      const fallback = fromName.title ?? options.filename.replace(/\.[^.]+$/, '').trim() ?? '';
       if (fallback) {
         song.title = fallback;
         notes.push({ kind: 'title-from-filename', detail: `title taken from the filename` });
@@ -310,7 +312,10 @@ export function importSongXml(source: string, options: SongXmlOptions = {}): Imp
       }
       if (c.singersHint) {
         pendingSingers = c.singersHint;
-        notes.push({ kind: 'singers-hint', detail: `"${rawTexts.join(' ')}" → singers ${c.singersHint}` });
+        notes.push({
+          kind: 'singers-hint',
+          detail: `"${rawTexts.join(' ')}" → singers ${c.singersHint}`,
+        });
       }
       if (c.reason !== 'kept as a note') {
         notes.push({ kind: 'misc-classified', detail: `${c.reason} → ${type}` });

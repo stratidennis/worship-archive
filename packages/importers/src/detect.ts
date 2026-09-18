@@ -25,7 +25,10 @@ export interface DetectedImport {
 
 /** SwiftTec's own XML — the format this whole project is replacing. */
 function looksLikeLegacySong(source: string): boolean {
-  return /<song[^>]*swifttec\/song/i.test(source) || (/<song[\s>]/i.test(source) && /<info>/i.test(source));
+  return (
+    /<song[^>]*swifttec\/song/i.test(source) ||
+    (/<song[\s>]/i.test(source) && /<info>/i.test(source))
+  );
 }
 
 /**
@@ -35,7 +38,8 @@ function looksLikeLegacySong(source: string): boolean {
  * line of words, and plain text with chords keeps them on their own line.
  */
 function looksLikeChordPro(source: string): boolean {
-  if (/^\s*\{\s*(title|t|subtitle|st|key|artist|start_of_\w+|soc|sov)\s*[:}]/im.test(source)) return true;
+  if (/^\s*\{\s*(title|t|subtitle|st|key|artist|start_of_\w+|soc|sov)\s*[:}]/im.test(source))
+    return true;
   return /\S\[[A-G][^\]]{0,12}\]/.test(source);
 }
 
@@ -52,11 +56,18 @@ export function detectFormat(source: string, filename = ''): ImportFormat {
 
 export function importAny(
   source: string,
-  options: { filename?: string | undefined; id?: string | undefined; now?: string | undefined } = {},
+  options: {
+    filename?: string | undefined;
+    id?: string | undefined;
+    now?: string | undefined;
+  } = {},
 ): DetectedImport {
   const filename = options.filename ?? '';
   const format = detectFormat(source, filename);
-  const stem = filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+  const stem = filename
+    .replace(/\.[^.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .trim();
 
   switch (format) {
     case 'legacy-song': {

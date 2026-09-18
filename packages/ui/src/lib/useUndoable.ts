@@ -36,8 +36,7 @@ export function useUndoable<T>(initial: T): Undoable<T> {
 
   const set = useCallback((next: T | ((current: T) => T), mergeKey?: string) => {
     setValue((current) => {
-      const resolved =
-        typeof next === 'function' ? (next as (c: T) => T)(current) : next;
+      const resolved = typeof next === 'function' ? (next as (c: T) => T)(current) : next;
       if (Object.is(resolved, current)) return current;
 
       const now = Date.now();

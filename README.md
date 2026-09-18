@@ -13,11 +13,11 @@ the library, so it still works at home with nothing to connect to.
 
 During a service:
 
-| Route | Who |
-|---|---|
-| `/lead` | the leader — drives everyone, Auto or Manual |
-| `/band` | musicians — follow, or break away to check the bridge |
-| `/stage` | a TV or monitor — follows exactly, no controls |
+| Route    | Who                                                   |
+| -------- | ----------------------------------------------------- |
+| `/lead`  | the leader — drives everyone, Auto or Manual          |
+| `/band`  | musicians — follow, or break away to check the bridge |
+| `/stage` | a TV or monitor — follows exactly, no controls        |
 
 ## Running it in a browser
 
@@ -67,16 +67,16 @@ pnpm --filter @worship/desktop dist
 ```
 
 The builds are **not code-signed** — there is no Apple developer account or Windows
-certificate behind this. Windows SmartScreen needs *More info → Run anyway*; macOS needs
-a right-click → *Open* the first time rather than a double-click.
+certificate behind this. Windows SmartScreen needs _More info → Run anyway_; macOS needs
+a right-click → _Open_ the first time rather than a double-click.
 
 ## Read in this order
 
-| | |
-|---|---|
-| [`PLAN.md`](PLAN.md) | **The build plan** — architecture, data model, sync protocol, phased delivery |
-| [`docs/FEATURE-INVENTORY.md`](docs/FEATURE-INVENTORY.md) | **The scope contract** — every feature, keep/drop/change, all decisions taken |
-| [`docs/legacy/`](docs/legacy/) | Reverse-engineering of the old Windows suite + analysis of the real 153-song library |
+|                                                          |                                                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [`PLAN.md`](PLAN.md)                                     | **The build plan** — architecture, data model, sync protocol, phased delivery        |
+| [`docs/FEATURE-INVENTORY.md`](docs/FEATURE-INVENTORY.md) | **The scope contract** — every feature, keep/drop/change, all decisions taken        |
+| [`docs/legacy/`](docs/legacy/)                           | Reverse-engineering of the old Windows suite + analysis of the real 153-song library |
 
 ## One app, three ways to run it
 
@@ -108,7 +108,7 @@ chords-over-lyrics text pasted from anywhere on the web. The format is detected 
 content rather than the extension, and every file is shown with what was understood from
 it — sections, chords, key — before anything is saved.
 
-**Backups** are one JSON file holding the *source text* of every song and set, not the
+**Backups** are one JSON file holding the _source text_ of every song and set, not the
 parsed model: a backup made today still restores in five years, whatever the parser has
 become. Settings → Backup.
 
@@ -126,7 +126,7 @@ so a device with no host reachable still opens, searches and transposes.
 
 1. **Written key vs performance key as real fields.** Today the chords are written in one
    key and played in another, with the gap recorded in a text comment, in the filename,
-   *and* sometimes crammed into the key field as `C-D`. Three hand-made conventions for
+   _and_ sometimes crammed into the key field as `C-D`. Three hand-made conventions for
    one missing field. Making both real removes all three.
 
 2. **Typed cue blocks instead of 303 free-text notes.** `INTRO:`, `INSTRUMENTAL:`,
@@ -139,6 +139,6 @@ see [`docs/legacy/04-real-library-analysis.md`](docs/legacy/04-real-library-anal
 ## Romanian and English
 
 The interface is Romanian by default and switches to English in Settings, including the
-section headings above the lyrics and the plural rules — 153 songs is *153 de cântări*,
-not *153 cântări*. The English dictionary is typed against the Romanian one, so a missing
+section headings above the lyrics and the plural rules — 153 songs is _153 de cântări_,
+not _153 cântări_. The English dictionary is typed against the Romanian one, so a missing
 translation fails the build rather than reaching a musician mid-service.

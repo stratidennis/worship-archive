@@ -27,7 +27,8 @@ function KeyBadge({ song }: { song: SongSummary }) {
   const { t } = useT();
   const key = song.performanceKey ?? song.writtenKey;
   if (!key) return null;
-  const transposed = song.performanceKey && song.writtenKey && song.performanceKey !== song.writtenKey;
+  const transposed =
+    song.performanceKey && song.writtenKey && song.performanceKey !== song.writtenKey;
   return (
     <span
       className="shrink-0 rounded px-1.5 py-0.5 font-mono text-xs tabular-nums"
@@ -92,7 +93,10 @@ export function Library() {
 
   // Facets come from the host's index; offline the filters simply do not appear.
   useEffect(() => {
-    api.facets().then(setFacets).catch(() => setFacets(null));
+    api
+      .facets()
+      .then(setFacets)
+      .catch(() => setFacets(null));
   }, []);
 
   useEffect(() => {
@@ -110,7 +114,10 @@ export function Library() {
       return;
     }
     const timer = setTimeout(() => {
-      repo.search(query).then(setHits).catch((e: unknown) => setError(String(e)));
+      repo
+        .search(query)
+        .then(setHits)
+        .catch((e: unknown) => setError(String(e)));
     }, 120);
     return () => clearTimeout(timer);
   }, [query]);
@@ -134,43 +141,45 @@ export function Library() {
     <div className="mx-auto max-w-4xl px-4 pb-16 pt-6">
       <header className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-widest text-(--color-muted)">{t('app.name')}</p>
+          <p className="text-xs uppercase tracking-widest text-(--color-muted)">
+            {t('app.name')}
+          </p>
           <h1 className="text-2xl font-bold">{t('app.library')}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-        <Link
-          to="/lead"
-          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-        >
-          {t('app.lead')}
-        </Link>
-        <Link
-          to="/band"
-          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-        >
-          {t('app.band')}
-        </Link>
-        <Link
-          to="/sets"
-          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-        >
-          {t('app.sets')}
-        </Link>
-        <Link
-          to="/settings"
-          className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
-          aria-label={t('settings.title')}
-          title={t('settings.title')}
-        >
-          ⚙
-        </Link>
-        <button
-          type="button"
-          onClick={() => void createSong()}
-          className="shrink-0 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
-        >
-          {t('library.new')}
-        </button>
+          <Link
+            to="/lead"
+            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+          >
+            {t('app.lead')}
+          </Link>
+          <Link
+            to="/band"
+            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+          >
+            {t('app.band')}
+          </Link>
+          <Link
+            to="/sets"
+            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+          >
+            {t('app.sets')}
+          </Link>
+          <Link
+            to="/settings"
+            className="rounded-lg border border-(--color-line) px-3 py-2 text-sm font-medium hover:bg-(--color-line)"
+            aria-label={t('settings.title')}
+            title={t('settings.title')}
+          >
+            ⚙
+          </Link>
+          <button
+            type="button"
+            onClick={() => void createSong()}
+            className="shrink-0 rounded-lg border border-(--color-chord) bg-(--color-chord) px-3 py-2 text-sm font-medium text-white"
+          >
+            {t('library.new')}
+          </button>
         </div>
       </header>
 
@@ -218,7 +227,10 @@ export function Library() {
         </p>
       )}
 
-      <p className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)" role="status">
+      <p
+        className="mt-5 mb-2 flex items-center gap-2 text-xs text-(--color-muted)"
+        role="status"
+      >
         <span>
           {t('library.count', { count: results.length })}
           {hits && ` ${t('library.found')}`}
@@ -238,7 +250,9 @@ export function Library() {
               className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{song.title || t('app.untitled')}</span>
+                <span className="block truncate font-medium">
+                  {song.title || t('app.untitled')}
+                </span>
                 {hits && 'snippet' in song && (
                   <span className="block truncate text-xs">
                     <Snippet text={(song as SearchHit).snippet} />

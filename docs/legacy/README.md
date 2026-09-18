@@ -6,13 +6,13 @@ the Windows suite in `Song_Manager_Old/`, plus analysis of the real 153-song lib
 Part of **Worship Archive** — see [`../../PLAN.md`](../../PLAN.md) for the replacement
 design and [`../FEATURE-INVENTORY.md`](../FEATURE-INVENTORY.md) for the scope contract.
 
-| Doc | Contents |
-|---|---|
-| [00-extraction-report.md](00-extraction-report.md) | What was in the installers, what was recovered, why the C++ source cannot be |
-| [01-architecture.md](01-architecture.md) | All 31 modules, the discovery daemon, the leader↔follower protocol, projection |
-| [02-data-model.md](02-data-model.md) | Song / set / display-profile schema as designed |
-| [03-module-behaviour.md](03-module-behaviour.md) | Per-module UI, toolbars, keyboard shortcuts, settings |
-| [04-real-library-analysis.md](04-real-library-analysis.md) | **Most important.** What the 153 real songs reveal about actual usage |
+| Doc                                                        | Contents                                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [00-extraction-report.md](00-extraction-report.md)         | What was in the installers, what was recovered, why the C++ source cannot be   |
+| [01-architecture.md](01-architecture.md)                   | All 31 modules, the discovery daemon, the leader↔follower protocol, projection |
+| [02-data-model.md](02-data-model.md)                       | Song / set / display-profile schema as designed                                |
+| [03-module-behaviour.md](03-module-behaviour.md)           | Per-module UI, toolbars, keyboard shortcuts, settings                          |
+| [04-real-library-analysis.md](04-real-library-analysis.md) | **Most important.** What the 153 real songs reveal about actual usage          |
 
 Raw extraction artefacts live in `../../../_extracted/` (outside this app folder):
 `v2_latest/` and `v1_english/` (installer payloads), `nested_*/` (Projector and discovery

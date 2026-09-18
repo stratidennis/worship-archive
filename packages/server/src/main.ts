@@ -16,7 +16,8 @@ const running = await startServer({
 });
 
 console.log(`\n  Local:   http://localhost:${running.port}`);
-for (const address of running.addresses) console.log(`  Network: http://${address}:${running.port}`);
+for (const address of running.addresses)
+  console.log(`  Network: http://${address}:${running.port}`);
 console.log(`  Name:    http://${running.hostname}:${running.port}`);
 console.log('');
 

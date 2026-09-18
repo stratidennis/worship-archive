@@ -34,7 +34,11 @@ interface DesktopApi {
   openFile: () => Promise<PickedFile | null>;
   setPreventSleep: (on: boolean) => Promise<boolean>;
   setAutoStart: (on: boolean) => Promise<boolean>;
-  confirm: (options: { message: string; detail?: string; confirmLabel?: string }) => Promise<boolean>;
+  confirm: (options: {
+    message: string;
+    detail?: string;
+    confirmLabel?: string;
+  }) => Promise<boolean>;
 }
 
 declare global {
@@ -56,7 +60,11 @@ export const isDesktop = (): boolean => desktop() !== null;
  * revoking synchronously cancels the download in some browsers, which looks exactly
  * like the button not working.
  */
-export async function saveTextFile(name: string, contents: string, type = 'application/json'): Promise<string | null> {
+export async function saveTextFile(
+  name: string,
+  contents: string,
+  type = 'application/json',
+): Promise<string | null> {
   const native = desktop();
   if (native) return native.saveFile(name, contents);
 

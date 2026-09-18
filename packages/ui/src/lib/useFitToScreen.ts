@@ -75,7 +75,9 @@ export function useFitToScreen(
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the
         // content at the preferred size rather than leaving it invisible — an
         // unmeasured song is far better than a blank screen.
-        setResult((previous) => (previous.measuring ? { ...previous, measuring: false } : previous));
+        setResult((previous) =>
+          previous.measuring ? { ...previous, measuring: false } : previous,
+        );
         return;
       }
 

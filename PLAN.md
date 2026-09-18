@@ -4,23 +4,23 @@ Replacement for the SwiftTec Song Management System. Browser-based, offline-firs
 LAN-hosted, packaged as an Electron desktop app for the host machine.
 
 Read [`docs/FEATURE-INVENTORY.md`](docs/FEATURE-INVENTORY.md) first — it is the scope
-contract. This document is *how*, that one is *what*.
+contract. This document is _how_, that one is _what_.
 
 ---
 
 ## 1. Constraints that shape everything
 
-| Constraint | Consequence |
-|---|---|
-| **Must work with no internet, ever** | No CDNs, no external fonts, no telemetry, no licence check. Every asset bundled. |
-| **LAN-only, possibly a router with no WAN** | Server binds `0.0.0.0`; discovery must not assume DNS or internet. |
-| **Runs on the leader's laptop** | Electron app, one double-click. Windows + macOS. |
-| **Must also work alone, offline** | The web app is a PWA with a full local library in IndexedDB. Server is optional. |
-| **PC, laptop, tablet, phone** | One responsive codebase, 390px → 1920px. Touch and keyboard both first-class. |
-| **153 existing songs must survive** | Importer is a v1 blocker. Identity is `(uuid, title)` — the legacy uuids collide. `.song` export is the escape hatch. |
-| **Romanian default, English switchable** | i18n from commit one. No hardcoded user-facing strings, ever. |
-| **The whole song fits on one screen** | No pagination, no mid-song scrolling. The renderer auto-scales text and reflows into columns to fit. See §4b — this constrains the whole view layer. |
-| **No format lock-in** | Songs live on disk as ChordPro text. SQLite is a disposable index. |
+| Constraint                                  | Consequence                                                                                                                                          |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Must work with no internet, ever**        | No CDNs, no external fonts, no telemetry, no licence check. Every asset bundled.                                                                     |
+| **LAN-only, possibly a router with no WAN** | Server binds `0.0.0.0`; discovery must not assume DNS or internet.                                                                                   |
+| **Runs on the leader's laptop**             | Electron app, one double-click. Windows + macOS.                                                                                                     |
+| **Must also work alone, offline**           | The web app is a PWA with a full local library in IndexedDB. Server is optional.                                                                     |
+| **PC, laptop, tablet, phone**               | One responsive codebase, 390px → 1920px. Touch and keyboard both first-class.                                                                        |
+| **153 existing songs must survive**         | Importer is a v1 blocker. Identity is `(uuid, title)` — the legacy uuids collide. `.song` export is the escape hatch.                                |
+| **Romanian default, English switchable**    | i18n from commit one. No hardcoded user-facing strings, ever.                                                                                        |
+| **The whole song fits on one screen**       | No pagination, no mid-song scrolling. The renderer auto-scales text and reflows into columns to fit. See §4b — this constrains the whole view layer. |
+| **No format lock-in**                       | Songs live on disk as ChordPro text. SQLite is a disposable index.                                                                                   |
 
 ### Explicitly out of scope
 
@@ -57,7 +57,7 @@ licensing, MySQL. See the ❌ sections in the inventory.
 
 ### Why Electron hosts the server
 
-The Electron main process *is* a Node process. Running Fastify + `ws` + `better-sqlite3`
+The Electron main process _is_ a Node process. Running Fastify + `ws` + `better-sqlite3`
 there means:
 
 - one process, one icon, one double-click — no terminal, no separate install
@@ -67,17 +67,17 @@ there means:
 - `app.setLoginItemSettings`, tray icon, "prevent sleep" (`powerSaveBlocker`) come free
 
 **Rule: the renderer never talks to SQLite or the filesystem directly.** It uses the same
-HTTP/WS API as a phone on the WiFi. Electron adds a thin IPC layer *only* for things a
+HTTP/WS API as a phone on the WiFi. Electron adds a thin IPC layer _only_ for things a
 browser genuinely cannot do (native file picker, choosing the data folder, quit/restart).
 Break this rule and the web and desktop builds will drift apart.
 
 ### The three runtime modes
 
-| Mode | How it starts | Library source | Session |
-|---|---|---|---|
-| **Host** | Electron app on the leader's laptop | SQLite on disk | Owns it |
-| **Connected client** | Browser → `http://<host>:7373` | Synced from host into IndexedDB | Follows host |
-| **Standalone** | Browser/PWA, no host reachable | IndexedDB only | None — solo practice |
+| Mode                 | How it starts                       | Library source                  | Session              |
+| -------------------- | ----------------------------------- | ------------------------------- | -------------------- |
+| **Host**             | Electron app on the leader's laptop | SQLite on disk                  | Owns it              |
+| **Connected client** | Browser → `http://<host>:7373`      | Synced from host into IndexedDB | Follows host         |
+| **Standalone**       | Browser/PWA, no host reachable      | IndexedDB only                  | None — solo practice |
 
 A client transitions Connected ↔ Standalone automatically as the network comes and goes.
 **This is the single most important behaviour to get right.** WiFi in church buildings is
@@ -93,18 +93,27 @@ source of truth.
 
 ```ts
 type Uuid = string;
-type Singers = 'Leader'|'All'|'Women'|'Men'|'Choir'|'Children'|'Adults'|'Congregation';
+type Singers =
+  'Leader' | 'All' | 'Women' | 'Men' | 'Choir' | 'Children' | 'Adults' | 'Congregation';
 
 type BlockType =
-  | 'Verse' | 'Chorus' | 'PreChorus' | 'Bridge' | 'Ending' | 'Tag'
-  | 'Intro' | 'Instrumental' | 'Solo' | 'Note';   // ← last 4 replace 303 "Misc" blocks
+  | 'Verse'
+  | 'Chorus'
+  | 'PreChorus'
+  | 'Bridge'
+  | 'Ending'
+  | 'Tag'
+  | 'Intro'
+  | 'Instrumental'
+  | 'Solo'
+  | 'Note'; // ← last 4 replace 303 "Misc" blocks
 
 interface Song {
-  id: Uuid;                       // OURS. Minted fresh when the legacy uuid collides.
-  legacyUuid: Uuid | null;        // the original <uuid>, kept for traceability — see below
+  id: Uuid; // OURS. Minted fresh when the legacy uuid collides.
+  legacyUuid: Uuid | null; // the original <uuid>, kept for traceability — see below
   title: string;
-  writtenKey: string | null;      // the key the chords are literally written in
-  performanceKey: string | null;  // the key it's actually played in          ← D3
+  writtenKey: string | null; // the key the chords are literally written in
+  performanceKey: string | null; // the key it's actually played in          ← D3
   tempo: number | null;
   timeSignature: string | null;
   authors: string[];
@@ -113,35 +122,36 @@ interface Song {
   tags: string[];
   collectionIds: Uuid[];
   blocks: Block[];
-  arrangement: string[] | null;   // block ids in play order; null = as written  ← C1/C2
+  arrangement: string[] | null; // block ids in play order; null = as written  ← C1/C2
   lang: string | null;
-  createdAt: string; updatedAt: string;
-  rev: number;                    // monotonic, for sync + history
+  createdAt: string;
+  updatedAt: string;
+  rev: number; // monotonic, for sync + history
 }
 
 interface Block {
-  id: string;                     // "V1", "C2", "S1" — legacy-compatible
+  id: string; // "V1", "C2", "S1" — legacy-compatible
   type: BlockType;
-  label: string | null;           // "Dennis" on a Solo, "forte" on an Instrumental
+  label: string | null; // "Dennis" on a Solo, "forte" on an Instrumental
   singers: Singers | null;
   repeat: number | null;
   indent: number | null;
-  bandOnly: boolean;              // cue the band sees, never shown on a shared display
+  bandOnly: boolean; // cue the band sees, never shown on a shared display
   lines: Line[];
 }
 
 interface Line {
-  text: string;                   // lyrics only, no markup
-  chords: Anchor[];               // guitar/piano chords
-  bass: Anchor[];                 // separate layer                            ← B5
+  text: string; // lyrics only, no markup
+  chords: Anchor[]; // guitar/piano chords
+  bass: Anchor[]; // separate layer                            ← B5
   singers: Singers | null;
   repeat: number | null;
   indent: number | null;
 }
 
 interface Anchor {
-  at: number;                     // UTF-16 index into `text`, 0 = before first char
-  raw: string;                    // EXACTLY as authored — "Cm#", "G(A)", "C#/A"
+  at: number; // UTF-16 index into `text`, 0 = before first char
+  raw: string; // EXACTLY as authored — "Cm#", "G(A)", "C#/A"
 }
 ```
 
@@ -165,18 +175,25 @@ which is what all 153 existing songs mean by `<sequence>auto</sequence>`.
 
 ```ts
 interface ServiceSet {
-  id: Uuid; title: string; date: string | null;
+  id: Uuid;
+  title: string;
+  date: string | null;
   items: SetItem[];
-  createdAt: string; updatedAt: string; rev: number;
+  createdAt: string;
+  updatedAt: string;
+  rev: number;
 }
 
 type SetItem =
-  | { kind: 'song'; songId: Uuid;
-      keyOverride: string | null;        // E6
+  | {
+      kind: 'song';
+      songId: Uuid;
+      keyOverride: string | null; // E6
       capoOverride: number | null;
-      arrangementOverride: string[] | null; }   // C4
-  | { kind: 'note'; text: string }                // E7
-  | { kind: 'gap';  label: string; minutes: number | null };  // E8
+      arrangementOverride: string[] | null;
+    } // C4
+  | { kind: 'note'; text: string } // E7
+  | { kind: 'gap'; label: string; minutes: number | null }; // E8
 ```
 
 Overrides live on the set, never on the song. Changing Sunday's key must not edit the
@@ -198,12 +215,12 @@ from them.
 └── index.db                         ← SQLite + FTS5. Deletable. Rebuilt on launch if missing.
 ```
 
-| Where | What |
-|---|---|
-| `songs/*.chopro` | Every song, as ChordPro text. Git-friendly, human-readable, portable. |
-| `index.db` | Parsed songs, FTS5 search, revision history, device registry, settings |
-| IndexedDB (client) | Mirror of parsed songs/sets + `pendingOps` for offline edits |
-| Data folder | `~/Library/Application Support/Worship Archive` (mac), `%APPDATA%` (win); relocatable |
+| Where              | What                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| `songs/*.chopro`   | Every song, as ChordPro text. Git-friendly, human-readable, portable.                 |
+| `index.db`         | Parsed songs, FTS5 search, revision history, device registry, settings                |
+| IndexedDB (client) | Mirror of parsed songs/sets + `pendingOps` for offline edits                          |
+| Data folder        | `~/Library/Application Support/Worship Archive` (mac), `%APPDATA%` (win); relocatable |
 
 A file-watcher reindexes on external change, so editing a `.chopro` in a text editor or
 pulling from git Just Works.
@@ -226,24 +243,24 @@ Our extensions use the `x_` custom-directive convention. **Every ChordPro parser
 existence ignores unknown directives**, so these files stay valid and readable elsewhere —
 other tools simply see a slightly plainer song.
 
-| Extension | Purpose | Inventory ref |
-|---|---|---|
-| `{x_id: <uuid>}` | Stable identity across renames | A15 |
-| `{x_legacy_uuid: …}` | Original SwiftTec uuid, for traceability | — |
-| `{x_performance_key: Bb}` | The key it is actually played in | **D3** |
-| `{x_block: Solo\|S1\|Dennis}` | Typed cue blocks ChordPro has no slot for | C5–C7 |
-| `{x_singers: Leader}` | Applies to the following line or block | B8/B9 |
-| `{x_bass: 4:G 11:D}` | Bass-note layer, `index:note` pairs | **B5** |
-| `{x_arrangement: V1 C1 V2 C1 B1 C1 E1}` | Play order as block ids | C1/C2 |
-| `{x_band_only: true}` | Cue the band sees, never a shared display | C9 |
-| `{x_link_prev: true}` | Keep this block with the previous one | **B15** |
-| `{x_indent: 2}` | Line indent | B13 |
-| `{x_line_color: …}` | Per-line colour | **J6** |
-| `{x_tags: comuniune, craciun}` | Category / theme | **B20** |
-| `{x_rev: 7}` `{x_updated: …}` | Sync bookkeeping | — |
+| Extension                               | Purpose                                   | Inventory ref |
+| --------------------------------------- | ----------------------------------------- | ------------- |
+| `{x_id: <uuid>}`                        | Stable identity across renames            | A15           |
+| `{x_legacy_uuid: …}`                    | Original SwiftTec uuid, for traceability  | —             |
+| `{x_performance_key: Bb}`               | The key it is actually played in          | **D3**        |
+| `{x_block: Solo\|S1\|Dennis}`           | Typed cue blocks ChordPro has no slot for | C5–C7         |
+| `{x_singers: Leader}`                   | Applies to the following line or block    | B8/B9         |
+| `{x_bass: 4:G 11:D}`                    | Bass-note layer, `index:note` pairs       | **B5**        |
+| `{x_arrangement: V1 C1 V2 C1 B1 C1 E1}` | Play order as block ids                   | C1/C2         |
+| `{x_band_only: true}`                   | Cue the band sees, never a shared display | C9            |
+| `{x_link_prev: true}`                   | Keep this block with the previous one     | **B15**       |
+| `{x_indent: 2}`                         | Line indent                               | B13           |
+| `{x_line_color: …}`                     | Per-line colour                           | **J6**        |
+| `{x_tags: comuniune, craciun}`          | Category / theme                          | **B20**       |
+| `{x_rev: 7}` `{x_updated: …}`           | Sync bookkeeping                          | —             |
 
 Intro / Instrumental / Solo / Note map to `{start_of_verse: …}` + `{x_block: …}` so they
-degrade to *something* readable in other tools rather than vanishing.
+degrade to _something_ readable in other tools rather than vanishing.
 
 **Round-trip fidelity is a test, not a hope:** parse → serialise → parse must be
 byte-identical for every song in the library, enforced in CI.
@@ -264,15 +281,15 @@ normalise(raw: string): { fixed: string; reason: string } | null
 
 Requirements drawn directly from the real library:
 
-| Input | Must produce |
-|---|---|
-| `Cm#`, `Fm#`, `Gm#` (67 occurrences) | Parse as `C#m`, `F#m`, `G#m` — modifier order reversed |
-| `C#min` | Parse as `C#m` |
-| `b`, `c#` (27 occurrences) | Parse as `B`, `C#` — lowercase root |
-| `C#/A`, `G/B`, `Em/D` | Transpose **both** sides |
-| `G(A)`, `Am(Bm)`, `Em(C,D)` | Transpose root **and** every alternate inside the parens |
-| `G A` | Two chords in one anchor — split, transpose both |
-| Anything unparseable | Return `null`, render verbatim, never throw, never lose it |
+| Input                                | Must produce                                               |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `Cm#`, `Fm#`, `Gm#` (67 occurrences) | Parse as `C#m`, `F#m`, `G#m` — modifier order reversed     |
+| `C#min`                              | Parse as `C#m`                                             |
+| `b`, `c#` (27 occurrences)           | Parse as `B`, `C#` — lowercase root                        |
+| `C#/A`, `G/B`, `Em/D`                | Transpose **both** sides                                   |
+| `G(A)`, `Am(Bm)`, `Em(C,D)`          | Transpose root **and** every alternate inside the parens   |
+| `G A`                                | Two chords in one anchor — split, transpose both           |
+| Anything unparseable                 | Return `null`, render verbatim, never throw, never lose it |
 
 Enharmonic spelling follows the target key (F♯ major → `F#`, G♭ major → `Gb`), not a
 fixed table. Getting this wrong is the classic transposition bug.
@@ -290,8 +307,8 @@ sees concert pitch; the leader changed neither.
 
 ## 4b. The fit-to-one-screen renderer
 
-> *"A nice thing about the old app is that the whole song is always displayed on one page,
-> and there is no need to have it displayed on multiple pages."*
+> _"A nice thing about the old app is that the whole song is always displayed on one page,
+> and there is no need to have it displayed on multiple pages."_
 
 This is a hard requirement, not a nicety, and it shapes the entire view layer. A musician
 mid-song must never scroll, swipe, or lose their place. The legacy app achieved it with
@@ -302,7 +319,7 @@ mid-song must never scroll, swipe, or lose their place. The legacy app achieved 
 1. Render the song into a measuring container at the maximum font size.
 2. If it overflows, try **two columns**, then three (only on wide screens).
 3. If it still overflows, binary-search the font size down towards the minimum.
-4. If it *still* overflows at minimum size — the only honest failure — degrade in this
+4. If it _still_ overflows at minimum size — the only honest failure — degrade in this
    order, telling the user which happened:
    - tighten line-height and block spacing to their floor
    - hide `Note` blocks behind a tap
@@ -314,7 +331,7 @@ not a layout loop that thrashes.
 ### Consequences
 
 - Font size is an **output** of the layout, not a user setting. The per-device "font size"
-  preference becomes a *preferred maximum* — a hint, not a command.
+  preference becomes a _preferred maximum_ — a hint, not a command.
 - Chords sit above their syllable, so line height must account for the chord row; songs
   with chords fit less text and will scale smaller than words-only views. Instrument mode
   and words mode therefore compute independently.
@@ -323,7 +340,7 @@ not a layout loop that thrashes.
 - **Block mode (F4) is the escape valve.** When a song genuinely cannot fit legibly — a
   long song on a phone — block mode shows one section at a time, and the app should
   suggest it rather than shrinking text into illegibility.
-- Multi-column (J9) is now a *layout strategy*, not just a print option.
+- Multi-column (J9) is now a _layout strategy_, not just a print option.
 
 This deserves its own package (`core/layout`) and visual regression tests at 390px,
 768px, 1280px and 1920px, in both chord and words modes.
@@ -416,16 +433,16 @@ The part the legacy app got worst, and the part that matters most in a church ha
 
 One React app, role-based routes, fully responsive.
 
-| Route | Who | Purpose |
-|---|---|---|
-| `/` | anyone | Library: search, filter, collections, open a song |
-| `/song/:id` | anyone | Song view — chords/words toggle, personal key & capo, print |
-| `/edit/:id` | editor+ | Full editor (B1–B25) |
-| `/sets` | anyone | Service sets; create, duplicate last Sunday (E10) |
-| `/lead` | anyone on host | Leader console |
-| `/band` | anyone | Band member view — follows leader, free to roam (G1/G2) |
-| `/stage` | display device | Fullscreen, follows exactly, no chrome (H1) |
-| `/settings` | anyone | Language, role, font size, capo mode, device name |
+| Route       | Who            | Purpose                                                     |
+| ----------- | -------------- | ----------------------------------------------------------- |
+| `/`         | anyone         | Library: search, filter, collections, open a song           |
+| `/song/:id` | anyone         | Song view — chords/words toggle, personal key & capo, print |
+| `/edit/:id` | editor+        | Full editor (B1–B25)                                        |
+| `/sets`     | anyone         | Service sets; create, duplicate last Sunday (E10)           |
+| `/lead`     | anyone on host | Leader console                                              |
+| `/band`     | anyone         | Band member view — follows leader, free to roam (G1/G2)     |
+| `/stage`    | display device | Fullscreen, follows exactly, no chrome (H1)                 |
+| `/settings` | anyone         | Language, role, font size, capo mode, device name           |
 
 ### `/lead` — leader console
 
@@ -447,7 +464,7 @@ responsive layout):
 └──────────┴────────────────────────────┴─────────────┘
 ```
 
-- Block chips are the navigation *and* the arrangement strip (C2) — same component.
+- Block chips are the navigation _and_ the arrangement strip (C2) — same component.
 - The device panel (F13) is new and genuinely useful: the leader can see the stage TV
   dropped off before wondering why it is blank.
 - Keyboard: `↑↓` blocks, `←→` songs, `Space` go-live in manual mode, `B` blackout,
@@ -475,20 +492,20 @@ responsive layout):
 
 ## 8. Tech stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| UI | **React 19 + TypeScript + Vite** | Chosen. Fast HMR, good Electron story. |
-| Styling | **Tailwind CSS v4** | No runtime CSS-in-JS; small bundle; trivially themeable for dark stage mode (J7). |
-| State | **Zustand** + **TanStack Query** | Zustand for session/UI state, Query for library cache + optimistic offline writes. Redux is overkill here. |
-| Router | **React Router** | Plain, well understood. |
-| Local DB | **Dexie** (IndexedDB) | Ergonomic, reliable, good TS types. |
-| i18n | **i18next** + `react-i18next` | RO/EN from day one (O8). |
-| Server | **Fastify** + **`ws`** | Fastify is fast, small, first-class TS. `ws` over Socket.IO — no fallback transports needed on a LAN. |
-| DB | **better-sqlite3** + **FTS5** | Synchronous, zero-config, gives full-text search for free (A3). |
-| Discovery | **`bonjour-service`** | Pure JS mDNS, no native dep. |
-| Desktop | **Electron** + **electron-builder** | Chosen. Windows + macOS from one config. |
-| Testing | **Vitest** + **Playwright** | Unit for the chord engine and importer; E2E for leader↔follower sync. |
-| Monorepo | **pnpm workspaces** | Fast, strict, no hoisting surprises. |
+| Layer     | Choice                              | Why                                                                                                        |
+| --------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| UI        | **React 19 + TypeScript + Vite**    | Chosen. Fast HMR, good Electron story.                                                                     |
+| Styling   | **Tailwind CSS v4**                 | No runtime CSS-in-JS; small bundle; trivially themeable for dark stage mode (J7).                          |
+| State     | **Zustand** + **TanStack Query**    | Zustand for session/UI state, Query for library cache + optimistic offline writes. Redux is overkill here. |
+| Router    | **React Router**                    | Plain, well understood.                                                                                    |
+| Local DB  | **Dexie** (IndexedDB)               | Ergonomic, reliable, good TS types.                                                                        |
+| i18n      | **i18next** + `react-i18next`       | RO/EN from day one (O8).                                                                                   |
+| Server    | **Fastify** + **`ws`**              | Fastify is fast, small, first-class TS. `ws` over Socket.IO — no fallback transports needed on a LAN.      |
+| DB        | **better-sqlite3** + **FTS5**       | Synchronous, zero-config, gives full-text search for free (A3).                                            |
+| Discovery | **`bonjour-service`**               | Pure JS mDNS, no native dep.                                                                               |
+| Desktop   | **Electron** + **electron-builder** | Chosen. Windows + macOS from one config.                                                                   |
+| Testing   | **Vitest** + **Playwright**         | Unit for the chord engine and importer; E2E for leader↔follower sync.                                      |
+| Monorepo  | **pnpm workspaces**                 | Fast, strict, no hoisting surprises.                                                                       |
 
 Pinned versions and an offline-capable lockfile. `better-sqlite3` is native — it must be
 rebuilt for Electron's ABI (`electron-rebuild`); budget an afternoon for this the first time.
@@ -536,22 +553,22 @@ A v1 blocker, and the first thing to build after `core`.
 4. **Classify the 303 `Misc` blocks** by their first word (C10) — a mechanical,
    high-confidence transformation:
 
-   | Pattern | Becomes |
-   |---|---|
-   | `INTRO:` … (83) | `Intro` block |
-   | `INSTRUMENTAL:` / `INSTR` (46) | `Instrumental` block |
-   | `SOLO <Name>:` (23) | `Solo` block, `label = "<Name>"` |
+   | Pattern                              | Becomes                                                                       |
+   | ------------------------------------ | ----------------------------------------------------------------------------- |
+   | `INTRO:` … (83)                      | `Intro` block                                                                 |
+   | `INSTRUMENTAL:` / `INSTR` (46)       | `Instrumental` block                                                          |
+   | `SOLO <Name>:` (23)                  | `Solo` block, `label = "<Name>"`                                              |
    | `TRANSPOSE: X+n => Y` / `GAMA:` (22) | sets `writtenKey: X`, `performanceKey: Y` — **the note disappears into data** |
-   | `STRUCTURA: A -> B x2 -> C` | parsed into `arrangement` (C3) |
-   | `REFREN x2`, `2 X REF`, `Bridge x1` | arrangement entries |
-   | `TOTI:` (15) | `singers: 'All'` on the following block |
-   | anything else | `Note` block, text preserved verbatim |
+   | `STRUCTURA: A -> B x2 -> C`          | parsed into `arrangement` (C3)                                                |
+   | `REFREN x2`, `2 X REF`, `Bridge x1`  | arrangement entries                                                           |
+   | `TOTI:` (15)                         | `singers: 'All'` on the following block                                       |
+   | anything else                        | `Note` block, text preserved verbatim                                         |
 
 5. **Filename keys.** The convention is `<writtenKey> - <title> - <performanceKey>`,
    e.g. `C - Dumnezeu e dragostea mea - D.song`. Also handle `<key>` fields holding both
    (`C-D`, `G - A`). Prefix → `writtenKey`, suffix → `performanceKey`; fall back to
    `<key>` and the `TRANSPOSE:` notes. Strip the key affixes from the stored title.
-6. **Chords**: store `raw` untouched. Run the normaliser in *report-only* mode and write
+6. **Chords**: store `raw` untouched. Run the normaliser in _report-only_ mode and write
    `migration-report.html` listing all 67 suspect spellings for review (D12).
 7. **Collections.** The two folders become two collections with an owning band:
    root → the main group, `Song files L&I` → band **L&I**, shared with the main group.
@@ -571,11 +588,11 @@ Library editing uses **simple roles**; live control is **unprotected** (trusted 
 These are deliberately different: a wrong tap during worship is recoverable, a deleted
 song is not.
 
-| Role | Library | Sets | Lead | How |
-|---|---|---|---|---|
-| **viewer** | read | read | yes | default for any new device |
-| **editor** | read/write | read/write | yes | chosen in settings |
-| **admin** | + delete, import, restore, backup | + | yes | PIN set on first run |
+| Role       | Library                           | Sets       | Lead | How                        |
+| ---------- | --------------------------------- | ---------- | ---- | -------------------------- |
+| **viewer** | read                              | read       | yes  | default for any new device |
+| **editor** | read/write                        | read/write | yes  | chosen in settings         |
+| **admin**  | + delete, import, restore, backup | +          | yes  | PIN set on first run       |
 
 The PIN exists only to stop an accidental "delete all songs" from a phone. It is not
 security, and the docs should say so plainly.
@@ -589,45 +606,53 @@ Each phase ends with something genuinely usable. No phase is "just plumbing".
 **All nine phases are built.** What each one actually shipped, and what was learned
 along the way, is in its commit message.
 
-### Phase 0 — Foundations *(~2 days)*
+### Phase 0 — Foundations _(~2 days)_
+
 pnpm monorepo, TS config, Vite, Tailwind, Vitest, CI. `core` types. A blank app that runs.
 **Done when:** `pnpm dev` serves a page and `pnpm test` runs.
 
-### Phase 1 — Chord engine + ChordPro + importers *(~6 days)*
+### Phase 1 — Chord engine + ChordPro + importers _(~6 days)_
+
 `core` chord parse/transpose/capo/normalise, tested against the real 73 chord spellings.
 ChordPro parser **and** serialiser with byte-identical round-trip. Importers for `.song`
 XML, plain text (chords-above-lyrics), and OpenSong XML. Full migration of the 153 songs.
 **Done when:** all three verification gates pass, and a song pasted from Ultimate Guitar
 imports correctly.
 
-### Phase 2 — Library + song view *(~6 days)*
+### Phase 2 — Library + song view _(~6 days)_
+
 SQLite + FTS5 index over the `.chopro` files, file-watcher reindex, Fastify API, React
 library list, search, filters, collections (with band ownership), song view with
 chords/words toggle, personal key + capo, **the fit-to-one-screen renderer (§4b)**,
 print stylesheet.
 **Done when:** you can open the app, find any of your 153 songs, transpose it, and print it.
-*This alone already replaces `vizualizator_cantare.html`.*
+_This alone already replaces `vizualizator_cantare.html`._
 
-### Phase 3 — Editor *(~6 days)*
+### Phase 3 — Editor _(~6 days)_
+
 Full editor: lyrics, click-to-place chords, bass layer, block types, singers, repeat,
 indent, metadata, live preview, undo/redo, revision history.
 **Done when:** you can author a new song end-to-end without touching Windows.
 
-### Phase 4 — Sets *(~3 days)*
+### Phase 4 — Sets _(~3 days)_
+
 Build, save, reorder, duplicate; notes and gaps; per-set key/capo/arrangement overrides;
 export the running order to PDF (K9 — replaces the hand-made `.docx` files).
 **Done when:** next Sunday's set can be planned entirely in the app.
 
-### Phase 5 — Live session *(~6 days)*
+### Phase 5 — Live session _(~6 days)_
+
 WebSocket hub, session state, `/lead`, `/band`, `/stage`, auto/manual mode, song/block
 mode, clear/blackout, tempo + beat LED, connected-device panel, silent reconnect.
 **Done when:** leader + two devices stay in sync across a deliberate WiFi drop.
 
-### Phase 6 — Offline + discovery *(~4 days)*
+### Phase 6 — Offline + discovery _(~4 days)_
+
 Service worker, IndexedDB mirror, pending-op queue, mDNS, QR join, manual IP.
 **Done when:** a phone in airplane mode still opens the full library, and rejoins cleanly.
 
-### Phase 7 — Electron *(~4 days)* — **built**
+### Phase 7 — Electron _(~4 days)_ — **built**
+
 Main process hosts the server, native file dialogs via IPC, tray icon, prevent-sleep,
 `electron-rebuild` for `better-sqlite3`, electron-builder for Windows + macOS, first-run
 setup (data folder, import wizard).
@@ -643,7 +668,7 @@ Two things were harder than planned and are worth knowing about:
   gate that runs the bundled server and checks it actually serves.
 - **The native ABI.** One copy of `better-sqlite3` exists in the pnpm store, and Node and
   Electron want different ABIs of it. Worse, `@electron/rebuild` keeps a `.forge-meta`
-  marker and *skips silently* when it matches — so switching back and forth can produce
+  marker and _skips silently_ when it matches — so switching back and forth can produce
   an installer whose app dies on launch, with a packaging log identical to a good one.
   `pnpm abi:node` / `pnpm abi:electron` handle the marker and **verify the result** by
   opening a database rather than trusting the rebuild's report.
@@ -651,13 +676,14 @@ Two things were harder than planned and are worth knowing about:
 No admin PIN: the inventory settled on a trusted network with no authentication, and a
 PIN that protects nothing is worse than no PIN.
 
-### Phase 8 — Polish *(~4 days)* — **built**
+### Phase 8 — Polish _(~4 days)_ — **built**
+
 Romanian + English throughout, stage theme, keyboard shortcuts, backup/restore, the
 chord-cleanup review UI (D12), accessibility pass, on-stage legibility testing.
 
 The English dictionary is typed against the Romanian one, so a missing translation is a
 compile error. Plurals go through `Intl.PluralRules`, which matters more than it sounds:
-Romanian has three forms and 153 songs is *153 de cântări*.
+Romanian has three forms and 153 songs is _153 de cântări_.
 
 The cleanup pass over the real library finds **105 chords in 13 spellings across 23
 songs**, out of 3504 — reproducing the counts in `docs/legacy/04-real-library-analysis.md`
@@ -671,17 +697,17 @@ Phase 7's native-module packaging was the one underestimate.
 
 ## 13. Risks
 
-| Risk | Mitigation |
-|---|---|
-| **Chord transposition subtly wrong** — the classic enharmonic bug | Phase 1 is test-first, built from the real 73 spellings. Round-trip verification. Never ship a chord change the user did not ask for. |
-| **Church WiFi blocks client isolation** (devices cannot reach each other) | Detect and say so clearly. Document the fallback: leader's laptop as a hotspot. This is a real and common failure. |
-| **`better-sqlite3` native rebuild pain in Electron** | Pin Electron + Node ABI, `electron-rebuild` in CI. Fallback: `node:sqlite` (Node 22+) or `sql.js` if it becomes a time sink. |
-| **ChordPro cannot express something we need** | Extensions are `{x_*}` custom directives, ignored by other parsers. Round-trip fidelity is a CI gate, so any loss fails the build rather than reaching a musician. |
-| **A song will not fit one screen legibly** | Documented degradation ladder in §4b, ending in block mode rather than unreadable text. Visual regression tests at four widths. |
-| **Migration loses or mangles a song** | Round-trip diff over all 153 files as a gate. Originals are never modified. Report-only chord normalisation. **Song count must be exactly 153 after import** — this is what catches the duplicate-uuid trap. |
-| **Scope creep back toward projection/Bible/media** | The inventory is the contract. Anything new gets added there first, with a decision. |
-| **Offline sync conflicts** | Last-write-wins + full revision history. No silent data loss; anything overwritten is recoverable. |
-| **Phones sleeping mid-service** | Wake Lock API on `/band` and `/stage`, `powerSaveBlocker` in Electron. |
+| Risk                                                                      | Mitigation                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Chord transposition subtly wrong** — the classic enharmonic bug         | Phase 1 is test-first, built from the real 73 spellings. Round-trip verification. Never ship a chord change the user did not ask for.                                                                        |
+| **Church WiFi blocks client isolation** (devices cannot reach each other) | Detect and say so clearly. Document the fallback: leader's laptop as a hotspot. This is a real and common failure.                                                                                           |
+| **`better-sqlite3` native rebuild pain in Electron**                      | Pin Electron + Node ABI, `electron-rebuild` in CI. Fallback: `node:sqlite` (Node 22+) or `sql.js` if it becomes a time sink.                                                                                 |
+| **ChordPro cannot express something we need**                             | Extensions are `{x_*}` custom directives, ignored by other parsers. Round-trip fidelity is a CI gate, so any loss fails the build rather than reaching a musician.                                           |
+| **A song will not fit one screen legibly**                                | Documented degradation ladder in §4b, ending in block mode rather than unreadable text. Visual regression tests at four widths.                                                                              |
+| **Migration loses or mangles a song**                                     | Round-trip diff over all 153 files as a gate. Originals are never modified. Report-only chord normalisation. **Song count must be exactly 153 after import** — this is what catches the duplicate-uuid trap. |
+| **Scope creep back toward projection/Bible/media**                        | The inventory is the contract. Anything new gets added there first, with a decision.                                                                                                                         |
+| **Offline sync conflicts**                                                | Last-write-wins + full revision history. No silent data loss; anything overwritten is recoverable.                                                                                                           |
+| **Phones sleeping mid-service**                                           | Wake Lock API on `/band` and `/stage`, `powerSaveBlocker` in Electron.                                                                                                                                       |
 
 ---
 

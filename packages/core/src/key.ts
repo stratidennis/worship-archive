@@ -148,7 +148,7 @@ export function semitonesBetween(from: string, to: string): number | null {
   const a = noteToPitchClass(stripMinor(from));
   const b = noteToPitchClass(stripMinor(to));
   if (a === null || b === null) return null;
-  return ((b - a) % 12 + 12) % 12;
+  return (((b - a) % 12) + 12) % 12;
 }
 
 function stripMinor(key: string): string {

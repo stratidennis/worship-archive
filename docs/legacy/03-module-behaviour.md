@@ -28,20 +28,20 @@ Show\nSong List  Hide\nSong List
 
 ### What each control does
 
-| Control | Behaviour |
-|---|---|
-| **Updates: Auto / Manual** | The killer feature. In **Auto**, moving the leader's cursor pushes immediately to every display. In **Manual**, the leader can scroll ahead and browse privately; nothing goes live until they commit. Lets a leader line up the next song mid-worship without flashing it on screen. |
-| **Mode: Block / Song** | **Song** mode pushes the whole song; **Block** mode pushes one section (block) at a time — projection-style, one verse on screen. `SongSlave` has a matching `Block Mode` + `Show Block Highlights` toggle. |
-| **Clear Text** | Blank the lyrics but keep the background. |
-| **Blackout** | Kill the output entirely. Distinct from Clear Text. |
-| **Transpose ↑/↓, Capo ↑/↓** | Independent. Transpose changes the written key; capo changes guitar fingering. Applied live, propagated to followers. |
-| **Set / Reset Tempo** | Drives the beat LED metronome on all connected displays. |
-| **Edit Sequence / Save Sequence** | Re-order the song's sections live, mid-service. |
-| **Select Profile** | Switch the rendering profile in use. |
-| **Select Leader** | Pick which leader to follow (relevant for the follower-ish apps and when several leaders run). |
-| **Show / Hide Song List** | Collapse the set list to maximise lyric area. |
-| **Add Song From File / From DB** | Two sources: loose files or the indexed library. |
-| **Edit Song In DB / In Set** | Explicit choice: edit the library master, or only this service's copy. |
+| Control                           | Behaviour                                                                                                                                                                                                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Updates: Auto / Manual**        | The killer feature. In **Auto**, moving the leader's cursor pushes immediately to every display. In **Manual**, the leader can scroll ahead and browse privately; nothing goes live until they commit. Lets a leader line up the next song mid-worship without flashing it on screen. |
+| **Mode: Block / Song**            | **Song** mode pushes the whole song; **Block** mode pushes one section (block) at a time — projection-style, one verse on screen. `SongSlave` has a matching `Block Mode` + `Show Block Highlights` toggle.                                                                           |
+| **Clear Text**                    | Blank the lyrics but keep the background.                                                                                                                                                                                                                                             |
+| **Blackout**                      | Kill the output entirely. Distinct from Clear Text.                                                                                                                                                                                                                                   |
+| **Transpose ↑/↓, Capo ↑/↓**       | Independent. Transpose changes the written key; capo changes guitar fingering. Applied live, propagated to followers.                                                                                                                                                                 |
+| **Set / Reset Tempo**             | Drives the beat LED metronome on all connected displays.                                                                                                                                                                                                                              |
+| **Edit Sequence / Save Sequence** | Re-order the song's sections live, mid-service.                                                                                                                                                                                                                                       |
+| **Select Profile**                | Switch the rendering profile in use.                                                                                                                                                                                                                                                  |
+| **Select Leader**                 | Pick which leader to follow (relevant for the follower-ish apps and when several leaders run).                                                                                                                                                                                        |
+| **Show / Hide Song List**         | Collapse the set list to maximise lyric area.                                                                                                                                                                                                                                         |
+| **Add Song From File / From DB**  | Two sources: loose files or the indexed library.                                                                                                                                                                                                                                      |
+| **Edit Song In DB / In Set**      | Explicit choice: edit the library master, or only this service's copy.                                                                                                                                                                                                                |
 
 ### Persisted state (`SongLeader.exe` strings)
 
@@ -53,16 +53,16 @@ selectionFontName/Size/Style/Color[0..2]
 selectionSelectedBgColor[0..2]   selectionUnselectedBgColor[0..2]
 ```
 
-The `[0..2]` triples are three selection *levels* — almost certainly
+The `[0..2]` triples are three selection _levels_ — almost certainly
 current / next / other, rendered with different colours in the set list.
 
-`SongSetNotSaved` → *"The current song set has changed. Do you want to save it?"*
+`SongSetNotSaved` → _"The current song set has changed. Do you want to save it?"_
 
 ---
 
 ## SongFollower — band member view
 
-*"A tool for song and worship group members"*
+_"A tool for song and worship group members"_
 
 Has the leader's toolbar vocabulary (`CapoUp`, `CapoDown`, `ClearText`, `Blackout`,
 `Author`…) but **its navigation is local only**. It shows connection state in the UI:
@@ -73,7 +73,7 @@ Lost connection to leader             Waiting to acquire licence from leader...
 ```
 
 This is the "same view as the leader, but moving around doesn't affect anyone" module
-you remembered. It follows the leader's *set*, and by default the leader's *position*,
+you remembered. It follows the leader's _set_, and by default the leader's _position_,
 but the musician can break away to check the bridge chords and come back.
 
 ---
@@ -122,16 +122,16 @@ song into columns to fit a page.
 
 ### Keyboard
 
-| Action | Key |
-|---|---|
-| Transpose Up | `Shift+F4` |
+| Action         | Key        |
+| -------------- | ---------- |
+| Transpose Up   | `Shift+F4` |
 | Transpose Down | `Shift+F3` |
-| Capo Up | `F4` |
-| Capo Down | `F3` |
-| Print | `Ctrl+P` |
-| Open | `Ctrl+O` |
+| Capo Up        | `F4`       |
+| Capo Down      | `F3`       |
+| Print          | `Ctrl+P`   |
+| Open           | `Ctrl+O`   |
 
-Also: *Copy song text to clipboard*, Print Preview, full print pipeline.
+Also: _Copy song text to clipboard_, Print Preview, full print pipeline.
 Status text includes `Bass:` and `(with capo)`.
 
 ---
@@ -140,16 +140,16 @@ Status text includes `Bass:` and `(with capo)`.
 
 Menus: File / Edit / View / Key / **Section** / **Line** / **Sequence** / Help.
 
-| Action | Key |
-|---|---|
-| Guitar Chord | `F9` |
-| Bass Note | `F10` |
-| Song Information | `F2` |
-| Sequence | `Ctrl+F2` |
-| Section type Verse / Chorus / Bridge | `F6` / `F7` / `F8` |
-| Pre-Chorus / Tag | `Shift+F7` / `Shift+F8` |
-| Intro / Ending / Misc | `Shift+F6` / `Ctrl+F6` / `Ctrl+F8` |
-| Transpose Up / Down | `Shift+F4` / `Shift+F3` |
+| Action                               | Key                                |
+| ------------------------------------ | ---------------------------------- |
+| Guitar Chord                         | `F9`                               |
+| Bass Note                            | `F10`                              |
+| Song Information                     | `F2`                               |
+| Sequence                             | `Ctrl+F2`                          |
+| Section type Verse / Chorus / Bridge | `F6` / `F7` / `F8`                 |
+| Pre-Chorus / Tag                     | `Shift+F7` / `Shift+F8`            |
+| Intro / Ending / Misc                | `Shift+F6` / `Ctrl+F6` / `Ctrl+F8` |
+| Transpose Up / Down                  | `Shift+F4` / `Shift+F3`            |
 
 Section submenu: Target, Type, Singers, Link/Unlink to previous, Repeat ±, Indent ±.
 Line submenu: Singers, Repeat ±, Indent ±.
@@ -168,7 +168,7 @@ PointerSequence.cur   HandGrab.cur   HandGrabPlus.cur   HandPoint.cur   HandPoin
 ## SongMonitor — protocol tracer
 
 Popup menu: `Clear`, `Save Log`, `Select Leader`, `About`.
-*"A tool for tracing and monitor SongLeader network activity"*. A developer/support tool.
+_"A tool for tracing and monitor SongLeader network activity"_. A developer/support tool.
 
 ---
 
@@ -244,8 +244,8 @@ route, even though the mechanism will be WebSocket rather than argv.
 
 Wizard pages: Data Folders, Database, Devices, Licence.
 Database backend is selectable (SQLite default, MySQL supported).
-The Devices page is vestigial — it contains *Cash Drawer*, *Receipt Printer*,
-*Door Release*, leaked in from a SwiftTec point-of-sale product sharing the same
+The Devices page is vestigial — it contains _Cash Drawer_, _Receipt Printer_,
+_Door Release_, leaked in from a SwiftTec point-of-sale product sharing the same
 wizard framework. Ignore it.
 
 ---
@@ -266,5 +266,5 @@ experience of using it:
 5. **Windows-only, per-machine install**, plus a VC++ redistributable. Every stage
    device needs an install. The browser rewrite removes this entirely.
 6. **Two apps for one job** — SongFollower vs SongSlave differ only in whether local
-   navigation is allowed. That is a *setting*, not a separate program.
+   navigation is allowed. That is a _setting_, not a separate program.
 7. **Naming** — "Slave" should not survive into the new app.

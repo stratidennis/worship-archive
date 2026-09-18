@@ -83,9 +83,7 @@ export function looksLikeOpenSong(source: string): boolean {
 
 export function importOpenSong(source: string, options: OpenSongOptions = {}): Song {
   const now = options.now ?? new Date().toISOString();
-  const lyrics = decodeEntities(
-    /<lyrics[^>]*>([\s\S]*?)<\/lyrics>/i.exec(source)?.[1] ?? '',
-  );
+  const lyrics = decodeEntities(/<lyrics[^>]*>([\s\S]*?)<\/lyrics>/i.exec(source)?.[1] ?? '');
 
   const blocks: Block[] = [];
   const counters = new Map<BlockType, number>();
@@ -152,7 +150,10 @@ export function importOpenSong(source: string, options: OpenSongOptions = {}): S
     .filter(Boolean);
   const author = tagText(source, 'author');
   const fallbackTitle = options.filename
-    ? options.filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
+    ? options.filename
+        .replace(/\.[^.]+$/, '')
+        .replace(/[_-]+/g, ' ')
+        .trim()
     : '';
 
   return {

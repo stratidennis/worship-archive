@@ -1,10 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Library } from '../src/library.js';
 import { SetStore } from '../src/sets.js';
-import { backupFilename, createBackup, isBackup, restoreBackup, type Backup } from '../src/backup.js';
+import {
+  backupFilename,
+  createBackup,
+  isBackup,
+  restoreBackup,
+  type Backup,
+} from '../src/backup.js';
 
 let dir: string;
 let library: Library;
@@ -81,7 +94,14 @@ describe('recognising a backup file', () => {
   });
 
   it('rejects anything else, rather than half-restoring it', () => {
-    for (const bad of [null, {}, [], 'text', { format: 'something-else' }, { format: 'worship-archive-backup' }]) {
+    for (const bad of [
+      null,
+      {},
+      [],
+      'text',
+      { format: 'something-else' },
+      { format: 'worship-archive-backup' },
+    ]) {
       expect(isBackup(bad)).toBe(false);
     }
   });
@@ -100,9 +120,11 @@ describe('restoring', () => {
   }
 
   it('writes the songs and reindexes, so they are searchable immediately', () => {
-    const result = restoreBackup(library, sets, backupOf([
-      { path: 'a.chopro', text: SONG('id-a', 'Bunătatea Ta') },
-    ]));
+    const result = restoreBackup(
+      library,
+      sets,
+      backupOf([{ path: 'a.chopro', text: SONG('id-a', 'Bunătatea Ta') }]),
+    );
     expect(result.songs).toBe(1);
     expect(library.stats().songs).toBe(1);
     expect(library.search('bunatatea')).toHaveLength(1);
@@ -112,7 +134,11 @@ describe('restoring', () => {
     writeSong('existing.chopro', SONG('id-x', 'Deja aici'));
     library.reindex();
 
-    restoreBackup(library, sets, backupOf([{ path: 'new.chopro', text: SONG('id-n', 'Nouă') }]));
+    restoreBackup(
+      library,
+      sets,
+      backupOf([{ path: 'new.chopro', text: SONG('id-n', 'Nouă') }]),
+    );
     expect(library.stats().songs).toBe(2);
   });
 
@@ -133,9 +159,11 @@ describe('restoring', () => {
 
   it('refuses a path that escapes the library folder', () => {
     // Backups are usually your own. "Usually" is not a security model.
-    const result = restoreBackup(library, sets, backupOf([
-      { path: '../../escaped.chopro', text: SONG('id-e', 'Nu') },
-    ]));
+    const result = restoreBackup(
+      library,
+      sets,
+      backupOf([{ path: '../../escaped.chopro', text: SONG('id-e', 'Nu') }]),
+    );
     expect(result.songs).toBe(0);
     expect(result.skipped[0]!.error).toMatch(/escapes/);
     expect(existsSync(join(dir, '..', 'escaped.chopro'))).toBe(false);
@@ -153,6 +181,8 @@ describe('restoring', () => {
 
     restoreBackup(library, sets, backup);
     expect(library.stats().songs).toBe(2);
-    expect(readFileSync(join(dir, 'songs', 'L&I', 'b.chopro'), 'utf8')).toBe(SONG('id-b', 'Două'));
+    expect(readFileSync(join(dir, 'songs', 'L&I', 'b.chopro'), 'utf8')).toBe(
+      SONG('id-b', 'Două'),
+    );
   });
 });

@@ -33,7 +33,11 @@ function segmentsOf(line: Line, layer: 'chords' | 'bass'): Segment[] {
   const out: Segment[] = [];
 
   if (anchors.length === 0 || (anchors[0]?.at ?? 0) > 0) {
-    out.push({ at: 0, chord: null, text: line.text.slice(0, anchors[0]?.at ?? line.text.length) });
+    out.push({
+      at: 0,
+      chord: null,
+      text: line.text.slice(0, anchors[0]?.at ?? line.text.length),
+    });
   }
   anchors.forEach((anchor, i) => {
     const next = anchors[i + 1]?.at ?? line.text.length;

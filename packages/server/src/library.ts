@@ -160,7 +160,8 @@ export class Library {
         if (entry.startsWith('.')) continue;
         const full = join(dir, entry);
         if (statSync(full).isDirectory()) walk(full);
-        else if (extname(entry).toLowerCase() === '.chopro') out.push(relative(this.songsDir, full));
+        else if (extname(entry).toLowerCase() === '.chopro')
+          out.push(relative(this.songsDir, full));
       }
     };
     if (existsSync(this.songsDir)) walk(this.songsDir);
@@ -185,7 +186,10 @@ export class Library {
       this.db
         .prepare('SELECT path, content_hash FROM songs')
         .all()
-        .map((r) => [(r as { path: string }).path, (r as { content_hash: string }).content_hash]),
+        .map((r) => [
+          (r as { path: string }).path,
+          (r as { content_hash: string }).content_hash,
+        ]),
     );
 
     const upsert = this.db.prepare(`
@@ -201,7 +205,9 @@ export class Library {
         block_count=excluded.block_count, doc=excluded.doc, content_hash=excluded.content_hash
     `);
     const dropFts = this.db.prepare('DELETE FROM songs_fts WHERE id = ?');
-    const addFts = this.db.prepare('INSERT INTO songs_fts (id, title, lyrics) VALUES (?, ?, ?)');
+    const addFts = this.db.prepare(
+      'INSERT INTO songs_fts (id, title, lyrics) VALUES (?, ?, ?)',
+    );
 
     const run = this.db.transaction(() => {
       for (const rel of onDisk) {
@@ -285,15 +291,16 @@ export class Library {
       params['collection'] = options.collection;
     }
     if (options.key) {
-      where.push('(performance_key = @key OR (performance_key IS NULL AND written_key = @key))');
+      where.push(
+        '(performance_key = @key OR (performance_key IS NULL AND written_key = @key))',
+      );
       params['key'] = options.key;
     }
     if (options.tag) {
-      where.push("EXISTS (SELECT 1 FROM json_each(songs.tags) WHERE json_each.value = @tag)");
+      where.push('EXISTS (SELECT 1 FROM json_each(songs.tags) WHERE json_each.value = @tag)');
       params['tag'] = options.tag;
     }
-    const order =
-      options.sort === 'updated' ? 'updated_at DESC' : 'title COLLATE NOCASE ASC';
+    const order = options.sort === 'updated' ? 'updated_at DESC' : 'title COLLATE NOCASE ASC';
     const sql = `SELECT * FROM songs ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY ${order}`;
     return (this.db.prepare(sql).all(params) as Record<string, unknown>[]).map((r) =>
       this.toSummary(r),
@@ -308,15 +315,16 @@ export class Library {
    * difference between a sync that finishes on church WiFi and one that does not.
    */
   all(): Song[] {
-    return (this.db.prepare('SELECT doc FROM songs ORDER BY title COLLATE NOCASE').all() as {
-      doc: string;
-    }[]).map((r) => JSON.parse(r.doc) as Song);
+    return (
+      this.db.prepare('SELECT doc FROM songs ORDER BY title COLLATE NOCASE').all() as {
+        doc: string;
+      }[]
+    ).map((r) => JSON.parse(r.doc) as Song);
   }
 
   get(id: string): Song | null {
     const row = this.db.prepare('SELECT doc FROM songs WHERE id = ?').get(id) as
-      | { doc: string }
-      | undefined;
+      { doc: string } | undefined;
     return row ? (JSON.parse(row.doc) as Song) : null;
   }
 
@@ -343,7 +351,9 @@ export class Library {
 
   collections(): { name: string; count: number }[] {
     return this.db
-      .prepare('SELECT collection AS name, COUNT(*) AS count FROM songs GROUP BY collection ORDER BY name')
+      .prepare(
+        'SELECT collection AS name, COUNT(*) AS count FROM songs GROUP BY collection ORDER BY name',
+      )
       .all() as { name: string; count: number }[];
   }
 
@@ -420,8 +430,7 @@ export class Library {
   /** Path on disk for a song, or null if it is not indexed. */
   pathOf(id: string): string | null {
     const row = this.db.prepare('SELECT path FROM songs WHERE id = ?').get(id) as
-      | { path: string }
-      | undefined;
+      { path: string } | undefined;
     return row ? join(this.songsDir, row.path) : null;
   }
 
@@ -438,8 +447,7 @@ export class Library {
    */
   save(song: Song, relPath?: string): Song {
     const existing = this.db.prepare('SELECT path FROM songs WHERE id = ?').get(song.id) as
-      | { path: string }
-      | undefined;
+      { path: string } | undefined;
 
     // Snapshot what is being replaced, at its own revision, before overwriting it.
     const previous = this.get(song.id);

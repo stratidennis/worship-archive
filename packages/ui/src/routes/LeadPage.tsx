@@ -54,7 +54,10 @@ export function LeadPage() {
   const songIndices = useSongIndices(live.set);
 
   useEffect(() => {
-    api.sets().then(setSets).catch(() => setSets([]));
+    api
+      .sets()
+      .then(setSets)
+      .catch(() => setSets([]));
   }, []);
 
   // In Auto the cursor simply mirrors the live position.
@@ -134,7 +137,9 @@ export function LeadPage() {
         </Link>
         <select
           value={state.setId ?? ''}
-          onChange={(e) => patch({ setId: e.target.value || null, itemIndex: 0, blockId: null })}
+          onChange={(e) =>
+            patch({ setId: e.target.value || null, itemIndex: 0, blockId: null })
+          }
           aria-label={t('app.sets')}
           className="rounded border border-(--color-line) bg-transparent px-2 py-1 text-sm"
         >
@@ -175,7 +180,10 @@ export function LeadPage() {
         <Tempo state={state} patch={patch} clockOffset={clockOffset} />
 
         <span className="ml-auto flex items-center gap-2">
-          <Btn onClick={() => setPrefs({ showChords: !prefs.showChords })} active={prefs.showChords}>
+          <Btn
+            onClick={() => setPrefs({ showChords: !prefs.showChords })}
+            active={prefs.showChords}
+          >
             {t('song.chords')}
           </Btn>
           <StatusDot status={status} />
@@ -225,9 +233,7 @@ export function LeadPage() {
             );
           })}
           {!live.set && (
-            <p className="px-3 py-4 text-xs text-(--color-muted)">
-              {t('lead.pickSet')}
-            </p>
+            <p className="px-3 py-4 text-xs text-(--color-muted)">{t('lead.pickSet')}</p>
           )}
         </nav>
 
@@ -235,7 +241,9 @@ export function LeadPage() {
           {viewing && (
             <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-(--color-line) px-3 py-1.5">
               <span className="mr-2 truncate text-sm font-semibold">{viewing.song.title}</span>
-              <span className="mr-2 font-mono text-xs text-(--color-muted)">{keyOfViewing}</span>
+              <span className="mr-2 font-mono text-xs text-(--color-muted)">
+                {keyOfViewing}
+              </span>
               {blocks.map((block) => (
                 <button
                   key={block.id}
@@ -375,7 +383,10 @@ function Tempo({
       {state.tempo !== null && (
         <>
           <BeatLed state={state} clockOffset={clockOffset} size="sm" />
-          <Btn onClick={() => patch({ tempo: null, beatEpoch: null })} label={t('lead.stopTempo')}>
+          <Btn
+            onClick={() => patch({ tempo: null, beatEpoch: null })}
+            label={t('lead.stopTempo')}
+          >
             ✕
           </Btn>
         </>
@@ -393,7 +404,11 @@ export function StatusDot({ status }: { status: 'connecting' | 'live' | 'offline
         ? 'oklch(78% 0.15 85)'
         : 'oklch(62% 0.21 25)';
   const label = t(
-    status === 'live' ? 'status.live' : status === 'connecting' ? 'status.connecting' : 'status.offline',
+    status === 'live'
+      ? 'status.live'
+      : status === 'connecting'
+        ? 'status.connecting'
+        : 'status.offline',
   );
   return (
     <span

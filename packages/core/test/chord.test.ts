@@ -189,9 +189,7 @@ describe('transposition is lossless and reversible', () => {
       // Pitch classes must survive exactly; spelling may normalise.
       expect(back.kind).toBe('chords');
       if (back.kind === 'chords' && original.kind === 'chords') {
-        expect(back.chords.map((c) => c.rootPc)).toEqual(
-          original.chords.map((c) => c.rootPc),
-        );
+        expect(back.chords.map((c) => c.rootPc)).toEqual(original.chords.map((c) => c.rootPc));
         expect(back.chords.map((c) => c.bass?.rootPc ?? null)).toEqual(
           original.chords.map((c) => c.bass?.rootPc ?? null),
         );

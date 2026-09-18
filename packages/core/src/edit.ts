@@ -83,7 +83,12 @@ export function setLineText(line: Line, text: string): Line {
 }
 
 /** Add or replace a chord at a position. An empty value removes it. */
-export function setChord(line: Line, at: number, raw: string, layer: 'chords' | 'bass' = 'chords'): Line {
+export function setChord(
+  line: Line,
+  at: number,
+  raw: string,
+  layer: 'chords' | 'bass' = 'chords',
+): Line {
   const anchors = line[layer].filter((a) => a.at !== at);
   const next = raw.trim() === '' ? anchors : [...anchors, { at, raw: raw.trim() }];
   return { ...line, [layer]: next.sort((a, b) => a.at - b.at) };
@@ -224,6 +229,8 @@ export function mergeBlockUp(song: Song, blockId: string): Song {
 export function isEmptySong(song: Song): boolean {
   return (
     song.title.trim() === '' &&
-    song.blocks.every((b) => b.lines.every((l) => l.text.trim() === '' && l.chords.length === 0))
+    song.blocks.every((b) =>
+      b.lines.every((l) => l.text.trim() === '' && l.chords.length === 0),
+    )
   );
 }

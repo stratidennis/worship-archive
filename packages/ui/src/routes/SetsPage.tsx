@@ -94,9 +94,7 @@ export function SetsPage() {
       </ul>
 
       {sets.length === 0 && !error && (
-        <p className="mt-10 text-center text-sm text-(--color-muted)">
-          {t('sets.empty')}
-        </p>
+        <p className="mt-10 text-center text-sm text-(--color-muted)">{t('sets.empty')}</p>
       )}
     </div>
   );

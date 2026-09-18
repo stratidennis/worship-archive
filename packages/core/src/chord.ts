@@ -12,12 +12,7 @@
  *     malformed ones included.
  */
 
-import {
-  noteToPitchClass,
-  pitchClassToNote,
-  spellingForKey,
-  type Spelling,
-} from './key.js';
+import { noteToPitchClass, pitchClassToNote, spellingForKey, type Spelling } from './key.js';
 
 export interface Chord {
   /** Pitch class of the root, 0–11. Semantic: `Cm#` gives 1 (C#), not 0. */

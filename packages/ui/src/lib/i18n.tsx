@@ -187,7 +187,8 @@ const ro = {
 
   // --- join -----------------------------------------------------------------
   'join.title': 'Conectează un dispozitiv',
-  'join.subtitle': 'Toate dispozitivele trebuie să fie pe același WiFi. Nu e nevoie de internet.',
+  'join.subtitle':
+    'Toate dispozitivele trebuie să fie pe același WiFi. Nu e nevoie de internet.',
   'join.orType': 'Sau scrie adresa',
   'join.usuallyWorks': 'merge de obicei',
   'join.alwaysWorks': 'merge întotdeauna',
@@ -483,7 +484,8 @@ const en: Record<TranslationKey, Entry> = {
   'lead.black': 'Black',
   'lead.tap': 'Tap',
   'lead.stopTempo': 'Stop the metronome',
-  'lead.sendToScreens': 'Send to the screens (Space) — you are looking ahead, nobody sees it yet',
+  'lead.sendToScreens':
+    'Send to the screens (Space) — you are looking ahead, nobody sees it yet',
   'lead.pickSet': 'Choose a set from the list above.',
   'lead.notASong': 'This item is not a song.',
   'lead.noSet': 'No set selected.',
@@ -534,7 +536,11 @@ const en: Record<TranslationKey, Entry> = {
   'import.formatOpensong': 'OpenSong',
   'import.formatLegacy': 'Old program (.song)',
   'import.formatPlain': 'Chords over lyrics',
-  'import.blocks': { one: '{count} section', few: '{count} sections', other: '{count} sections' },
+  'import.blocks': {
+    one: '{count} section',
+    few: '{count} sections',
+    other: '{count} sections',
+  },
   'import.chords': { one: '{count} chord', few: '{count} chords', other: '{count} chords' },
   'import.noChords': 'no chords found — check before importing',
   'import.remove': 'Remove from the list',
@@ -592,7 +598,11 @@ const en: Record<TranslationKey, Entry> = {
     'Nothing changes until you tick something and press Apply. Chords you do not tick stay exactly as they are.',
   'cleanup.scanning': 'Scanning…',
   'cleanup.summary': '{chords} to tidy across {songs}, out of {scanned} checked.',
-  'cleanup.songsAffected': { one: '{count} song', few: '{count} songs', other: '{count} songs' },
+  'cleanup.songsAffected': {
+    one: '{count} song',
+    few: '{count} songs',
+    other: '{count} songs',
+  },
   'cleanup.nothing': 'Every chord is spelled the standard way. Nothing to do.',
   'cleanup.selectAll': 'Tick all',
   'cleanup.selectNone': 'Untick all',
@@ -664,7 +674,8 @@ export function translate(lang: Lang, key: TranslationKey, values?: Values): str
   if (typeof entry === 'string') return interpolate(entry, values);
 
   const count = Number(values?.['count'] ?? 0);
-  const form = new Intl.PluralRules(lang).select(count) as keyof Plural | 'two' | 'many' | 'zero';
+  const form = new Intl.PluralRules(lang).select(count) as
+    keyof Plural | 'two' | 'many' | 'zero';
   const chosen = form === 'one' ? entry.one : form === 'few' ? entry.few : entry.other;
   return interpolate(chosen, values);
 }

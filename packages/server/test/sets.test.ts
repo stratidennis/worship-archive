@@ -91,10 +91,22 @@ describe('storing sets', () => {
     sets.save(
       newSet({
         items: [
-          { kind: 'song', songId: 'a', keyOverride: null, capoOverride: null, arrangementOverride: null },
+          {
+            kind: 'song',
+            songId: 'a',
+            keyOverride: null,
+            capoOverride: null,
+            arrangementOverride: null,
+          },
           { kind: 'note', text: 'rugăciune' },
           { kind: 'gap', label: 'predică', minutes: 35 },
-          { kind: 'song', songId: 'b', keyOverride: null, capoOverride: null, arrangementOverride: null },
+          {
+            kind: 'song',
+            songId: 'b',
+            keyOverride: null,
+            capoOverride: null,
+            arrangementOverride: null,
+          },
         ],
       }),
     );
@@ -119,12 +131,21 @@ describe('duplicating a set', () => {
       newSet({
         title: 'Duminica trecută',
         items: [
-          { kind: 'song', songId: 'a', keyOverride: 'E', capoOverride: 2, arrangementOverride: null },
+          {
+            kind: 'song',
+            songId: 'a',
+            keyOverride: 'E',
+            capoOverride: 2,
+            arrangementOverride: null,
+          },
           { kind: 'gap', label: 'predică', minutes: 35 },
         ],
       }),
     );
-    const copy = sets.duplicate(original.id, { title: 'Duminica viitoare', date: '2026-09-27' })!;
+    const copy = sets.duplicate(original.id, {
+      title: 'Duminica viitoare',
+      date: '2026-09-27',
+    })!;
 
     expect(copy.id).not.toBe(original.id);
     expect(copy.title).toBe('Duminica viitoare');

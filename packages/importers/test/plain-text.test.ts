@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { anchorsFromChordLine, importPlainText, looksLikeChordLine } from '../src/plain-text.js';
+import {
+  anchorsFromChordLine,
+  importPlainText,
+  looksLikeChordLine,
+} from '../src/plain-text.js';
 import { serialiseChordPro } from '@worship/core';
 
 describe('telling chords from words', () => {

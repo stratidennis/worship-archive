@@ -23,7 +23,10 @@ export interface RenderOptions {
 }
 
 /** The total shift applied to a song's chords, and the key that results. */
-export function resolveKey(song: Song, extra: number): { semitones: number; key: string | null } {
+export function resolveKey(
+  song: Song,
+  extra: number,
+): { semitones: number; key: string | null } {
   const base =
     song.writtenKey && song.performanceKey
       ? (semitonesBetween(song.writtenKey, song.performanceKey) ?? 0)
@@ -70,12 +73,18 @@ function chunksOf(
   const anchors = new Map<number, { chord: string | null; bass: string | null }>();
   if (options.showChords) {
     for (const a of line.chords) {
-      anchors.set(a.at, { ...(anchors.get(a.at) ?? { chord: null, bass: null }), chord: render(a.raw) });
+      anchors.set(a.at, {
+        ...(anchors.get(a.at) ?? { chord: null, bass: null }),
+        chord: render(a.raw),
+      });
     }
   }
   if (options.showBass) {
     for (const a of line.bass) {
-      anchors.set(a.at, { ...(anchors.get(a.at) ?? { chord: null, bass: null }), bass: render(a.raw) });
+      anchors.set(a.at, {
+        ...(anchors.get(a.at) ?? { chord: null, bass: null }),
+        bass: render(a.raw),
+      });
     }
   }
   const positions = [...anchors.keys()].sort((a, b) => a - b);
@@ -224,7 +233,9 @@ export function SongBody({
   const byId = useMemo(() => new Map(song.blocks.map((b) => [b.id, b])), [song]);
   const sequence: Block[] = useMemo(() => {
     if (!arrangementView || !song.arrangement) return song.blocks;
-    return song.arrangement.map((id) => byId.get(id)).filter((b): b is Block => b !== undefined);
+    return song.arrangement
+      .map((id) => byId.get(id))
+      .filter((b): b is Block => b !== undefined);
   }, [song, arrangementView, byId]);
 
   // Group linked blocks so they cannot be split across columns.

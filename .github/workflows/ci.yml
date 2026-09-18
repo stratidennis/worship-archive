@@ -28,6 +28,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Added once the repo was actually formatted. Without a gate it drifts back within
+      # a few commits, and then nobody runs it because the diff is always enormous.
+      - name: Format
+        run: pnpm format:check
+
       - name: Test
         run: pnpm test
 

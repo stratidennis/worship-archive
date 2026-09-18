@@ -4,7 +4,13 @@ import { adminApi, type Backup } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { usePrefs, type Prefs } from '../lib/settings.js';
 import { useT, type Lang } from '../lib/i18n.js';
-import { confirmAction, desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
+import {
+  confirmAction,
+  desktop,
+  pickTextFiles,
+  saveTextFile,
+  type DesktopState,
+} from '../lib/desktop.js';
 
 /**
  * Everything that is a setting, in one place.
@@ -87,7 +93,10 @@ export function SettingsPage() {
         </p>
       )}
       {error && (
-        <p className="mb-4 rounded-lg border border-red-500/40 p-3 text-sm text-red-500" role="alert">
+        <p
+          className="mb-4 rounded-lg border border-red-500/40 p-3 text-sm text-red-500"
+          role="alert"
+        >
           {error}
         </p>
       )}
@@ -136,7 +145,9 @@ export function SettingsPage() {
             onChange={(event) => setPrefs({ maxFontPx: Number(event.target.value) })}
             className="mt-1 w-full accent-(--color-chord)"
           />
-          <span className="mt-1 block text-xs text-(--color-muted)">{t('settings.maxFontHint')}</span>
+          <span className="mt-1 block text-xs text-(--color-muted)">
+            {t('settings.maxFontHint')}
+          </span>
         </label>
 
         <Toggle
@@ -164,8 +175,12 @@ export function SettingsPage() {
         )}
         {native && (
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button onClick={() => void native.revealDataDir()}>{t('settings.revealDataDir')}</Button>
-            <Button onClick={() => void native.chooseDataDir()}>{t('settings.chooseDataDir')}</Button>
+            <Button onClick={() => void native.revealDataDir()}>
+              {t('settings.revealDataDir')}
+            </Button>
+            <Button onClick={() => void native.chooseDataDir()}>
+              {t('settings.chooseDataDir')}
+            </Button>
             <span className="w-full text-xs text-(--color-muted)">
               {t('settings.chooseDataDirHint')}
             </span>
@@ -217,9 +232,13 @@ export function SettingsPage() {
           <Toggle
             checked={state.preventSleep}
             onChange={(on) => {
-              void native.setPreventSleep(on).then((value) =>
-                setState((current) => (current ? { ...current, preventSleep: value } : current)),
-              );
+              void native
+                .setPreventSleep(on)
+                .then((value) =>
+                  setState((current) =>
+                    current ? { ...current, preventSleep: value } : current,
+                  ),
+                );
             }}
             label={t('settings.preventSleep')}
             hint={t('settings.preventSleepHint')}
@@ -227,9 +246,11 @@ export function SettingsPage() {
           <Toggle
             checked={state.autoStart}
             onChange={(on) => {
-              void native.setAutoStart(on).then((value) =>
-                setState((current) => (current ? { ...current, autoStart: value } : current)),
-              );
+              void native
+                .setAutoStart(on)
+                .then((value) =>
+                  setState((current) => (current ? { ...current, autoStart: value } : current)),
+                );
             }}
             label={t('settings.autoStart')}
           />

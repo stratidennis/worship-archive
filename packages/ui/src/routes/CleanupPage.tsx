@@ -17,7 +17,8 @@ import { useT } from '../lib/i18n.js';
  */
 
 type Key = string;
-const keyOf = (s: CleanupSuggestion): Key => `${s.songId}:${s.blockId}:${s.lineIndex}:${s.layer}:${s.at}`;
+const keyOf = (s: CleanupSuggestion): Key =>
+  `${s.songId}:${s.blockId}:${s.lineIndex}:${s.layer}:${s.at}`;
 
 export function CleanupPage() {
   const { t } = useT();
@@ -26,9 +27,11 @@ export function CleanupPage() {
   const [chosen, setChosen] = useState<Set<Key>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const [applied, setApplied] = useState<{ songs: number; chords: number; stale: number } | null>(
-    null,
-  );
+  const [applied, setApplied] = useState<{
+    songs: number;
+    chords: number;
+    stale: number;
+  } | null>(null);
 
   useEffect(() => {
     adminApi
@@ -44,7 +47,9 @@ export function CleanupPage() {
       if (list) list.push(suggestion);
       else groups.set(suggestion.raw, [suggestion]);
     }
-    return [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    return [...groups.entries()].sort(
+      (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]),
+    );
   }, [audit]);
 
   const toggle = (keys: Key[], on: boolean): void =>
@@ -102,11 +107,15 @@ export function CleanupPage() {
             songs: t('cleanup.songsAffected', { count: applied.songs }),
           })}
           {applied.stale > 0 && ` ${t('cleanup.stale', { count: applied.stale })}`}
-          <span className="mt-1 block text-xs text-(--color-muted)">{t('cleanup.undoHint')}</span>
+          <span className="mt-1 block text-xs text-(--color-muted)">
+            {t('cleanup.undoHint')}
+          </span>
         </p>
       )}
 
-      {!audit && !error && <p className="text-sm text-(--color-muted)">{t('cleanup.scanning')}</p>}
+      {!audit && !error && (
+        <p className="text-sm text-(--color-muted)">{t('cleanup.scanning')}</p>
+      )}
 
       {audit && audit.suggestions.length === 0 && (
         <p className="mt-8 text-center text-sm text-(--color-muted)">{t('cleanup.nothing')}</p>
@@ -191,7 +200,9 @@ export function CleanupPage() {
                           <input
                             type="checkbox"
                             checked={chosen.has(keyOf(suggestion))}
-                            onChange={(event) => toggle([keyOf(suggestion)], event.target.checked)}
+                            onChange={(event) =>
+                              toggle([keyOf(suggestion)], event.target.checked)
+                            }
                             aria-label={suggestion.title}
                           />
                           <Link

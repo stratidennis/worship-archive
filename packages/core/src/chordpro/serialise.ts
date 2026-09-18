@@ -9,11 +9,7 @@
  */
 
 import type { Anchor, Block, Line, Song } from '../types.js';
-import {
-  BLOCK_ENVIRONMENTS,
-  FALLBACK_ENVIRONMENT,
-  escapeLyric,
-} from './directives.js';
+import { BLOCK_ENVIRONMENTS, FALLBACK_ENVIRONMENT, escapeLyric } from './directives.js';
 
 function directive(name: string, value: string | number | null): string | null {
   if (value === null || value === '') return null;
@@ -92,7 +88,10 @@ export function serialiseChordPro(song: Song): string {
     directive('x_legacy_uuid', song.legacyUuid),
     directive('x_performance_key', song.performanceKey),
     directive('x_tags', song.tags.length ? song.tags.join(', ') : null),
-    directive('x_collections', song.collectionIds.length ? song.collectionIds.join(', ') : null),
+    directive(
+      'x_collections',
+      song.collectionIds.length ? song.collectionIds.join(', ') : null,
+    ),
     directive('x_arrangement', song.arrangement?.length ? song.arrangement.join(' ') : null),
     directive('x_created', song.createdAt),
     directive('x_updated', song.updatedAt),

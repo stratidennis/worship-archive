@@ -78,7 +78,11 @@ export function EditPage() {
       repo
         .saveSong(id, current)
         .then((stored) => {
-          savedRef.current = JSON.stringify({ ...current, rev: stored.rev, updatedAt: stored.updatedAt });
+          savedRef.current = JSON.stringify({
+            ...current,
+            rev: stored.rev,
+            updatedAt: stored.updatedAt,
+          });
           setSaveState('saved');
         })
         .catch((e: unknown) => {
@@ -120,7 +124,8 @@ export function EditPage() {
       </div>
     );
   }
-  if (!current) return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
+  if (!current)
+    return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   return (
     <div className="flex h-dvh flex-col">
@@ -148,7 +153,10 @@ export function EditPage() {
             <Btn onClick={song.redo} disabled={!song.canRedo} title={t('edit.redo')}>
               ↷
             </Btn>
-            <Btn onClick={() => setLayer(layer === 'chords' ? 'bass' : 'chords')} active={layer === 'bass'}>
+            <Btn
+              onClick={() => setLayer(layer === 'chords' ? 'bass' : 'chords')}
+              active={layer === 'bass'}
+            >
               {layer === 'bass' ? t('song.bass') : t('song.chords')}
             </Btn>
             <Btn onClick={() => setPreview(!preview)} active={preview}>
@@ -179,7 +187,9 @@ export function EditPage() {
                   <select
                     value={block.type}
                     onChange={(e) =>
-                      edit((s) => updateBlock(s, block.id, { type: e.target.value as BlockType }))
+                      edit((s) =>
+                        updateBlock(s, block.id, { type: e.target.value as BlockType }),
+                      )
                     }
                     className="rounded border border-(--color-line) bg-transparent px-1.5 py-1 font-semibold uppercase tracking-wide"
                     aria-label={t('edit.sectionType')}
@@ -195,7 +205,10 @@ export function EditPage() {
                   <input
                     value={block.label ?? ''}
                     onChange={(e) =>
-                      edit((s) => updateBlock(s, block.id, { label: e.target.value || null }), `label-${block.id}`)
+                      edit(
+                        (s) => updateBlock(s, block.id, { label: e.target.value || null }),
+                        `label-${block.id}`,
+                      )
                     }
                     placeholder={t('edit.label')}
                     aria-label={t('edit.label')}
@@ -248,7 +261,9 @@ export function EditPage() {
                       type="checkbox"
                       checked={block.linkToPrevious}
                       onChange={(e) =>
-                        edit((s) => updateBlock(s, block.id, { linkToPrevious: e.target.checked }))
+                        edit((s) =>
+                          updateBlock(s, block.id, { linkToPrevious: e.target.checked }),
+                        )
                       }
                     />
                     {t('edit.linked')}
@@ -268,16 +283,32 @@ export function EditPage() {
                   </label>
 
                   <span className="ml-auto flex gap-0.5">
-                    <Btn small onClick={() => edit((s) => moveBlock(s, block.id, -1))} title={t('edit.moveUp')}>
+                    <Btn
+                      small
+                      onClick={() => edit((s) => moveBlock(s, block.id, -1))}
+                      title={t('edit.moveUp')}
+                    >
                       ↑
                     </Btn>
-                    <Btn small onClick={() => edit((s) => moveBlock(s, block.id, 1))} title={t('edit.moveDown')}>
+                    <Btn
+                      small
+                      onClick={() => edit((s) => moveBlock(s, block.id, 1))}
+                      title={t('edit.moveDown')}
+                    >
                       ↓
                     </Btn>
-                    <Btn small onClick={() => edit((s) => mergeBlockUp(s, block.id))} title={t('edit.mergeUp')}>
+                    <Btn
+                      small
+                      onClick={() => edit((s) => mergeBlockUp(s, block.id))}
+                      title={t('edit.mergeUp')}
+                    >
                       ⇧⇧
                     </Btn>
-                    <Btn small onClick={() => edit((s) => removeBlock(s, block.id))} title={t('edit.removeSection')}>
+                    <Btn
+                      small
+                      onClick={() => edit((s) => removeBlock(s, block.id))}
+                      title={t('edit.removeSection')}
+                    >
                       ✕
                     </Btn>
                   </span>
@@ -296,7 +327,9 @@ export function EditPage() {
                       )
                     }
                     onChordChange={(at, raw) =>
-                      edit((s) => updateLine(s, block.id, lineIndex, (l) => setChord(l, at, raw, layer)))
+                      edit((s) =>
+                        updateLine(s, block.id, lineIndex, (l) => setChord(l, at, raw, layer)),
+                      )
                     }
                     onEnter={() => edit((s) => insertLine(s, block.id, lineIndex))}
                     onBackspaceEmpty={() =>
@@ -310,7 +343,10 @@ export function EditPage() {
                 ))}
 
                 <div className="mt-1 flex gap-1 text-xs">
-                  <Btn small onClick={() => edit((s) => insertLine(s, block.id, block.lines.length - 1))}>
+                  <Btn
+                    small
+                    onClick={() => edit((s) => insertLine(s, block.id, block.lines.length - 1))}
+                  >
                     {t('edit.addLine')}
                   </Btn>
                   {block.lines.length > 1 && (
@@ -326,13 +362,23 @@ export function EditPage() {
             ))}
 
             <div className="flex flex-wrap gap-1.5">
-              {(['Verse', 'Chorus', 'PreChorus', 'Bridge', 'Intro', 'Instrumental', 'Solo', 'Ending', 'Note'] as BlockType[]).map(
-                (type) => (
-                  <Btn key={type} onClick={() => edit((s) => insertBlock(s, type))}>
-                    + {blockName(type)}
-                  </Btn>
-                ),
-              )}
+              {(
+                [
+                  'Verse',
+                  'Chorus',
+                  'PreChorus',
+                  'Bridge',
+                  'Intro',
+                  'Instrumental',
+                  'Solo',
+                  'Ending',
+                  'Note',
+                ] as BlockType[]
+              ).map((type) => (
+                <Btn key={type} onClick={() => edit((s) => insertBlock(s, type))}>
+                  + {blockName(type)}
+                </Btn>
+              ))}
             </div>
 
             <div className="mt-8 border-t border-(--color-line) pt-4">
@@ -362,7 +408,12 @@ export function EditPage() {
             <div style={{ fontSize: '16px' }}>
               <SongBody
                 song={current}
-                options={{ showChords: true, showBass: layer === 'bass', capo: 0, transpose: 0 }}
+                options={{
+                  showChords: true,
+                  showBass: layer === 'bass',
+                  capo: 0,
+                  transpose: 0,
+                }}
               />
             </div>
           </aside>
@@ -411,7 +462,18 @@ function Metadata({
         label={t('edit.author')}
         value={song.authors.join(', ')}
         onChange={(v) =>
-          edit((s) => ({ ...s, authors: v ? v.split(',').map((a) => a.trim()).filter(Boolean) : [] }), 'authors')
+          edit(
+            (s) => ({
+              ...s,
+              authors: v
+                ? v
+                    .split(',')
+                    .map((a) => a.trim())
+                    .filter(Boolean)
+                : [],
+            }),
+            'authors',
+          )
         }
         placeholder="—"
       />
@@ -419,7 +481,18 @@ function Metadata({
         label={t('edit.tags')}
         value={song.tags.join(', ')}
         onChange={(v) =>
-          edit((s) => ({ ...s, tags: v ? v.split(',').map((t) => t.trim()).filter(Boolean) : [] }), 'tags')
+          edit(
+            (s) => ({
+              ...s,
+              tags: v
+                ? v
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                : [],
+            }),
+            'tags',
+          )
         }
         placeholder={t('block.Chorus').toLowerCase()}
       />

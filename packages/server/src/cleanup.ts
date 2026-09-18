@@ -80,7 +80,10 @@ export function auditLibrary(library: Library): Audit {
     suggestions.push(...found);
   }
 
-  const bySpelling = new Map<string, { raw: string; fixed: string; reason: string; count: number }>();
+  const bySpelling = new Map<
+    string,
+    { raw: string; fixed: string; reason: string; count: number }
+  >();
   for (const s of suggestions) {
     const existing = bySpelling.get(s.raw);
     if (existing) existing.count++;
@@ -89,7 +92,9 @@ export function auditLibrary(library: Library): Audit {
 
   return {
     suggestions,
-    spellings: [...bySpelling.values()].sort((a, b) => b.count - a.count || a.raw.localeCompare(b.raw)),
+    spellings: [...bySpelling.values()].sort(
+      (a, b) => b.count - a.count || a.raw.localeCompare(b.raw),
+    ),
     songsAffected: songs.size,
     chordsScanned,
   };

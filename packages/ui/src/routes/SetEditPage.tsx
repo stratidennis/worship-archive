@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  semitonesBetween,
-  type ServiceSet,
-  type SetItem,
-  type Song,
-} from '@worship/core';
+import { semitonesBetween, type ServiceSet, type SetItem, type Song } from '@worship/core';
 import { api, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { useT, type Translator } from '../lib/i18n.js';
@@ -65,7 +60,11 @@ export function SetEditPage() {
       api
         .saveSet(id, set)
         .then((stored) => {
-          savedRef.current = JSON.stringify({ ...set, rev: stored.rev, updatedAt: stored.updatedAt });
+          savedRef.current = JSON.stringify({
+            ...set,
+            rev: stored.rev,
+            updatedAt: stored.updatedAt,
+          });
           setSaveState('saved');
         })
         .catch((e: unknown) => {
@@ -90,7 +89,13 @@ export function SetEditPage() {
       ...s,
       items: [
         ...s.items,
-        { kind: 'song', songId: song.id, keyOverride: null, capoOverride: null, arrangementOverride: null },
+        {
+          kind: 'song',
+          songId: song.id,
+          keyOverride: null,
+          capoOverride: null,
+          arrangementOverride: null,
+        },
       ],
     }));
   };
@@ -100,7 +105,9 @@ export function SetEditPage() {
   const patchItem = (index: number, patch: Partial<Extract<SetItem, { kind: 'song' }>>): void =>
     update((s) => ({
       ...s,
-      items: s.items.map((item, i) => (i === index ? ({ ...item, ...patch } as SetItem) : item)),
+      items: s.items.map((item, i) =>
+        i === index ? ({ ...item, ...patch } as SetItem) : item,
+      ),
     }));
 
   const move = (index: number, direction: -1 | 1): void =>
@@ -130,7 +137,10 @@ export function SetEditPage() {
 
   const totalMinutes = useMemo(
     () =>
-      set?.items.reduce((sum, item) => sum + (item.kind === 'gap' ? (item.minutes ?? 0) : 0), 0) ?? 0,
+      set?.items.reduce(
+        (sum, item) => sum + (item.kind === 'gap' ? (item.minutes ?? 0) : 0),
+        0,
+      ) ?? 0,
     [set],
   );
 
@@ -213,7 +223,9 @@ export function SetEditPage() {
                 />
               ) : item.kind === 'note' ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-(--color-muted)">{t('sets.note')}</span>
+                  <span className="text-xs uppercase text-(--color-muted)">
+                    {t('sets.note')}
+                  </span>
                   <input
                     value={item.text}
                     onChange={(e) =>
@@ -232,14 +244,18 @@ export function SetEditPage() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-(--color-muted)">{t('sets.gap')}</span>
+                  <span className="text-xs uppercase text-(--color-muted)">
+                    {t('sets.gap')}
+                  </span>
                   <input
                     value={item.label}
                     onChange={(e) =>
                       update((s) => ({
                         ...s,
                         items: s.items.map((it, i) =>
-                          i === index && it.kind === 'gap' ? { ...it, label: e.target.value } : it,
+                          i === index && it.kind === 'gap'
+                            ? { ...it, label: e.target.value }
+                            : it,
                         ),
                       }))
                     }
@@ -388,7 +404,9 @@ function SongRow({
           min={0}
           max={11}
           value={item.capoOverride ?? ''}
-          onChange={(e) => onPatch({ capoOverride: e.target.value ? Number(e.target.value) : null })}
+          onChange={(e) =>
+            onPatch({ capoOverride: e.target.value ? Number(e.target.value) : null })
+          }
           className="w-12 rounded border border-(--color-line) bg-transparent px-1 py-0.5"
         />
       </label>

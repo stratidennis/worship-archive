@@ -48,7 +48,9 @@ export function BandPage() {
   const live = useLiveSet(state.setId, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
-  const [local, setLocal] = useState<{ itemIndex: number; blockId: string | null } | null>(null);
+  const [local, setLocal] = useState<{ itemIndex: number; blockId: string | null } | null>(
+    null,
+  );
   const [help, setHelp] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -111,7 +113,9 @@ export function BandPage() {
     const native = viewing.song.performanceKey ?? viewing.song.writtenKey;
     if (!native) return state.transpose + prefs.transpose;
     return (
-      state.transpose + prefs.transpose + (semitonesBetween(native, viewing.item.keyOverride) ?? 0)
+      state.transpose +
+      prefs.transpose +
+      (semitonesBetween(native, viewing.item.keyOverride) ?? 0)
     );
   }, [viewing, state.transpose, prefs.transpose]);
 
@@ -152,7 +156,10 @@ export function BandPage() {
         >
           {t('sets.capo')} {prefs.capo}
         </Small>
-        <Small onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })} label={t('song.capoUp')}>
+        <Small
+          onClick={() => setPrefs({ capo: Math.min(11, prefs.capo + 1) })}
+          label={t('song.capoUp')}
+        >
           +
         </Small>
         <Small

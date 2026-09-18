@@ -49,41 +49,41 @@ Notes on the real format vs. what the binaries suggested:
 ### Frequency counts (153 files)
 
 | Element / attribute | Count |
-|---|---|
-| `<chord>` | 3504 |
-| `<line>` | 3320 |
-| `<block>` | 1045 |
-| `line@singers` | 179 |
-| `block@repeat` | 37 |
-| `line@indent` | 27 |
-| `block@singers` | 6 |
-| `block@indent` | 1 |
-| `line@repeat` | 1 |
-| **`block@target`** | **0** |
+| ------------------- | ----- |
+| `<chord>`           | 3504  |
+| `<line>`            | 3320  |
+| `<block>`           | 1045  |
+| `line@singers`      | 179   |
+| `block@repeat`      | 37    |
+| `line@indent`       | 27    |
+| `block@singers`     | 6     |
+| `block@indent`      | 1     |
+| `line@repeat`       | 1     |
+| **`block@target`**  | **0** |
 
-| Block type | Count |
-|---|---|
-| Verse | 386 |
-| **Misc** | **303** |
-| Chorus | 214 |
-| Bridge | 79 |
-| Ending | 39 |
-| PreChorus | 19 |
-| Intro | 4 |
-| Tag | 1 |
+| Block type | Count   |
+| ---------- | ------- |
+| Verse      | 386     |
+| **Misc**   | **303** |
+| Chorus     | 214     |
+| Bridge     | 79      |
+| Ending     | 39      |
+| PreChorus  | 19      |
+| Intro      | 4       |
+| Tag        | 1       |
 
-| `<info>` field | Non-empty (of 153) |
-|---|---|
-| `sequence` | 153 (**always the literal `auto`**) |
-| `title` | 152 |
-| `key` | 152 |
-| `defaulttranspose` | 148 (**always `0`**) |
-| `tempo` | 28 |
-| `timesignature` | 25 |
-| `author` | 6 |
-| `index`, `category` | 2 |
-| `copyright` | 1 |
-| `cclinumber` | 0 |
+| `<info>` field      | Non-empty (of 153)                  |
+| ------------------- | ----------------------------------- |
+| `sequence`          | 153 (**always the literal `auto`**) |
+| `title`             | 152                                 |
+| `key`               | 152                                 |
+| `defaulttranspose`  | 148 (**always `0`**)                |
+| `tempo`             | 28                                  |
+| `timesignature`     | 25                                  |
+| `author`            | 6                                   |
+| `index`, `category` | 2                                   |
+| `copyright`         | 1                                   |
+| `cclinumber`        | 0                                   |
 
 ---
 
@@ -101,8 +101,8 @@ Bridge x1
 2 X REF
 ```
 
-**Implication:** the legacy sequence editor (*"Click on each section in the order that
-they should be played"*) was too clumsy to use. The new app needs arrangement to be
+**Implication:** the legacy sequence editor (_"Click on each section in the order that
+they should be played"_) was too clumsy to use. The new app needs arrangement to be
 either (a) genuinely effortless — drag chips into a row — or (b) parsed from the text
 people already write. Do not simply reimplement the old modal editor.
 
@@ -110,16 +110,16 @@ people already write. Do not simply reimplement the old modal editor.
 
 303 Misc blocks. Their first words, counted:
 
-| Prefix | Count | What it really is |
-|---|---|---|
-| `INTRO:` | 83 | An intro cue — chords, or "prima jumatate de Refren" |
-| `REFREN` / `REF` / `2 X REF` / `2XREF` | ~95 | Arrangement/repeat directive |
-| `INSTRUMENTAL` / `INSTR` | 46 | An instrumental break |
-| `SOLO` (often `SOLO Dennis:`) | 23 | **A named person's solo** |
-| `TRANSPOSE:` / `GAMA:` | 22 | Key change instruction |
-| `TOTI` ("everyone") | 15 | Who sings |
-| `STROFA` | 9 | Verse pointer |
-| `BRIDGE`, `INTRARE`, `FINAL`, `STRUCTURA`, `REPETAM` | ~20 | Structure |
+| Prefix                                               | Count | What it really is                                    |
+| ---------------------------------------------------- | ----- | ---------------------------------------------------- |
+| `INTRO:`                                             | 83    | An intro cue — chords, or "prima jumatate de Refren" |
+| `REFREN` / `REF` / `2 X REF` / `2XREF`               | ~95   | Arrangement/repeat directive                         |
+| `INSTRUMENTAL` / `INSTR`                             | 46    | An instrumental break                                |
+| `SOLO` (often `SOLO Dennis:`)                        | 23    | **A named person's solo**                            |
+| `TRANSPOSE:` / `GAMA:`                               | 22    | Key change instruction                               |
+| `TOTI` ("everyone")                                  | 15    | Who sings                                            |
+| `STROFA`                                             | 9     | Verse pointer                                        |
+| `BRIDGE`, `INTRARE`, `FINAL`, `STRUCTURA`, `REPETAM` | ~20   | Structure                                            |
 
 Real examples:
 
@@ -155,12 +155,12 @@ right and 22 comment blocks and 153 filename prefixes disappear.
 
 ### 4. `singers` is genuinely used — 179 times. Keep it.
 
-| Value | Count |
-|---|---|
-| `Leader` | 126 |
-| `Women` | 29 |
-| `Men` | 18 |
-| `All` | 12 |
+| Value    | Count |
+| -------- | ----- |
+| `Leader` | 126   |
+| `Women`  | 29    |
+| `Men`    | 18    |
+| `All`    | 12    |
 
 Mostly on `<line>`, occasionally on `<block>`. Plus the untyped `TOTI:` Misc lines,
 which are the same idea escaping into free text.
@@ -172,16 +172,16 @@ or redesigned.
 
 73 distinct chord strings across 3504 chord tags. Problems found:
 
-| Written | Count | Issue |
-|---|---|---|
-| `Cm#` | 35 | Should be `C#m` — modifier order reversed |
-| `Fm#` | 30 | Should be `F#m` |
-| `Gm#` | 2 | Should be `G#m` |
-| `C#min` | 4 | Non-standard suffix |
-| `b`, `c#` | 15, 12 | Lowercase root |
-| `G(A)`, `C(D)`, `D(E)`, `Am(Bm)`, `Em(C,D)` | ~25 | Alternate/optional chord in parentheses |
-| `G A` | 1 | Two chords in one tag |
-| `C#/A`, `G/A`, `D/A`, `G/B`, `Em/D`, `F#/D`, `B/E` | ~20 | Slash chords (valid, must transpose **both** parts) |
+| Written                                            | Count  | Issue                                               |
+| -------------------------------------------------- | ------ | --------------------------------------------------- |
+| `Cm#`                                              | 35     | Should be `C#m` — modifier order reversed           |
+| `Fm#`                                              | 30     | Should be `F#m`                                     |
+| `Gm#`                                              | 2      | Should be `G#m`                                     |
+| `C#min`                                            | 4      | Non-standard suffix                                 |
+| `b`, `c#`                                          | 15, 12 | Lowercase root                                      |
+| `G(A)`, `C(D)`, `D(E)`, `Am(Bm)`, `Em(C,D)`        | ~25    | Alternate/optional chord in parentheses             |
+| `G A`                                              | 1      | Two chords in one tag                               |
+| `C#/A`, `G/A`, `D/A`, `G/B`, `Em/D`, `F#/D`, `B/E` | ~20    | Slash chords (valid, must transpose **both** parts) |
 
 `<key>` is also dirty: `b`, `c#`, `G - A` alongside valid values.
 
@@ -196,7 +196,7 @@ opt-in and reversible, never silent.
   German/Romanian repeat convention. The structured `repeat` attribute is used only 38
   times. The renderer must display `/: :/` properly, and ideally offer to convert.
 - Everything is **Romanian**, including the `.docx` exports
-  (*"Cantari - versuri si acorduri"*, *"Cantari - doar versuri"*) — so **words-only** and
+  (_"Cantari - versuri si acorduri"_, _"Cantari - doar versuri"_) — so **words-only** and
   **words+chords** printed output are both real, established needs.
 - The 70-file `Song files L&I` subfolder suggests folders are used for grouping.
   Some filenames carry a trailing ` - D` (e.g. `C - O inima curata - D.song`), likely a
@@ -230,7 +230,7 @@ editing it**, and the legacy editor never reissued the uuid.
 into 5 and lose 6 of them. Instead:
 
 - match on `(uuid, normalised title)`
-- on a uuid collision with a *different* title, mint a fresh uuid and keep the original
+- on a uuid collision with a _different_ title, mint a fresh uuid and keep the original
   in `legacyUuid` for traceability
 - report every collision in the migration report for review
 
@@ -239,15 +239,15 @@ Also note the folders are disjoint — 76 songs in the root, 70 in `Song files L
 
 ### The filename suffix is the performance key — D3 confirmed
 
-Five files carry a second key as a suffix, and the `<key>` field sometimes holds *both*:
+Five files carry a second key as a suffix, and the `<key>` field sometimes holds _both_:
 
-| Filename | `<key>` | Chords written in |
-|---|---|---|
-| `C - Dumnezeu e dragostea mea - D.song` | `C` | C |
-| `C - O inima curata - D.song` | **`C-D`** | C |
-| `G - Pentru cruce-Ti multumesc - A.song` | **`G - A`** | G |
-| `G - Traim vremi de har ca Ilie - A.song` | `G` | G |
-| `D - Intr-o zi cand viata va-nceta - E.song` | `D` | D |
+| Filename                                     | `<key>`     | Chords written in |
+| -------------------------------------------- | ----------- | ----------------- |
+| `C - Dumnezeu e dragostea mea - D.song`      | `C`         | C                 |
+| `C - O inima curata - D.song`                | **`C-D`**   | C                 |
+| `G - Pentru cruce-Ti multumesc - A.song`     | **`G - A`** | G                 |
+| `G - Traim vremi de har ca Ilie - A.song`    | `G`         | G                 |
+| `D - Intr-o zi cand viata va-nceta - E.song` | `D`         | D                 |
 
 So the convention is `<written key> - <title> - <performance key>`, and when the field
 couldn't express it, both keys were crammed into `<key>` as `C-D` / `G - A`.

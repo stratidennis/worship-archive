@@ -32,10 +32,7 @@ const db = new WorshipDb();
 
 /** Strip diacritics so `bunatatea` finds `bunătatea`, as the server's index does. */
 export function fold(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
 export interface MirrorStatus {
@@ -122,13 +119,13 @@ export const store = {
 
     for (const song of songs) {
       const title = fold(song.title);
-      const lyrics = fold(
-        song.blocks.flatMap((b) => b.lines.map((l) => l.text)).join('\n'),
-      );
+      const lyrics = fold(song.blocks.flatMap((b) => b.lines.map((l) => l.text)).join('\n'));
       const haystack = `${title}\n${lyrics}`;
 
       const matchesAll = terms.every((term, i) =>
-        i === terms.length - 1 ? haystack.includes(term) : new RegExp(`\\b${escape(term)}`).test(haystack),
+        i === terms.length - 1
+          ? haystack.includes(term)
+          : new RegExp(`\\b${escape(term)}`).test(haystack),
       );
       if (!matchesAll) continue;
 
@@ -136,9 +133,7 @@ export const store = {
       const at = lyrics.indexOf(terms[terms.length - 1]!);
       const raw = song.blocks.flatMap((b) => b.lines.map((l) => l.text)).join('\n');
       const snippet =
-        at === -1
-          ? (raw.slice(0, 80) ?? '')
-          : `…${raw.slice(Math.max(0, at - 30), at + 50)}…`;
+        at === -1 ? (raw.slice(0, 80) ?? '') : `…${raw.slice(Math.max(0, at - 30), at + 50)}…`;
 
       hits.push({ song, snippet, score: inTitle ? 0 : 1 });
     }

@@ -11,7 +11,15 @@
  * file needs no tool, no dependency and no format negotiation to open.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, extname, join, relative, sep } from 'node:path';
 import type { Library } from './library.js';
 import type { SetStore } from './sets.js';
@@ -54,7 +62,10 @@ function collect(dir: string, extensions: string[]): BackupFile[] {
       if (statSync(full).isDirectory()) {
         walk(full);
       } else if (extensions.includes(extname(entry).toLowerCase())) {
-        out.push({ path: relative(dir, full).split(sep).join('/'), text: readFileSync(full, 'utf8') });
+        out.push({
+          path: relative(dir, full).split(sep).join('/'),
+          text: readFileSync(full, 'utf8'),
+        });
       }
     }
   };

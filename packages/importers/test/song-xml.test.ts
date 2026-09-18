@@ -121,14 +121,9 @@ describe('Misc block classification', () => {
 
 describe('arrangement text', () => {
   it('reads a full structure line', () => {
-    expect(parseArrangementText('Strofa -> Refren x1 -> Strofa -> Refren x2 -> Final')).toEqual([
-      'V1',
-      'C1',
-      'V2',
-      'C2',
-      'C2',
-      'E1',
-    ]);
+    expect(parseArrangementText('Strofa -> Refren x1 -> Strofa -> Refren x2 -> Final')).toEqual(
+      ['V1', 'C1', 'V2', 'C2', 'C2', 'E1'],
+    );
   });
 
   it('honours explicit numbers', () => {
@@ -198,7 +193,10 @@ describe('importing a whole file', () => {
 
   it('splits a key pair crammed into the key field', () => {
     const { song } = importSongXml(
-      wrap('<block type="Verse" id="V1"><line>x</line></block>', '<title>T</title><key>C-D</key>'),
+      wrap(
+        '<block type="Verse" id="V1"><line>x</line></block>',
+        '<title>T</title><key>C-D</key>',
+      ),
       OPTS,
     );
     expect(song.writtenKey).toBe('C');
@@ -207,7 +205,10 @@ describe('importing a whole file', () => {
 
   it('recovers the performance key from a filename suffix', () => {
     const { song } = importSongXml(
-      wrap('<block type="Verse" id="V1"><line>x</line></block>', '<title>T</title><key>C</key>'),
+      wrap(
+        '<block type="Verse" id="V1"><line>x</line></block>',
+        '<title>T</title><key>C</key>',
+      ),
       { ...OPTS, filename: 'C - Dumnezeu e dragostea mea - D.song' },
     );
     expect(song.writtenKey).toBe('C');

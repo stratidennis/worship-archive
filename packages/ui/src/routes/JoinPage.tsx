@@ -38,11 +38,12 @@ export function JoinPage() {
   // The address in the browser's own bar is the one that demonstrably works from here;
   // prefer it, and fall back to what the host reports.
   const url = useMemo(() => {
-    const fromBrowser = location.host && !location.host.startsWith('localhost')
-      ? `${location.protocol}//${location.host}`
-      : host
-        ? `http://${host.addresses[0] ?? host.hostname}:${host.port}`
-        : null;
+    const fromBrowser =
+      location.host && !location.host.startsWith('localhost')
+        ? `${location.protocol}//${location.host}`
+        : host
+          ? `http://${host.addresses[0] ?? host.hostname}:${host.port}`
+          : null;
     return fromBrowser ? `${fromBrowser}${path}` : null;
   }, [host, path]);
 
@@ -121,14 +122,10 @@ export function JoinPage() {
             ))}
           </ul>
           {host.addresses.length > 1 && (
-            <p className="mt-2 text-xs text-(--color-muted)">
-              {t('join.multipleNetworks')}
-            </p>
+            <p className="mt-2 text-xs text-(--color-muted)">{t('join.multipleNetworks')}</p>
           )}
           {host.addresses.length === 0 && (
-            <p className="mt-2 text-xs text-(--color-muted)">
-              {t('join.noNetwork')}
-            </p>
+            <p className="mt-2 text-xs text-(--color-muted)">{t('join.noNetwork')}</p>
           )}
         </div>
       )}

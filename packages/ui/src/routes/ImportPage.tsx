@@ -48,7 +48,9 @@ export function ImportPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ done: number; failed: number; ids: string[] } | null>(null);
+  const [result, setResult] = useState<{ done: number; failed: number; ids: string[] } | null>(
+    null,
+  );
   const [dragging, setDragging] = useState(false);
 
   const add = (files: { name: string; text: string }[]): void => {
@@ -108,7 +110,9 @@ export function ImportPage() {
           event.preventDefault();
           setDragging(false);
           const files = [...event.dataTransfer.files];
-          void Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() }))).then(add);
+          void Promise.all(
+            files.map(async (f) => ({ name: f.name, text: await f.text() })),
+          ).then(add);
         }}
         className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
           dragging ? 'border-(--color-chord) bg-(--color-chord)/5' : 'border-(--color-line)'

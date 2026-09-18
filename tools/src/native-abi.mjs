@@ -84,7 +84,9 @@ if (target === 'electron') {
     );
     process.exit(1);
   }
-  console.log(`\nbetter-sqlite3 now matches Electron (${detail}). \`pnpm test\` will fail until you switch back.`);
+  console.log(
+    `\nbetter-sqlite3 now matches Electron (${detail}). \`pnpm test\` will fail until you switch back.`,
+  );
   process.exit(0);
 }
 
@@ -115,4 +117,6 @@ if (runtime !== 'node') {
   console.error(`\nStill not the Node build (${detail}).`);
   process.exit(1);
 }
-console.log(`\nbetter-sqlite3 now matches Node (${detail}). \`electron .\` will fail until you switch back.`);
+console.log(
+  `\nbetter-sqlite3 now matches Node (${detail}). \`electron .\` will fail until you switch back.`,
+);

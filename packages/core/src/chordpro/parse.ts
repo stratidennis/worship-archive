@@ -289,9 +289,7 @@ export function parseChordPro(source: string, options: ParseOptions = {}): Song 
           .filter(Boolean);
         break;
       case 'x_arrangement':
-        song.arrangement = (value ?? '').trim()
-          ? (value ?? '').trim().split(/\s+/)
-          : null;
+        song.arrangement = (value ?? '').trim() ? (value ?? '').trim().split(/\s+/) : null;
         break;
       case 'x_created':
         if (value) song.createdAt = value;

@@ -74,7 +74,10 @@ export function lanAddresses(): string[] {
  * normal Sunday — someone rehearsing in a side room while the service is set up in the
  * hall — and `worship-archive` on its own collides.
  */
-async function publishMdns(port: number, log: (m: string) => void): Promise<MdnsPublisher | null> {
+async function publishMdns(
+  port: number,
+  log: (m: string) => void,
+): Promise<MdnsPublisher | null> {
   try {
     const { Bonjour } = await import('bonjour-service');
     const instance = new Bonjour();
@@ -180,7 +183,10 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
         }
       }, 150);
     };
-    watcher.on('add', scheduleReindex).on('change', scheduleReindex).on('unlink', scheduleReindex);
+    watcher
+      .on('add', scheduleReindex)
+      .on('change', scheduleReindex)
+      .on('unlink', scheduleReindex);
   }
 
   const bonjour = (options.mdns ?? true) ? await publishMdns(port, log) : null;

@@ -19,7 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "migrate": "pnpm --filter @worship/tools migrate",
-    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "dev:server": "pnpm --filter @worship/server dev",
     "dev:ui": "pnpm --filter @worship/ui dev",
     "dev:desktop": "pnpm --filter @worship/ui build && pnpm --filter @worship/desktop dev",

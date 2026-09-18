@@ -57,7 +57,9 @@ await cp(resolve(root, 'build'), resolve(out, 'build'), { recursive: true });
 // the bundle rather than being loaded from disk by the renderer.
 const ui = resolve(root, '../ui/dist');
 await cp(ui, resolve(out, 'ui'), { recursive: true }).catch(() => {
-  console.warn('  no built UI at packages/ui/dist — run `pnpm --filter @worship/ui build` first');
+  console.warn(
+    '  no built UI at packages/ui/dist — run `pnpm --filter @worship/ui build` first',
+  );
 });
 
 console.log('  bundled to packages/desktop/dist');

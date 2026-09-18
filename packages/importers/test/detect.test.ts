@@ -17,7 +17,9 @@ describe('working out what a file is', () => {
   });
 
   it('recognises the legacy SwiftTec format', () => {
-    expect(detectFormat('<song xmlns="swifttec/song"><info></info></song>')).toBe('legacy-song');
+    expect(detectFormat('<song xmlns="swifttec/song"><info></info></song>')).toBe(
+      'legacy-song',
+    );
   });
 
   it('falls back to plain text', () => {

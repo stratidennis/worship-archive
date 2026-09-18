@@ -292,7 +292,10 @@ function buildTray(): void {
   const refresh = (): void => {
     tray?.setContextMenu(
       Menu.buildFromTemplate([
-        { label: server ? `Rulează pe portul ${server.port}` : 'Serverul nu rulează', enabled: false },
+        {
+          label: server ? `Rulează pe portul ${server.port}` : 'Serverul nu rulează',
+          enabled: false,
+        },
         { type: 'separator' },
         { label: 'Deschide fereastra', click: (): void => void createWindow() },
         { label: 'Condu serviciul', click: (): void => void createWindow('/lead') },
@@ -369,7 +372,10 @@ function registerIpc(): void {
       title: 'Alege fișiere de importat',
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Cântări', extensions: ['chopro', 'cho', 'chordpro', 'pro', 'song', 'xml', 'txt'] },
+        {
+          name: 'Cântări',
+          extensions: ['chopro', 'cho', 'chordpro', 'pro', 'song', 'xml', 'txt'],
+        },
         { name: 'Toate fișierele', extensions: ['*'] },
       ],
     });
@@ -400,20 +406,25 @@ function registerIpc(): void {
     return { name: basename(path), text: await readFile(path, 'utf8') };
   });
 
-  ipcMain.handle('worship:set-prevent-sleep', (_event, on: boolean) => setPreventSleep(Boolean(on)));
+  ipcMain.handle('worship:set-prevent-sleep', (_event, on: boolean) =>
+    setPreventSleep(Boolean(on)),
+  );
   ipcMain.handle('worship:set-auto-start', (_event, on: boolean) => setAutoStart(Boolean(on)));
 
-  ipcMain.handle('worship:confirm', async (_event, options: { message: string; detail?: string; confirmLabel?: string }) => {
-    const result = await dialog.showMessageBox({
-      type: 'warning',
-      buttons: [options.confirmLabel ?? 'Continuă', 'Anulează'],
-      defaultId: 1,
-      cancelId: 1,
-      message: options.message,
-      ...(options.detail ? { detail: options.detail } : {}),
-    });
-    return result.response === 0;
-  });
+  ipcMain.handle(
+    'worship:confirm',
+    async (_event, options: { message: string; detail?: string; confirmLabel?: string }) => {
+      const result = await dialog.showMessageBox({
+        type: 'warning',
+        buttons: [options.confirmLabel ?? 'Continuă', 'Anulează'],
+        defaultId: 1,
+        cancelId: 1,
+        message: options.message,
+        ...(options.detail ? { detail: options.detail } : {}),
+      });
+      return result.response === 0;
+    },
+  );
 }
 
 // ---- lifecycle -------------------------------------------------------------

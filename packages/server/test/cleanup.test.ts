@@ -143,7 +143,15 @@ describe('applying reviewed fixes', () => {
 
   it('survives a song that was deleted between review and apply', () => {
     const result = applyFixes(library, [
-      { songId: 'gone', blockId: 'V1', lineIndex: 0, at: 0, layer: 'chords', raw: 'g', fixed: 'G' },
+      {
+        songId: 'gone',
+        blockId: 'V1',
+        lineIndex: 0,
+        at: 0,
+        layer: 'chords',
+        raw: 'g',
+        fixed: 'G',
+      },
     ]);
     expect(result.stale).toBe(1);
   });

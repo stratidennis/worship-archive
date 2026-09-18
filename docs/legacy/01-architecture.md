@@ -6,39 +6,39 @@
 
 ### Live-service modules (the ones that matter to you)
 
-| Module | Self-description (from its own version resource) | Role |
-|---|---|---|
-| `SongLeader.exe` | *"A tool for song and worship leaders"* | **Control surface.** Builds/loads a song set, decides what everyone else sees. Acts as the TCP **server**. |
-| `SongFollower.exe` | *"A tool for song and worship group members"* | **Band member view.** Sees the leader's set; can navigate independently without affecting anyone. |
-| `SongSlave.exe` | — | **Slaved display.** Follows the leader exactly. Fullscreen, profile-driven. This is what feeds a stage monitor. |
-| `SongViewer.exe` | — | **Standalone song/file viewer.** Opens `.song`/`.sng` files directly, MDI, printable. Not networked. |
-| `SongMonitor.exe` | *"A tool for tracing and monitor SongLeader network activity"* | **Protocol debugger.** Logs leader traffic. |
+| Module             | Self-description (from its own version resource)               | Role                                                                                                            |
+| ------------------ | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `SongLeader.exe`   | _"A tool for song and worship leaders"_                        | **Control surface.** Builds/loads a song set, decides what everyone else sees. Acts as the TCP **server**.      |
+| `SongFollower.exe` | _"A tool for song and worship group members"_                  | **Band member view.** Sees the leader's set; can navigate independently without affecting anyone.               |
+| `SongSlave.exe`    | —                                                              | **Slaved display.** Follows the leader exactly. Fullscreen, profile-driven. This is what feeds a stage monitor. |
+| `SongViewer.exe`   | —                                                              | **Standalone song/file viewer.** Opens `.song`/`.sng` files directly, MDI, printable. Not networked.            |
+| `SongMonitor.exe`  | _"A tool for tracing and monitor SongLeader network activity"_ | **Protocol debugger.** Logs leader traffic.                                                                     |
 
 ### Presentation modules
 
-| Module | Role |
-|---|---|
-| `Presenter.exe` | Full projection console — playlists, Bible passages, images, video, PowerPoint, alerts, transitions. Drives `Projector.exe`. |
-| `PresenterFollower.exe` | Read-only follower of the Presenter; can auto-save the songs that go live. |
-| `Projector.exe` *(nested installer)* | The actual fullscreen output window. One instance per physical screen. Controlled purely over a network API. |
-| `ProjectorPlayer.exe`, `TestProjector.exe` *(nested)* | Media playback helper and a CLI test harness. |
+| Module                                                | Role                                                                                                                         |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `Presenter.exe`                                       | Full projection console — playlists, Bible passages, images, video, PowerPoint, alerts, transitions. Drives `Projector.exe`. |
+| `PresenterFollower.exe`                               | Read-only follower of the Presenter; can auto-save the songs that go live.                                                   |
+| `Projector.exe` _(nested installer)_                  | The actual fullscreen output window. One instance per physical screen. Controlled purely over a network API.                 |
+| `ProjectorPlayer.exe`, `TestProjector.exe` _(nested)_ | Media playback helper and a CLI test harness.                                                                                |
 
 ### Authoring / data modules
 
-| Module | Role |
-|---|---|
-| `SongEditor.exe` | Song authoring: lyrics, chords, sections, sequence, metadata. |
-| `SongDatabaseManager.exe` | Browse/organise the song library (list with Title, Last Modified, sortable). |
-| `BibleDatabaseManager.exe` | Bible import/management — full 66-book list is compiled in. |
-| `ProfileEditor.exe` | Edits **display profiles** (`.sdp`) — the rendering rules per context. |
+| Module                              | Role                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------- |
+| `SongEditor.exe`                    | Song authoring: lyrics, chords, sections, sequence, metadata.                         |
+| `SongDatabaseManager.exe`           | Browse/organise the song library (list with Title, Last Modified, sortable).          |
+| `BibleDatabaseManager.exe`          | Bible import/management — full 66-book list is compiled in.                           |
+| `ProfileEditor.exe`                 | Edits **display profiles** (`.sdp`) — the rendering rules per context.                |
 | `SNGsetup.exe` / `SNGusersetup.exe` | Install-time and per-user setup wizard: data folders, licence keys, database backend. |
 
 ### Support modules
 
-| Module | Role |
-|---|---|
-| `IPDSServer.exe` *(nested)* | **Inter-Program Discovery Server.** A background service holding a registry of "adverts" (which program is running where, on what port). |
-| `IPDSMonitor.exe`, `ListAdverts.exe`, `ShutdownIPDSServer.exe`, `lookuphost.exe` *(nested)* | Discovery diagnostics. |
+| Module                                                                                      | Role                                                                                                                                     |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `IPDSServer.exe` _(nested)_                                                                 | **Inter-Program Discovery Server.** A background service holding a registry of "adverts" (which program is running where, on what port). |
+| `IPDSMonitor.exe`, `ListAdverts.exe`, `ShutdownIPDSServer.exe`, `lookuphost.exe` _(nested)_ | Discovery diagnostics.                                                                                                                   |
 
 ### Shared libraries
 
@@ -127,7 +127,7 @@ UI-facing states, from the same binaries:
 
 ```
 Waiting for connection to leader...
-Connecting to leader: 
+Connecting to leader:
 Connected to leader
 Lost connection to leader
 Waiting to acquire licence from leader...
@@ -138,10 +138,10 @@ Notes:
 - **TCP_NODELAY is set explicitly** — latency matters; the leader pushes state changes
   that must land on stage displays immediately.
 - **The leader is also the licence authority.** Followers block on
-  *"Waiting to acquire licence from leader…"*. A pure copy-protection mechanism — drop it.
+  _"Waiting to acquire licence from leader…"_. A pure copy-protection mechanism — drop it.
 - Multiple leaders can coexist on one network; clients pick one
   (`SelectLeader`, `PreferredSongLeader`, `SelectLeaderTimeout`,
-  *"\nPlease select the song leader from the following list. (%d)\n"*).
+  _"\nPlease select the song leader from the following list. (%d)\n"_).
   There is a countdown-with-default selection dialog.
 
 ### Payload format
@@ -153,9 +153,9 @@ class does duty for file load and wire load. **The wire payload is the song XML*
 
 ### Projection
 
-`Projector.exe` is deliberately decoupled: *"a standalone module which can be used by
+`Projector.exe` is deliberately decoupled: _"a standalone module which can be used by
 other software modules in the SwiftTec family to show text, images and media in a window…
-The display is controlled via a network based API."* It is driven entirely by CLI/network
+The display is controlled via a network based API."_ It is driven entirely by CLI/network
 commands (`--text`, `--bgcolor`, `--bgimage`, `--freeze`, `--black`, `--fullscreen`,
 `--display`, `--rect`, `--halign`, `--valign`, `--media-play`, `--ppt-next`, …).
 
@@ -183,16 +183,16 @@ on disk. Good news for migration: your songs are plain `.song` XML, not locked i
 
 File types in play:
 
-| Extension | Contents |
-|---|---|
-| `.song` | One song, XML |
-| `.songset` / `.sst` | An ordered service set |
-| `.songbundle` | Multiple songs in one file |
-| `.sdp` | Display profile |
-| `.playlist` | Presenter playlist |
-| `.book` | Bible book |
-| `.sng` | *Presentation Manager Pro* import format |
-| `.txt`, OpenSong | Other supported import formats |
+| Extension           | Contents                                 |
+| ------------------- | ---------------------------------------- |
+| `.song`             | One song, XML                            |
+| `.songset` / `.sst` | An ordered service set                   |
+| `.songbundle`       | Multiple songs in one file               |
+| `.sdp`              | Display profile                          |
+| `.playlist`         | Presenter playlist                       |
+| `.book`             | Bible book                               |
+| `.sng`              | _Presentation Manager Pro_ import format |
+| `.txt`, OpenSong    | Other supported import formats           |
 
 Known shipped profiles: `SongViewerChords.sdp`, `SongViewerLargePrint (Screen).sdp`,
 `SongViewerLargePrint (Print).sdp`, `SongEditor.sdp`, `PresenterFollower.sdp`.

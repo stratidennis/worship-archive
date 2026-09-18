@@ -17,7 +17,9 @@ export interface LiveSet {
 }
 
 export function useLiveSet(setId: string | null, reloadKey = 0): LiveSet {
-  const [data, setData] = useState<{ set: ServiceSet; songs: Record<string, Song> } | null>(null);
+  const [data, setData] = useState<{ set: ServiceSet; songs: Record<string, Song> } | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,8 +71,7 @@ export function songAt(
 /** Indices of the items that are songs — used for next/previous song navigation. */
 export function useSongIndices(set: ServiceSet | null): number[] {
   return useMemo(
-    () =>
-      (set?.items ?? []).flatMap((item, index) => (item.kind === 'song' ? [index] : [])),
+    () => (set?.items ?? []).flatMap((item, index) => (item.kind === 'song' ? [index] : [])),
     [set],
   );
 }

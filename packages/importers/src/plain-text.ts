@@ -214,7 +214,10 @@ export function importPlainText(source: string, options: TextImportOptions = {})
   }
 
   const fallbackTitle = options.filename
-    ? options.filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
+    ? options.filename
+        .replace(/\.[^.]+$/, '')
+        .replace(/[_-]+/g, ' ')
+        .trim()
     : '';
 
   return {

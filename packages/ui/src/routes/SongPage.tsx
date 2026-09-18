@@ -114,7 +114,11 @@ export function SongPage() {
               >
                 −
               </Btn>
-              <Btn onClick={() => setPrefs({ transpose: 0 })} muted label={t('song.transposeReset')}>
+              <Btn
+                onClick={() => setPrefs({ transpose: 0 })}
+                muted
+                label={t('song.transposeReset')}
+              >
                 {prefs.transpose > 0 ? `+${prefs.transpose}` : prefs.transpose}
               </Btn>
               <Btn
@@ -141,10 +145,16 @@ export function SongPage() {
                 +
               </Btn>
             </Group>
-            <Btn onClick={() => setPrefs({ showChords: !prefs.showChords })} active={prefs.showChords}>
+            <Btn
+              onClick={() => setPrefs({ showChords: !prefs.showChords })}
+              active={prefs.showChords}
+            >
               {t('song.chords')}
             </Btn>
-            <Btn onClick={() => setPrefs({ showBass: !prefs.showBass })} active={prefs.showBass}>
+            <Btn
+              onClick={() => setPrefs({ showBass: !prefs.showBass })}
+              active={prefs.showBass}
+            >
               {t('song.bass')}
             </Btn>
             <Btn onClick={() => window.print()}>{t('app.print')}</Btn>

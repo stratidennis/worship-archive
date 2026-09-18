@@ -78,8 +78,7 @@ export const api = {
     };
   },
 
-  host: () =>
-    get<{ addresses: string[]; port: number; hostname: string }>('/api/host'),
+  host: () => get<{ addresses: string[]; port: number; hostname: string }>('/api/host'),
 
   saveSong: (id: string, song: Song) =>
     send<Song>(`/api/songs/${encodeURIComponent(id)}`, 'PUT', song),
@@ -144,7 +143,9 @@ export const adminApi = {
     send<RestoreResult>('/api/restore', 'POST', { backup, mode }),
   cleanup: () => get<CleanupAudit>('/api/cleanup'),
   applyCleanup: (fixes: Omit<CleanupSuggestion, 'title' | 'reason' | 'context'>[]) =>
-    send<{ songs: number; chords: number; stale: number }>('/api/cleanup/apply', 'POST', { fixes }),
+    send<{ songs: number; chords: number; stale: number }>('/api/cleanup/apply', 'POST', {
+      fixes,
+    }),
   /** Creates in one write, so an imported song starts with a clean history. */
   createSong: (song: Partial<Song>) => send<Song>('/api/songs', 'POST', song),
   deleteSong: (id: string) => send<void>(`/api/songs/${encodeURIComponent(id)}`, 'DELETE'),

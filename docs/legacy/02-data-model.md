@@ -36,31 +36,31 @@ Namespaces are versioned — `getFileXmlNamespace(int version)` takes a format v
 
 Field names recovered from `SongBase.dll`:
 
-| Field | Notes |
-|---|---|
-| `title` | |
-| `author` | Writer |
-| `artist` | Performer |
-| `publisher` | |
-| `copyright` | |
-| `cclinumber` | CCLI licence number (UK/US church reporting) |
-| `key` / `key_line` | Song key |
-| `transpose` | Stored transposition offset |
-| `tempo` | BPM — drives the beat indicator (see below) |
-| `time_sig` / `timesignature` | |
-| `category` | |
-| `theme` | |
-| `description` | |
-| `translation` | Alternate-language lyric layer |
-| `music` | Composer credit |
-| `bible` | Scripture reference |
-| `uuid` | Stable identity across copies |
-| `updated` / `modifieddate` | |
-| `database` / `filename` / `songsid` | Provenance back to the library |
-| `user1`, `user2`, `user3` | Free user-defined fields |
-| `annotations` | Notes / performance remarks |
-| `reference` (repeating) | See below |
-| `sequence` | Play order (see below) |
+| Field                               | Notes                                        |
+| ----------------------------------- | -------------------------------------------- |
+| `title`                             |                                              |
+| `author`                            | Writer                                       |
+| `artist`                            | Performer                                    |
+| `publisher`                         |                                              |
+| `copyright`                         |                                              |
+| `cclinumber`                        | CCLI licence number (UK/US church reporting) |
+| `key` / `key_line`                  | Song key                                     |
+| `transpose`                         | Stored transposition offset                  |
+| `tempo`                             | BPM — drives the beat indicator (see below)  |
+| `time_sig` / `timesignature`        |                                              |
+| `category`                          |                                              |
+| `theme`                             |                                              |
+| `description`                       |                                              |
+| `translation`                       | Alternate-language lyric layer               |
+| `music`                             | Composer credit                              |
+| `bible`                             | Scripture reference                          |
+| `uuid`                              | Stable identity across copies                |
+| `updated` / `modifieddate`          |                                              |
+| `database` / `filename` / `songsid` | Provenance back to the library               |
+| `user1`, `user2`, `user3`           | Free user-defined fields                     |
+| `annotations`                       | Notes / performance remarks                  |
+| `reference` (repeating)             | See below                                    |
+| `sequence`                          | Play order (see below)                       |
 
 ### References (`SongEditor.ini`)
 
@@ -95,21 +95,21 @@ Song
 
 Section types come straight from the `&Section → &Type` menu, with their shortcuts:
 
-| Type | Key |
-|---|---|
-| Intro | `Shift+F6` |
-| Ending | `Ctrl+F6` |
-| Verse | `F6` |
+| Type       | Key        |
+| ---------- | ---------- |
+| Intro      | `Shift+F6` |
+| Ending     | `Ctrl+F6`  |
+| Verse      | `F6`       |
 | Pre-Chorus | `Shift+F7` |
-| Chorus | `F7` |
-| Bridge | `F8` |
-| Tag | `Shift+F8` |
-| Misc | `Ctrl+F8` |
+| Chorus     | `F7`       |
+| Bridge     | `F8`       |
+| Tag        | `Shift+F8` |
+| Misc       | `Ctrl+F8`  |
 
 ### Two orthogonal "who" axes — this is the clever part
 
-The legacy model separates **target** (which *screen* shows this) from **singers**
-(who *sings* it, shown as a label). A section targeted `Band` appears on the band's
+The legacy model separates **target** (which _screen_ shows this) from **singers**
+(who _sings_ it, shown as a label). A section targeted `Band` appears on the band's
 instrument view but never reaches the congregation projection. A section marked
 `Women` is shown to everyone but labelled.
 
@@ -121,15 +121,15 @@ display strings: `Choir, All, Ladies, Men, Leader, Congregation, Children, Adult
 
 ### Sequence
 
-Sections are authored once and then *ordered* separately:
+Sections are authored once and then _ordered_ separately:
 
 - `Sequence → Auto` — derive order from the sections as written
-- `Sequence → Edit` — *"Click on each section in the order that they should be played"*
+- `Sequence → Edit` — _"Click on each section in the order that they should be played"_
   (from `SongEditor.ini`)
 - `Sequence → Clear`
 
 So V1 C V2 C B C C is stored as a reference list, not duplicated text. The leader can
-re-sequence live (`EditSequence` / `EndEditSequence` → *"Save Sequence"* in
+re-sequence live (`EditSequence` / `EndEditSequence` → _"Save Sequence"_ in
 `SongBase.ini`).
 
 ### Chords
@@ -157,7 +157,7 @@ SongSet
 ```
 
 `SongSet::processSongNode` **and** `processSongEntryNode` both exist — a set can
-*embed* a full song or *reference* one. That matters: a set is portable even if the
+_embed_ a full song or _reference_ one. That matters: a set is portable even if the
 receiving machine lacks the song.
 
 ---
@@ -172,8 +172,8 @@ EditProfileWizardGeneral   EditProfileWizardDisplay    EditProfileWizardTextStyl
 EditProfileWizardChords    EditProfileWizardLineColors
 ```
 
-UI labels: *General, Layout, Keys and Chords, Text Styles, Notes / Annotations,
-Text Color, Sample Text*.
+UI labels: _General, Layout, Keys and Chords, Text Styles, Notes / Annotations,
+Text Color, Sample Text_.
 
 ### Contexts a profile can target
 

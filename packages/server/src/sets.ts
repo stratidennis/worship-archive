@@ -9,7 +9,14 @@
 
 import type Database from 'better-sqlite3';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { extname, join } from 'node:path';
 import type { ServiceSet, SetItem } from '@worship/core';
 import { slug } from './library.js';
@@ -74,7 +81,10 @@ export class SetStore {
       this.db
         .prepare('SELECT path, content_hash FROM sets')
         .all()
-        .map((r) => [(r as { path: string }).path, (r as { content_hash: string }).content_hash]),
+        .map((r) => [
+          (r as { path: string }).path,
+          (r as { content_hash: string }).content_hash,
+        ]),
     );
 
     const upsert = this.db.prepare(`
@@ -153,15 +163,13 @@ export class SetStore {
 
   get(id: string): ServiceSet | null {
     const row = this.db.prepare('SELECT doc FROM sets WHERE id = ?').get(id) as
-      | { doc: string }
-      | undefined;
+      { doc: string } | undefined;
     return row ? (JSON.parse(row.doc) as ServiceSet) : null;
   }
 
   save(set: ServiceSet): ServiceSet {
     const existing = this.db.prepare('SELECT path FROM sets WHERE id = ?').get(set.id) as
-      | { path: string }
-      | undefined;
+      { path: string } | undefined;
     const previous = this.get(set.id);
 
     const stored: ServiceSet = {
@@ -182,8 +190,7 @@ export class SetStore {
 
   delete(id: string): boolean {
     const row = this.db.prepare('SELECT path FROM sets WHERE id = ?').get(id) as
-      | { path: string }
-      | undefined;
+      { path: string } | undefined;
     if (!row) return false;
     rmSync(join(this.setsDir, row.path), { force: true });
     this.reindex();
@@ -195,7 +202,10 @@ export class SetStore {
    *
    * Overrides come along: if a song was dropped a tone last time, it still is.
    */
-  duplicate(id: string, options: { title?: string; date?: string | null } = {}): ServiceSet | null {
+  duplicate(
+    id: string,
+    options: { title?: string; date?: string | null } = {},
+  ): ServiceSet | null {
     const source = this.get(id);
     if (!source) return null;
     const now = new Date().toISOString();
