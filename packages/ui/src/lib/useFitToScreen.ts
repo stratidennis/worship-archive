@@ -41,11 +41,18 @@ export interface FitResult {
 const MIN_DEFAULT = 11;
 const MAX_DEFAULT = 40;
 
-/** Column counts worth trying at a given width. Columns are useless on a phone. */
+/**
+ * Column counts worth trying at a given width. Columns are useless on a phone.
+ *
+ * Only ever *more* options, never a forced choice: the search below prefers the fewest
+ * columns that still allow the largest type, so a wide screen only splits when splitting
+ * is what makes the text bigger.
+ */
 function columnCandidates(width: number): number[] {
   if (width < 620) return [1];
   if (width < 1100) return [1, 2];
-  return [1, 2, 3];
+  if (width < 1800) return [1, 2, 3];
+  return [1, 2, 3, 4];
 }
 
 export function useFitToScreen(

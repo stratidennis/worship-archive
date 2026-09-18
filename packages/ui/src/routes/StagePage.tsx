@@ -87,7 +87,11 @@ export function StagePage() {
 
   return (
     <div className="relative flex h-dvh flex-col bg-(--color-stage-bg)">
-      <div id="main" ref={container} className="min-h-0 flex-1 overflow-hidden px-6 py-5">
+      <div
+        id="main"
+        ref={container}
+        className="min-h-0 flex-1 overflow-hidden px-4 py-3 sm:px-5"
+      >
         {state.output === 'cleared' ? null : song ? (
           <div
             ref={content}

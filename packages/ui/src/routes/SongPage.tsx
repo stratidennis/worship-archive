@@ -78,8 +78,8 @@ export function SongPage() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="shrink-0 border-b border-(--color-line) px-4 py-2 print:hidden">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5">
+      <header className="shrink-0 border-b border-(--color-line) px-3 py-2 print:hidden sm:px-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <Link
             to="/"
             className="text-sm text-(--color-muted) hover:underline"
@@ -177,13 +177,13 @@ export function SongPage() {
       <main
         id="main"
         ref={container}
-        className={`min-h-0 flex-1 px-4 py-3 print:overflow-visible ${
+        className={`min-h-0 flex-1 px-3 py-2 print:overflow-visible sm:px-4 ${
           fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
         }`}
       >
         <div
           ref={content}
-          className="mx-auto max-w-6xl"
+          className="w-full"
           style={{
             fontSize: `${fit.fontPx}px`,
             columnCount: fit.columns,
