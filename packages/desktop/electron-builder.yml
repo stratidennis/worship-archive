@@ -74,13 +74,15 @@ dmg:
 
 win:
   icon: build/icon.png
+  # Installed builds have a stable executable path for Windows' login item. A portable
+  # build runs Electron from a temporary extraction directory, so registering
+  # `process.execPath` appears in Task Manager but cannot survive a restart.
   target:
     - target: nsis
       arch: [x64]
-    - target: portable
-      arch: [x64]
 
 nsis:
+  artifactName: Worship-Archive-Leader-${version}-Windows-${arch}-Setup.${ext}
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

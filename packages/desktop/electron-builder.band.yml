@@ -16,6 +16,7 @@ extraMetadata:
   dependencies: {}
 
 nsis:
+  artifactName: Worship-Archive-Band-${version}-Windows-${arch}-Setup.${ext}
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
