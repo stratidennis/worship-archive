@@ -6,14 +6,14 @@ function signed(value: number): string {
 
 /** The musical setup, rendered as the first song block on Band and Stage screens. */
 export function PerformanceInfo({
-  intendedKey,
+  performanceKey,
   transpose,
   capo,
   displayedKey,
   instrumentTranspose,
   instrumentCapo,
 }: {
-  intendedKey: string | null;
+  performanceKey: string | null;
   transpose: number;
   capo: number;
   displayedKey?: string | null;
@@ -22,7 +22,7 @@ export function PerformanceInfo({
 }) {
   const { t } = useT();
   const leader = [
-    intendedKey ? t('performance.intendedKey', { key: intendedKey }) : null,
+    performanceKey ? t('performance.performanceKey', { key: performanceKey }) : null,
     capo !== 0 ? t('performance.capo', { fret: capo }) : null,
     transpose !== 0 ? t('performance.transpose', { amount: signed(transpose) }) : null,
   ].filter(Boolean);

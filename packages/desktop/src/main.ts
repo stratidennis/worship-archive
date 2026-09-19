@@ -107,16 +107,18 @@ function setPreventSleep(on: boolean): boolean {
 }
 
 function setAutoStart(on: boolean): boolean {
+  let enabled = false;
   // Linux support here is inconsistent across desktop environments; failing to set it
   // must not take the app down with it.
   try {
     app.setLoginItemSettings({ openAtLogin: on });
+    enabled = app.getLoginItemSettings().openAtLogin;
   } catch (error) {
     console.warn('could not change the login item:', error);
   }
-  settings.autoStart = on;
+  settings.autoStart = enabled;
   saveSettings(settings);
-  return on;
+  return enabled;
 }
 
 function rememberWindow(): void {
@@ -624,6 +626,10 @@ async function startLeaderServer(): Promise<boolean> {
 
 async function bootstrap(): Promise<void> {
   settings = loadSettings();
+  // Re-register the saved choice on every launch. This repairs a login item removed by
+  // an installer update or an operating-system cleanup, while getLoginItemSettings
+  // makes the checkbox reflect what the OS actually accepted rather than our request.
+  setAutoStart(settings.autoStart);
   setPreventSleep(settings.preventSleep);
 
   await startLeaderServer();

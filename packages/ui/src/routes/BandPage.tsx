@@ -124,7 +124,7 @@ export function BandPage() {
     : prefs.accidentalPreferences;
   const nativeKey = viewing?.song.performanceKey ?? viewing?.song.writtenKey ?? null;
   const usingLiveInstruction = following && itemIndex === state.itemIndex;
-  const intendedKey = usingLiveInstruction
+  const performanceKey = usingLiveInstruction
     ? (state.performanceKey ??
       viewing?.item.keyOverride ??
       viewing?.song.performanceKey ??
@@ -147,7 +147,7 @@ export function BandPage() {
     if (pitch === null) return null;
     return `${pitchClassToPreferredNote(pitch + shift, accidentalPreferences)}${isMinorKey(key) ? 'm' : ''}`;
   };
-  const leaderDisplayedKey = keyAt(intendedKey, -leaderTranspose - leaderCapo);
+  const leaderDisplayedKey = keyAt(performanceKey, -leaderTranspose - leaderCapo);
 
   const leaderSays = `${state.leaderRevision}:${itemIndex}`;
   const [heard, setHeard] = useState(leaderSays);
@@ -163,24 +163,24 @@ export function BandPage() {
     ? nativeKey && displayedKey
       ? (semitonesBetween(nativeKey, displayedKey) ?? 0)
       : 0
-    : nativeKey && intendedKey
-      ? (semitonesBetween(nativeKey, intendedKey) ?? 0) - leaderTranspose
+    : nativeKey && performanceKey
+      ? (semitonesBetween(nativeKey, performanceKey) ?? 0) - leaderTranspose
       : -leaderTranspose;
   const capoFret = localOverride ? 0 : leaderCapo;
   const instrumentTranspose =
-    localOverride && displayedKey && intendedKey
-      ? signedSemitonesBetween(displayedKey, intendedKey)
+    localOverride && displayedKey && performanceKey
+      ? signedSemitonesBetween(displayedKey, performanceKey)
       : null;
   const instrumentCapo =
-    localOverride && displayedKey && intendedKey
-      ? semitonesBetween(displayedKey, intendedKey)
+    localOverride && displayedKey && performanceKey
+      ? semitonesBetween(displayedKey, performanceKey)
       : null;
   const selectableKeys = preferredKeyNames(accidentalPreferences).map(
-    (key) => `${key}${intendedKey && isMinorKey(intendedKey) ? 'm' : ''}`,
+    (key) => `${key}${performanceKey && isMinorKey(performanceKey) ? 'm' : ''}`,
   );
 
   const shiftDisplayedKey = (delta: number): void => {
-    const base = displayedKey ?? intendedKey;
+    const base = displayedKey ?? performanceKey;
     const next = keyAt(base, delta);
     if (next) setDisplayedKeyOverride(next);
   };
@@ -443,7 +443,7 @@ export function BandPage() {
             >
               {prefs.showChords && (
                 <PerformanceInfo
-                  intendedKey={preferredKeyName(intendedKey, accidentalPreferences)}
+                  performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                   transpose={leaderTranspose}
                   capo={leaderCapo}
                   {...(localOverride

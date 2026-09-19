@@ -15,7 +15,13 @@ import {
 } from '@worship/core';
 import { api, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
-import { forgetSet, rememberSet } from '../lib/lastSet.js';
+import {
+  forgetSet,
+  forgetSetItem,
+  lastSetItem,
+  rememberSet,
+  rememberSetItem,
+} from '../lib/lastSet.js';
 import { moveItem } from '../lib/reorder.js';
 import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
@@ -163,13 +169,23 @@ export function SetPage() {
         savedRef.current = JSON.stringify(result.set);
         setSet(result.set);
         setSongs(result.songs);
-        setSelection(result.set.items.length > 0 ? { kind: 'item', index: 0 } : null);
+        const previous = lastSetItem(id, result.set.items.length);
+        setSelection(
+          result.set.items.length > 0 ? { kind: 'item', index: previous ?? 0 } : null,
+        );
       })
       .catch((e: unknown) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
   }, [id, t]);
+
+  // The workspace is allowed to unmount while Settings, Join, or the song editor is
+  // open. Remember the actual running-order row so returning to Home restores the same
+  // song, note, or gap rather than silently jumping back to item one.
+  useEffect(() => {
+    if (selection?.kind === 'item') rememberSetItem(id, selection.index);
+  }, [id, selection]);
 
   // The picker shows the archive until something is typed. Unsliced, because the
   // filters run over it afterwards — trimming to the first sixty first would have made
@@ -503,6 +519,7 @@ export function SetPage() {
       item.kind === 'song' && item.songId === songId ? [index] : [],
     );
     if (gone.length === 0) return;
+    if (selection?.kind === 'item' && gone.includes(selection.index)) forgetSetItem(id);
     update((s) => ({
       ...s,
       items: s.items.filter((item) => !(item.kind === 'song' && item.songId === songId)),
@@ -516,6 +533,7 @@ export function SetPage() {
   };
 
   const removeAt = (index: number): void => {
+    if (selection?.kind === 'item' && selection.index === index) forgetSetItem(id);
     update((s) => ({ ...s, items: s.items.filter((_, i) => i !== index) }));
     setSelection((current) => {
       if (current?.kind !== 'item') return current;
@@ -1476,7 +1494,7 @@ function Preview({
 }
 
 /**
- * Intended key, capo and keyboard transpose for this set only — changing Sunday's
+ * Performance key, capo and keyboard transpose for this set only — changing Sunday's
  * setup must not edit the library.
  *
  * All three use the same compact selector treatment, so the row stays legible even on
@@ -1510,7 +1528,7 @@ function SongControls({
           className="w-36"
         >
           <option value="">
-            {t('sets.intendedKey', {
+            {t('sets.performanceKey', {
               key: preferredKeyName(nativeKey, prefs.accidentalPreferences) ?? '—',
             })}
           </option>

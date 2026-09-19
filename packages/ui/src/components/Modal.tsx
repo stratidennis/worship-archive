@@ -80,7 +80,7 @@ export function Modal({
 
   return (
     <div
-      className="modal-backdrop fixed inset-0 z-50 grid place-items-center bg-black/55 p-4 backdrop-blur-[2px]"
+      className="modal-backdrop fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onDismiss();
       }}
@@ -90,23 +90,26 @@ export function Modal({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="modal-panel w-full max-w-md rounded-2xl border border-(--color-line) bg-(--color-surface) p-5 shadow-2xl"
+        className="modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-(--color-line) bg-(--color-surface) shadow-2xl"
       >
-        <div className="flex gap-3.5">
+        <div className={`h-1 ${tone === 'danger' ? 'bg-red-500' : 'bg-(--color-cue)'}`} />
+        <div className="flex gap-4 px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
           {/* A mark, not decoration: it says at a glance whether this is "you will lose
               something" or "you are about to destroy something", before the sentence is
               read. */}
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${ring}`}>
-            <Icon size={19} />
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${ring}`}>
+            <Icon size={21} />
           </span>
           <div className="min-w-0 pt-0.5">
-            <h2 className="text-base font-bold leading-snug">{title}</h2>
+            <h2 className="text-lg font-bold leading-snug">{title}</h2>
             {detail && (
-              <p className="mt-1.5 text-sm leading-relaxed text-(--color-muted)">{detail}</p>
+              <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">{detail}</p>
             )}
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">{children}</div>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-(--color-line) bg-(--color-raised) px-5 py-4 sm:px-6">
+          {children}
+        </div>
       </div>
     </div>
   );

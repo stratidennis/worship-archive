@@ -109,7 +109,7 @@ export function StagePage() {
   // nothing left here that could show the room less than it is singing.
   const song = viewing?.song ?? null;
 
-  const intendedKey =
+  const performanceKey =
     state.performanceKey ??
     viewing?.item.keyOverride ??
     viewing?.song.performanceKey ??
@@ -118,9 +118,9 @@ export function StagePage() {
   const capo = state.capo ?? viewing?.item.capoOverride ?? 0;
   const extraTranspose = useMemo(() => {
     const nativeKey = viewing?.song.performanceKey ?? viewing?.song.writtenKey;
-    if (!nativeKey || !intendedKey) return -state.transpose;
-    return (semitonesBetween(nativeKey, intendedKey) ?? 0) - state.transpose;
-  }, [viewing, intendedKey, state.transpose]);
+    if (!nativeKey || !performanceKey) return -state.transpose;
+    return (semitonesBetween(nativeKey, performanceKey) ?? 0) - state.transpose;
+  }, [viewing, performanceKey, state.transpose]);
 
   const fit = useFitToScreen(container, content, {
     // A stage display is read at a distance, so it is allowed to go much larger than a
@@ -173,7 +173,7 @@ export function StagePage() {
           >
             {showChords && (
               <PerformanceInfo
-                intendedKey={preferredKeyName(intendedKey, accidentalPreferences)}
+                performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                 transpose={state.transpose}
                 capo={capo}
               />

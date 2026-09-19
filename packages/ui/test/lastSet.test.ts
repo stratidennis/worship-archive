@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { chooseSet, forgetSet, lastSet, rememberSet } from '../src/lib/lastSet.js';
+import {
+  chooseSet,
+  forgetSet,
+  forgetSetItem,
+  lastSet,
+  lastSetItem,
+  rememberSet,
+  rememberSetItem,
+} from '../src/lib/lastSet.js';
 
 /**
  * A minimal localStorage, because the tests run in Node.
@@ -87,6 +95,28 @@ describe('remembering across restarts', () => {
     forgetSet('set-1');
     expect(lastSet()).toBeNull();
   });
+
+  it('remembers the open item independently for each set', () => {
+    rememberSetItem('set-1', 4);
+    rememberSetItem('set-2', 1);
+    expect(lastSetItem('set-1', 6)).toBe(4);
+    expect(lastSetItem('set-2', 6)).toBe(1);
+  });
+
+  it('ignores a remembered item that no longer exists', () => {
+    rememberSetItem('set-1', 4);
+    expect(lastSetItem('set-1', 4)).toBeNull();
+  });
+
+  it('clears the remembered item with its set or on its own', () => {
+    rememberSetItem('set-1', 2);
+    forgetSetItem('set-1');
+    expect(lastSetItem('set-1', 4)).toBeNull();
+
+    rememberSetItem('set-1', 2);
+    forgetSet('set-1');
+    expect(lastSetItem('set-1', 4)).toBeNull();
+  });
 });
 
 describe('when storage is blocked', () => {
@@ -105,6 +135,9 @@ describe('when storage is blocked', () => {
   it('swallows a failed write', () => {
     expect(() => rememberSet('set-1')).not.toThrow();
     expect(() => forgetSet('set-1')).not.toThrow();
+    expect(() => rememberSetItem('set-1', 2)).not.toThrow();
+    expect(() => forgetSetItem('set-1')).not.toThrow();
+    expect(lastSetItem('set-1', 3)).toBeNull();
   });
 });
 

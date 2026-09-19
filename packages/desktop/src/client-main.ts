@@ -483,6 +483,10 @@ function registerIpc(): void {
 
 async function bootstrap(): Promise<void> {
   settings = loadClientSettings(ROLE);
+  // Once setup has been completed, reconcile the saved choice with the operating
+  // system on every launch. This repairs a login item lost during an app update. Do not
+  // register a fresh Stage install before its setup screen has actually been accepted.
+  if (settings.setupComplete) settings.autoStart = setAutoStart(settings.autoStart);
   saveClientSettings(settings);
   setPreventSleep(settings.preventSleep);
   registerIpc();

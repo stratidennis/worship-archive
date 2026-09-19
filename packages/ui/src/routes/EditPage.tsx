@@ -498,7 +498,9 @@ export function EditPage() {
           >
             {/* Staying is first, so it holds the focus: Escape and Enter both keep the
                 work rather than losing it. */}
-            <Button onClick={() => blocker.reset?.()}>{t('edit.stay')}</Button>
+            <Button className="mr-auto" onClick={() => blocker.reset?.()}>
+              {t('edit.stay')}
+            </Button>
             <Button variant="danger" onClick={() => blocker.proceed?.()}>
               {t('edit.discard')}
             </Button>
@@ -508,6 +510,7 @@ export function EditPage() {
                 void save().then((ok) => (ok ? blocker.proceed?.() : blocker.reset?.()));
               }}
             >
+              <IconSave size={15} />
               {t('edit.save')}
             </Button>
           </Modal>

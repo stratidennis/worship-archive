@@ -10,6 +10,7 @@
  */
 
 const KEY = 'worship-archive:last-set';
+const ITEM_KEY = 'worship-archive:last-set-item:';
 
 export function rememberSet(id: string): void {
   try {
@@ -31,8 +32,45 @@ export function lastSet(): string | null {
 export function forgetSet(id: string): void {
   try {
     if (localStorage.getItem(KEY) === id) localStorage.removeItem(KEY);
+    localStorage.removeItem(`${ITEM_KEY}${id}`);
   } catch {
     // Nothing to do; a stale id is handled by the caller falling back.
+  }
+}
+
+/** Remember which running-order item this device was reading in one set. */
+export function rememberSetItem(setId: string, index: number): void {
+  if (!Number.isInteger(index) || index < 0) return;
+  try {
+    localStorage.setItem(`${ITEM_KEY}${setId}`, String(index));
+  } catch {
+    // The set still opens normally when storage is unavailable; it starts at item one.
+  }
+}
+
+/**
+ * The last running-order item, if it still exists.
+ *
+ * Bounds checking here matters after an item has been removed on another device. A
+ * stale position must never make the workspace render an empty preview.
+ */
+export function lastSetItem(setId: string, itemCount: number): number | null {
+  try {
+    const raw = localStorage.getItem(`${ITEM_KEY}${setId}`);
+    if (raw === null) return null;
+    const index = Number(raw);
+    return Number.isInteger(index) && index >= 0 && index < itemCount ? index : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Clear a remembered item when that item itself no longer exists. */
+export function forgetSetItem(setId: string): void {
+  try {
+    localStorage.removeItem(`${ITEM_KEY}${setId}`);
+  } catch {
+    // There is no useful recovery work to do when storage is unavailable.
   }
 }
 
