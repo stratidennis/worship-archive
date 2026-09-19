@@ -48,8 +48,8 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
-    - target: zip
-      arch: [arm64, x64]
+  # Ship the installable DMG only. Running an app extracted into Downloads and moving it
+  # later leaves any saved login item pointing at the old location.
   # Fully ad-hoc sign the entire bundle. Skipping signing leaves Electron's main binary
   # with its linker signature while the rest of the bundle is unsealed; Gatekeeper then
   # reports the downloaded app as "damaged". `-` needs no Apple developer account and
