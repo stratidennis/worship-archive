@@ -16,6 +16,7 @@ import { JoinPage } from './routes/JoinPage.js';
 import { ImportPage } from './routes/ImportPage.js';
 import { SettingsPage } from './routes/SettingsPage.js';
 import { CleanupPage } from './routes/CleanupPage.js';
+import { ClientSetupPage } from './routes/ClientSetupPage.js';
 
 /**
  * The skip link.
@@ -66,6 +67,9 @@ const router = createBrowserRouter([
       { path: '/cleanup', element: <CleanupPage /> },
     ],
   },
+  // The installed Band and Stage apps use the same renderer, theme, controls, and
+  // translations as every browser page. Only the native shell decides to start here.
+  { path: '/device-setup', element: <ClientSetupPage /> },
   { path: '/band', element: <BandPage /> },
   { path: '/stage', element: <StagePage /> },
 ]);

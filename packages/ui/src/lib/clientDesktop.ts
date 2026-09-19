@@ -16,6 +16,9 @@ export type EditableClientSettings = Partial<
 >;
 
 interface WorshipClientApi {
+  completeSetup: (
+    patch: Pick<ClientDesktopState, 'name' | 'showChords' | 'autoStart'>,
+  ) => Promise<void>;
   state: () => Promise<ClientDesktopState>;
   updateSettings: (patch: EditableClientSettings) => Promise<ClientDesktopState>;
 }

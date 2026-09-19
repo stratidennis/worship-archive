@@ -241,21 +241,33 @@ function clientRoute(): string {
   return `/${ROLE}?${params.toString()}`;
 }
 
-function setupPage(): string {
-  const stageOptions =
-    ROLE === 'stage'
-      ? `<label><input id="chords" type="checkbox" checked> Show chords</label>`
-      : '';
-  const html = `<!doctype html><html><meta charset="utf-8"><title>${PRODUCT_NAME}</title>
-<style>body{margin:0;background:#16181a;color:#e8eaed;font:16px system-ui;display:grid;place-items:center;height:100vh}main{width:min(420px,calc(100vw - 48px));display:grid;gap:18px}h1{margin:0;font-size:26px}p{color:#a9b0b6;margin:0}label{display:grid;gap:7px}input[type=text]{font:inherit;padding:10px;border-radius:7px;border:1px solid #4a4f54;background:#222528;color:inherit}button{font:inherit;font-weight:650;padding:11px;border:0;border-radius:7px;background:#d9962f;color:#151515}</style>
-<main><h1>Set up ${PRODUCT_NAME}</h1><p>This is needed only once. You can change it later in Settings.</p><label>Device name<input id="name" type="text" maxlength="60" autofocus required></label>${stageOptions}<label><span><input id="auto" type="checkbox" ${ROLE === 'stage' ? 'checked' : ''}> Open when this computer starts</span></label><button id="continue">Continue</button></main>
-<script>document.getElementById('continue').onclick=async()=>{const name=document.getElementById('name').value.trim();if(!name){document.getElementById('name').focus();return}await window.worshipClient.completeSetup({name,showChords:document.getElementById('chords')?.checked??true,autoStart:document.getElementById('auto').checked})}</script>`;
-  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+let preparedUi: Promise<void> | null = null;
+
+/**
+ * Electron does not need the PWA's offline shell: the UI is already inside the app.
+ * Clear only service-worker and HTTP caches once per launch so an upgraded desktop app
+ * can never keep rendering an older browser layout. IndexedDB and localStorage stay
+ * untouched, preserving downloaded songs and every per-device preference.
+ */
+function loadCurrentUi(target: BrowserWindow, path: string): void {
+  preparedUi ??= Promise.all([
+    target.webContents.session.clearStorageData({
+      origin: shellUrl,
+      storages: ['serviceworkers', 'cachestorage'],
+    }),
+    target.webContents.session.clearCache(),
+  ]).then(() => undefined);
+
+  void preparedUi
+    .catch((error: unknown) => console.warn('could not clear the old UI cache:', error))
+    .then(() => {
+      if (!target.isDestroyed()) void target.loadURL(`${shellUrl}${path}`);
+    });
 }
 
 function openClient(): void {
   if (!win) return;
-  void win.loadURL(`${shellUrl}${clientRoute()}`);
+  loadCurrentUi(win, clientRoute());
   if (ROLE === 'stage') win.setKiosk(settings.fullscreen);
 }
 
@@ -336,7 +348,7 @@ function createWindow(): void {
     void shell.openExternal(url);
     return { action: 'deny' };
   });
-  void win.loadURL(settings.setupComplete ? `${shellUrl}${clientRoute()}` : setupPage());
+  loadCurrentUi(win, settings.setupComplete ? clientRoute() : '/device-setup');
   if (ROLE === 'stage' && settings.setupComplete) win.setKiosk(settings.fullscreen);
 }
 

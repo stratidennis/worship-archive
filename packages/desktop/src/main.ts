@@ -132,10 +132,30 @@ function rememberWindow(): void {
   saveSettings(settings);
 }
 
+let preparedUi: Promise<void> | null = null;
+
+/** Always render the UI bundled with this installation, never an older PWA cache. */
+function loadCurrentUi(target: BrowserWindow, path: string): void {
+  if (!server) return;
+  preparedUi ??= Promise.all([
+    target.webContents.session.clearStorageData({
+      origin: server.url,
+      storages: ['serviceworkers', 'cachestorage'],
+    }),
+    target.webContents.session.clearCache(),
+  ]).then(() => undefined);
+
+  void preparedUi
+    .catch((error: unknown) => console.warn('could not clear the old UI cache:', error))
+    .then(() => {
+      if (!target.isDestroyed() && server) void target.loadURL(`${server.url}${path}`);
+    });
+}
+
 function createWindow(path = '/'): BrowserWindow {
   const existing = win && !win.isDestroyed() ? win : null;
   if (existing) {
-    if (server) void existing.loadURL(`${server.url}${path}`);
+    if (server) loadCurrentUi(existing, path);
     existing.show();
     existing.focus();
     return existing;
@@ -178,7 +198,7 @@ function createWindow(path = '/'): BrowserWindow {
   });
 
   if (server) {
-    void created.loadURL(`${server.url}${path}`);
+    loadCurrentUi(created, path);
   } else {
     void created.loadURL(failurePage(startupError));
   }

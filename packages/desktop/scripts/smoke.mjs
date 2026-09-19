@@ -90,7 +90,7 @@ try {
   check('the API answers', stats.songs === 1, `songs=${stats.songs}`);
 
   // The addresses on the join screen are these, and they are client-side routes.
-  for (const route of ['/', '/band', '/stage', '/join', '/sets/anything']) {
+  for (const route of ['/', '/band', '/stage', '/device-setup', '/join', '/sets/anything']) {
     const page = await fetch(`${base}${route}`);
     const html = (page.headers.get('content-type') ?? '').includes('text/html');
     check(`${route} serves the app`, page.ok && html, `${page.status}`);
