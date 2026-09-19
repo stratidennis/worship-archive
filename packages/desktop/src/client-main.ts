@@ -16,10 +16,16 @@ import {
   type ServerResponse,
 } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { createSocket, type Socket as DgramSocket } from 'node:dgram';
+import { networkInterfaces } from 'node:os';
 import { extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import Bonjour, { type Browser, type Service } from 'bonjour-service';
 import WebSocket, { WebSocketServer } from 'ws';
-import { SESSION_PROTOCOL_VERSION } from '@worship/core';
+import {
+  LAN_DISCOVERY_PORT,
+  LAN_DISCOVERY_REQUEST,
+  SESSION_PROTOCOL_VERSION,
+} from '@worship/core';
 import {
   loadClientSettings,
   saveClientSettings,
@@ -48,9 +54,12 @@ let shellServer: Server | null = null;
 let shellUrl = '';
 let discovery: Bonjour | null = null;
 let browser: Browser | null = null;
+let udpDiscovery: DgramSocket | null = null;
+let udpTimer: NodeJS.Timeout | null = null;
 let leader: LeaderEndpoint | null = null;
 let sleepBlocker: number | null = null;
-const leaders = new Map<string, LeaderEndpoint>();
+const mdnsLeaders = new Map<string, LeaderEndpoint>();
+const udpLeaders = new Map<string, LeaderEndpoint & { seenAt: number }>();
 
 app.setName(PRODUCT_NAME);
 
@@ -75,6 +84,10 @@ function serviceEndpoint(service: Service): LeaderEndpoint | null {
 }
 
 function selectLeader(): void {
+  const leaders = new Map<string, LeaderEndpoint>();
+  for (const endpoint of udpLeaders.values()) leaders.set(endpoint.id, endpoint);
+  // Prefer the richer mDNS result when both discovery paths found the same Leader.
+  for (const endpoint of mdnsLeaders.values()) leaders.set(endpoint.id, endpoint);
   const preferred = settings.preferredLeaderId
     ? leaders.get(settings.preferredLeaderId)
     : undefined;
@@ -90,15 +103,92 @@ function startDiscovery(): void {
   browser.on('up', (service) => {
     const endpoint = serviceEndpoint(service);
     if (!endpoint) return;
-    leaders.set(endpoint.id, endpoint);
+    mdnsLeaders.set(endpoint.id, endpoint);
     selectLeader();
   });
   browser.on('down', (service) => {
     const endpoint = serviceEndpoint(service);
     if (!endpoint) return;
-    leaders.delete(endpoint.id);
-    if (leader?.id === endpoint.id) leader = null;
+    mdnsLeaders.delete(endpoint.id);
     selectLeader();
+  });
+}
+
+function ipv4Broadcasts(): string[] {
+  const addresses = new Set(['255.255.255.255']);
+  const toNumber = (address: string): number | null => {
+    const parts = address.split('.').map(Number);
+    if (
+      parts.length !== 4 ||
+      parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+    )
+      return null;
+    return parts.reduce((value, part) => ((value << 8) | part) >>> 0, 0);
+  };
+  const fromNumber = (value: number): string =>
+    [24, 16, 8, 0].map((shift) => (value >>> shift) & 255).join('.');
+
+  for (const entry of Object.values(networkInterfaces()).flat()) {
+    if (!entry || entry.internal || entry.family !== 'IPv4') continue;
+    const address = toNumber(entry.address);
+    const mask = toNumber(entry.netmask);
+    if (address === null || mask === null) continue;
+    addresses.add(fromNumber((address | (~mask >>> 0)) >>> 0));
+  }
+  return [...addresses];
+}
+
+/** A broadcast fallback for Windows and networks where mDNS browsing is unavailable. */
+function startUdpDiscovery(): void {
+  const socket = createSocket({ type: 'udp4', reuseAddr: true });
+  udpDiscovery = socket;
+
+  socket.on('message', (message, remote) => {
+    try {
+      const value = JSON.parse(message.toString('utf8')) as Record<string, unknown>;
+      if (
+        value['app'] !== 'worship-archive' ||
+        value['role'] !== 'leader' ||
+        Number(value['protocol']) !== SESSION_PROTOCOL_VERSION ||
+        typeof value['leaderId'] !== 'string' ||
+        !value['leaderId'] ||
+        typeof value['port'] !== 'number' ||
+        !Number.isInteger(value['port']) ||
+        value['port'] < 1 ||
+        value['port'] > 65535
+      )
+        return;
+      udpLeaders.set(value['leaderId'], {
+        id: value['leaderId'],
+        name: typeof value['name'] === 'string' ? value['name'] : 'Worship Archive',
+        host: remote.address,
+        port: value['port'],
+        seenAt: Date.now(),
+      });
+      selectLeader();
+    } catch {
+      // Other software can use this UDP port; unrelated packets are simply ignored.
+    }
+  });
+  socket.on('error', (error) => console.warn('LAN discovery fallback error:', error));
+
+  const discover = (): void => {
+    const cutoff = Date.now() - 10_000;
+    for (const [id, endpoint] of udpLeaders) {
+      if (endpoint.seenAt < cutoff) udpLeaders.delete(id);
+    }
+    selectLeader();
+    const request = Buffer.from(LAN_DISCOVERY_REQUEST);
+    for (const address of ipv4Broadcasts()) {
+      socket.send(request, LAN_DISCOVERY_PORT, address, () => undefined);
+    }
+  };
+
+  socket.bind(0, '0.0.0.0', () => {
+    socket.setBroadcast(true);
+    discover();
+    udpTimer = setInterval(discover, 2500);
+    udpTimer.unref();
   });
 }
 
@@ -184,18 +274,21 @@ async function startShellServer(): Promise<void> {
     const endpoint = leader;
     wss.handleUpgrade(request, socket, head, (client) => {
       const upstream = new WebSocket(`ws://${endpoint.host}:${endpoint.port}/ws`);
-      const queued: WebSocket.RawData[] = [];
+      const queued: { data: WebSocket.RawData; binary: boolean }[] = [];
 
-      client.on('message', (data) => {
-        if (upstream.readyState === WebSocket.OPEN) upstream.send(data);
-        else if (upstream.readyState === WebSocket.CONNECTING) queued.push(data);
+      client.on('message', (data, binary) => {
+        if (upstream.readyState === WebSocket.OPEN) upstream.send(data, { binary });
+        else if (upstream.readyState === WebSocket.CONNECTING) queued.push({ data, binary });
       });
       upstream.on('open', () => {
-        for (const data of queued) upstream.send(data);
+        for (const frame of queued) upstream.send(frame.data, { binary: frame.binary });
         queued.length = 0;
       });
-      upstream.on('message', (data) => {
-        if (client.readyState === WebSocket.OPEN) client.send(data);
+      upstream.on('message', (data, binary) => {
+        // `ws` represents text frames as Buffer too. Passing that Buffer without this
+        // flag turns it into a binary browser message (Blob), which the renderer quite
+        // correctly refuses to JSON.parse. Preserve the frame type in both directions.
+        if (client.readyState === WebSocket.OPEN) client.send(data, { binary });
       });
       upstream.on('close', () => client.close());
       upstream.on('error', () => client.close());
@@ -373,6 +466,7 @@ function registerIpc(): void {
   ipcMain.handle('worship-client:update-settings', (_event, patch: EditableClientSettings) =>
     updateClientSettings(patch),
   );
+  ipcMain.handle('worship-client:quit', () => app.quit());
 }
 
 async function bootstrap(): Promise<void> {
@@ -382,6 +476,7 @@ async function bootstrap(): Promise<void> {
   registerIpc();
   await startShellServer();
   startDiscovery();
+  startUdpDiscovery();
   createWindow();
 }
 
@@ -391,6 +486,12 @@ if (app.hasSingleInstanceLock()) {
   app.on('before-quit', () => {
     browser?.stop();
     discovery?.destroy();
+    if (udpTimer) clearInterval(udpTimer);
+    try {
+      udpDiscovery?.close();
+    } catch {
+      // A bind rejected by the operating system leaves no socket to close.
+    }
     shellServer?.close();
     if (sleepBlocker !== null) powerSaveBlocker.stop(sleepBlocker);
   });

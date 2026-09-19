@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { canonicalFilterKey, compareFilterKeys } from '@worship/core';
 import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
@@ -55,6 +56,7 @@ function KeyBadge({ song }: { song: SongSummary }) {
 export function Library() {
   const { t } = useT();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
   const collection = params.get('collection') ?? '';
@@ -106,11 +108,14 @@ export function Library() {
   }, []);
 
   useEffect(() => {
-    if (!collection && !key) return;
-    api
-      .songs({ collection: collection || undefined, key: key || undefined })
-      .then(setSongs)
-      .catch((e: unknown) => setError(String(e)));
+    let cancelled = false;
+    const load = collection || key ? api.songs({ collection, key }) : repo.songs();
+    void load
+      .then((next) => !cancelled && setSongs(next))
+      .catch((e: unknown) => !cancelled && setError(String(e)));
+    return () => {
+      cancelled = true;
+    };
   }, [collection, key]);
 
   // Debounced so typing does not fire a request per keystroke.
@@ -131,7 +136,11 @@ export function Library() {
   const createSong = (): Promise<void> =>
     adminApi
       .createSong({ title: '' })
-      .then((created) => navigate(`/edit/${encodeURIComponent(created.id)}`))
+      .then((created) =>
+        navigate(`/edit/${encodeURIComponent(created.id)}`, {
+          state: { returnTo: `${location.pathname}${location.search}` },
+        }),
+      )
       .catch((e: unknown) => setError(String(e)));
 
   const setParam = (name: string, value: string): void => {
@@ -142,6 +151,16 @@ export function Library() {
   };
 
   const results: SongSummary[] = useMemo(() => hits ?? songs, [hits, songs]);
+  const keyFacets = useMemo(() => {
+    const merged = new Map<string, number>();
+    for (const item of facets?.keys ?? []) {
+      const name = canonicalFilterKey(item.name);
+      if (name) merged.set(name, (merged.get(name) ?? 0) + item.count);
+    }
+    return [...merged]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => compareFilterKeys(a.name, b.name));
+  }, [facets]);
 
   return (
     <>
@@ -153,7 +172,7 @@ export function Library() {
         </Button>
       </HeaderActions>
       <Scroll>
-        <div className="mx-auto max-w-4xl px-4 pb-16 pt-5">
+        <div className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           {/* Every page carries one, so a screen reader announces where it landed. */}
           <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
           <div className="relative">
@@ -188,7 +207,7 @@ export function Library() {
                 </Chip>
               ))}
               <span className="mx-1 w-px bg-(--color-line)" />
-              {facets.keys.slice(0, 8).map((k) => (
+              {keyFacets.map((k) => (
                 <Chip
                   key={k.name}
                   active={key === k.name}
@@ -221,11 +240,12 @@ export function Library() {
             )}
           </p>
 
-          <ul id="main" className="divide-y divide-(--color-line)">
+          <ul id="main" className="grid gap-x-6 lg:grid-cols-2">
             {results.map((song) => (
-              <li key={song.id}>
+              <li key={song.id} className="border-b border-(--color-line)">
                 <Link
                   to={`/song/${encodeURIComponent(song.id)}`}
+                  state={{ returnTo: `${location.pathname}${location.search}` }}
                   className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
                 >
                   <span className="min-w-0 flex-1">

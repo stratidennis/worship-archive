@@ -19,7 +19,14 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, extname, join, relative, sep } from 'node:path';
-import { parseChordPro, serialiseChordPro, type Song } from '@worship/core';
+import {
+  canonicalFilterKey,
+  compareFilterKeys,
+  filterKeyAliases,
+  parseChordPro,
+  serialiseChordPro,
+  type Song,
+} from '@worship/core';
 import { resolveLibrarySubdirectory } from './data-directory.js';
 
 export const ROOT_COLLECTION = 'Main';
@@ -292,10 +299,15 @@ export class Library {
       params['collection'] = options.collection;
     }
     if (options.key) {
-      where.push(
-        '(performance_key = @key OR (performance_key IS NULL AND written_key = @key))',
-      );
-      params['key'] = options.key;
+      const aliases = filterKeyAliases(options.key);
+      if (aliases.length > 0) {
+        const names = aliases.map((alias, index) => {
+          const name = `key${index}`;
+          params[name] = alias;
+          return `@${name}`;
+        });
+        where.push(`COALESCE(performance_key, written_key) IN (${names.join(', ')})`);
+      }
     }
     if (options.tag) {
       where.push('EXISTS (SELECT 1 FROM json_each(songs.tags) WHERE json_each.value = @tag)');
@@ -369,12 +381,20 @@ export class Library {
   }
 
   keys(): { name: string; count: number }[] {
-    return this.db
+    const stored = this.db
       .prepare(
         `SELECT COALESCE(performance_key, written_key) AS name, COUNT(*) AS count
          FROM songs WHERE name IS NOT NULL GROUP BY name ORDER BY count DESC, name`,
       )
       .all() as { name: string; count: number }[];
+    const merged = new Map<string, number>();
+    for (const item of stored) {
+      const name = canonicalFilterKey(item.name);
+      if (name) merged.set(name, (merged.get(name) ?? 0) + item.count);
+    }
+    return [...merged]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => compareFilterKeys(a.name, b.name));
   }
 
   stats(): { songs: number; collections: number } {

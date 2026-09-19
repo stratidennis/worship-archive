@@ -61,14 +61,17 @@ export function SetsPage() {
         </Button>
       </HeaderActions>
       <Scroll>
-        <div className="mx-auto max-w-3xl px-4 pb-16 pt-5">
+        <div className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           <h1 className="mb-4 text-2xl font-bold">{t('app.sets')}</h1>
 
           {error && <p className="mb-4 text-sm text-(--color-muted)">{error}</p>}
 
-          <ul id="main" className="divide-y divide-(--color-line)">
+          <ul id="main" className="grid gap-3 lg:grid-cols-2">
             {sets.map((set) => (
-              <li key={set.id} className="flex items-center gap-3 py-3">
+              <li
+                key={set.id}
+                className="flex items-center gap-3 rounded-xl border border-(--color-line) bg-(--color-surface) p-4"
+              >
                 <Link to={`/sets/${encodeURIComponent(set.id)}`} className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{setName(set, date)}</span>
                   <span className="block text-xs text-(--color-muted)">

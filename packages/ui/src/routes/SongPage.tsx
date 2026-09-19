@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import type { Song } from '@worship/core';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
@@ -23,6 +23,8 @@ const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
 export function SongPage() {
   const { t } = useT();
   const { id = '' } = useParams();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo ?? '/archive';
   const [song, setSong] = useState<Song | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = usePrefs();
@@ -147,6 +149,7 @@ export function SongPage() {
           </IconButton>
           <ButtonLink
             to={`/edit/${encodeURIComponent(id)}`}
+            state={{ returnTo }}
             aria-label={t('song.edit')}
             title={t('song.edit')}
           >

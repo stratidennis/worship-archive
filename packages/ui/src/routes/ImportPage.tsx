@@ -98,7 +98,7 @@ export function ImportPage() {
 
   return (
     <Scroll>
-      <div className="mx-auto max-w-3xl px-4 pb-16 pt-5">
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-8">
         <header className="mb-4">
           <h1 className="text-2xl font-bold">{t('import.title')}</h1>
           <p className="mt-1 max-w-prose text-sm text-(--color-muted)">
@@ -106,61 +106,65 @@ export function ImportPage() {
           </p>
         </header>
 
-        <div
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            const files = [...event.dataTransfer.files];
-            void Promise.all(
-              files.map(async (f) => ({ name: f.name, text: await f.text() })),
-            ).then(add);
-          }}
-          className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-            dragging ? 'border-(--color-chord) bg-(--color-chord)/5' : 'border-(--color-line)'
-          }`}
-        >
-          <p className="text-sm text-(--color-muted)">{t('import.dropHere')}</p>
-          <Button
-            variant="primary"
-            className="mt-3"
-            onClick={() => {
-              void pickTextFiles('.chopro,.cho,.chordpro,.pro,.song,.xml,.txt,text/*').then(
-                add,
-              );
+        <div className="grid items-stretch gap-5 lg:grid-cols-2">
+          <div
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
             }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              const files = [...event.dataTransfer.files];
+              void Promise.all(
+                files.map(async (f) => ({ name: f.name, text: await f.text() })),
+              ).then(add);
+            }}
+            className={`grid min-h-56 place-content-center rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+              dragging ? 'border-(--color-chord) bg-(--color-chord)/5' : 'border-(--color-line)'
+            }`}
           >
-            {t('import.pickFiles')}
-          </Button>
-        </div>
+            <div>
+              <p className="text-sm text-(--color-muted)">{t('import.dropHere')}</p>
+              <Button
+                variant="primary"
+                className="mt-3"
+                onClick={() => {
+                  void pickTextFiles('.chopro,.cho,.chordpro,.pro,.song,.xml,.txt,text/*').then(
+                    add,
+                  );
+                }}
+              >
+                {t('import.pickFiles')}
+              </Button>
+            </div>
+          </div>
 
-        <div className="mt-5">
-          <label className="block text-sm font-medium" htmlFor="paste">
-            {t('import.pasteLabel')}
-          </label>
-          <Textarea
-            id="paste"
-            value={paste}
-            onChange={(event) => setPaste(event.target.value)}
-            placeholder={t('import.pastePlaceholder')}
-            rows={6}
-            spellCheck={false}
-            className="mt-1 font-mono text-xs"
-          />
-          <Button
-            className="mt-1"
-            disabled={paste.trim() === ''}
-            onClick={() => {
-              add([{ name: '', text: paste }]);
-              setPaste('');
-            }}
-          >
-            {t('import.pasteButton')}
-          </Button>
+          <div className="rounded-xl border border-(--color-line) bg-(--color-surface) p-5">
+            <label className="block text-sm font-medium" htmlFor="paste">
+              {t('import.pasteLabel')}
+            </label>
+            <Textarea
+              id="paste"
+              value={paste}
+              onChange={(event) => setPaste(event.target.value)}
+              placeholder={t('import.pastePlaceholder')}
+              rows={7}
+              spellCheck={false}
+              className="mt-1 font-mono text-xs"
+            />
+            <Button
+              className="mt-2"
+              disabled={paste.trim() === ''}
+              onClick={() => {
+                add([{ name: '', text: paste }]);
+                setPaste('');
+              }}
+            >
+              {t('import.pasteButton')}
+            </Button>
+          </div>
         </div>
 
         {result && (
@@ -170,7 +174,11 @@ export function ImportPage() {
             {result.ids.length === 1 && (
               <button
                 type="button"
-                onClick={() => navigate(`/song/${encodeURIComponent(result.ids[0]!)}`)}
+                onClick={() =>
+                  navigate(`/song/${encodeURIComponent(result.ids[0]!)}`, {
+                    state: { returnTo: '/import' },
+                  })
+                }
                 className="ml-2 underline"
               >
                 {t('import.openAfter')}
@@ -190,9 +198,12 @@ export function ImportPage() {
               </Button>
             </div>
 
-            <ul className="divide-y divide-(--color-line)">
+            <ul className="grid gap-x-6 lg:grid-cols-2">
               {candidates.map((candidate) => (
-                <li key={candidate.id} className="flex items-start gap-3 py-2.5">
+                <li
+                  key={candidate.id}
+                  className="flex items-start gap-3 border-b border-(--color-line) py-2.5"
+                >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">
                       {candidate.song.title || t('app.untitled')}

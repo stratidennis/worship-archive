@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
+  canonicalFilterKey,
+  compareFilterKeys,
   semitonesBetween,
   type ServiceSet,
   type SessionPatch,
@@ -104,6 +106,7 @@ export function SetPage() {
   const { t, date: formatDate, blockName } = useT();
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [prefs, setPrefs] = usePrefs();
 
   const [set, setSet] = useState<ServiceSet | null>(null);
@@ -220,12 +223,12 @@ export function SetPage() {
   const facets = useMemo(() => {
     const keys = new Map<string, number>();
     for (const song of hits) {
-      const key = song.performanceKey ?? song.writtenKey;
+      const key = canonicalFilterKey(song.performanceKey ?? song.writtenKey ?? '');
       if (key) keys.set(key, (keys.get(key) ?? 0) + 1);
     }
     return {
       collections,
-      keys: [...keys].sort((a, b) => b[1] - a[1]),
+      keys: [...keys].sort((a, b) => compareFilterKeys(a[0], b[0])),
     };
   }, [hits, collections]);
 
@@ -236,7 +239,7 @@ export function SetPage() {
           (song) =>
             (inCollection === null || inCollection.has(song.id)) &&
             (filters.key === '' ||
-              (song.performanceKey ?? song.writtenKey ?? '') === filters.key),
+              canonicalFilterKey(song.performanceKey ?? song.writtenKey ?? '') === filters.key),
         )
         .slice(0, 80),
     [hits, filters.key, inCollection],
@@ -565,7 +568,7 @@ export function SetPage() {
       </HeaderActions>
 
       {expanded && (
-        <div className="shrink-0 border-b border-(--color-line) bg-(--color-raised) px-3 py-2 print:hidden sm:px-4">
+        <div className="shrink-0 border-b border-(--color-line) bg-(--color-raised) px-3 pb-2 pt-3 print:hidden sm:px-4">
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
             {/* Starting a service is a first-class action, so it sits first rather than
                 hiding behind the sets list. Deleting one does not: it lives on that
@@ -831,6 +834,7 @@ export function SetPage() {
               songId={selection.songId}
               onLoaded={(song) => setSongs((s) => ({ ...s, [song.id]: song }))}
               blockName={blockName}
+              returnTo={`${location.pathname}${location.search}`}
             >
               <Button
                 variant="primary"
@@ -846,6 +850,7 @@ export function SetPage() {
               songId={selectedItem.songId}
               onLoaded={(song) => setSongs((s) => ({ ...s, [song.id]: song }))}
               blockName={blockName}
+              returnTo={`${location.pathname}${location.search}`}
               transposeTo={selectedItem.keyOverride}
               capo={selectedItem.capoOverride}
             >
@@ -1292,6 +1297,7 @@ function Preview({
   transposeTo,
   capo,
   blockName,
+  returnTo,
   children,
 }: {
   song: Song | undefined;
@@ -1300,6 +1306,7 @@ function Preview({
   transposeTo?: string | null;
   capo?: number | null;
   blockName: Translator['blockName'];
+  returnTo: string;
   children?: React.ReactNode;
 }) {
   const { t } = useT();
@@ -1354,6 +1361,7 @@ function Preview({
         </div>
         <ButtonLink
           to={`/edit/${encodeURIComponent(song.id)}`}
+          state={{ returnTo }}
           size="sm"
           aria-label={t('song.edit')}
           title={t('song.edit')}

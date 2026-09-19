@@ -9,7 +9,12 @@
 
 import { hostname, networkInterfaces } from 'node:os';
 import { resolve } from 'node:path';
-import { SESSION_PROTOCOL_VERSION } from '@worship/core';
+import { createSocket, type Socket as DgramSocket } from 'node:dgram';
+import {
+  LAN_DISCOVERY_PORT,
+  LAN_DISCOVERY_REQUEST,
+  SESSION_PROTOCOL_VERSION,
+} from '@worship/core';
 import chokidar, { type FSWatcher } from 'chokidar';
 import type { FastifyInstance } from 'fastify';
 import { createServer, type NetworkRuntimeStatus } from './api.js';
@@ -58,6 +63,10 @@ export interface RunningServer {
 interface MdnsPublisher {
   unpublishAll: (callback?: () => void) => void;
   destroy: () => void;
+}
+
+interface DiscoveryResponder {
+  close: () => void;
 }
 
 const MDNS_TYPE = 'worship-archive';
@@ -137,6 +146,59 @@ async function publishMdns(
     log(`  mDNS unavailable (${String(error)}) — use the QR code or an IP address`);
     return null;
   }
+}
+
+/**
+ * Answer installed-client discovery broadcasts.
+ *
+ * mDNS remains the nicest path because it advertises a real service, but it is not a
+ * dependable only path on Windows: firewall rules are per executable and multiple
+ * installed clients can contend for the multicast listener. UDP broadcast uses an
+ * ephemeral client port and gives both apps the Leader's real source address.
+ */
+async function startDiscoveryResponder(
+  httpPort: number,
+  leaderId: string,
+  leaderName: string,
+  log: (message: string) => void,
+): Promise<DiscoveryResponder | null> {
+  const socket: DgramSocket = createSocket({ type: 'udp4', reuseAddr: true });
+  const payload = Buffer.from(
+    JSON.stringify({
+      app: MDNS_TYPE,
+      role: 'leader',
+      protocol: SESSION_PROTOCOL_VERSION,
+      leaderId,
+      name: leaderName,
+      port: httpPort,
+    }),
+  );
+
+  socket.on('message', (message, remote) => {
+    if (message.toString('utf8') !== LAN_DISCOVERY_REQUEST) return;
+    socket.send(payload, remote.port, remote.address, (error) => {
+      if (error) log(`  LAN discovery reply failed (${String(error)})`);
+    });
+  });
+
+  const started = await new Promise<boolean>((resolveStarted) => {
+    const onError = (error: Error): void => {
+      socket.off('listening', onListening);
+      log(`  LAN discovery fallback unavailable (${String(error)})`);
+      resolveStarted(false);
+    };
+    const onListening = (): void => {
+      socket.off('error', onError);
+      resolveStarted(true);
+    };
+    socket.once('error', onError);
+    socket.once('listening', onListening);
+    socket.bind(LAN_DISCOVERY_PORT, '0.0.0.0');
+  });
+  if (!started) return null;
+
+  socket.on('error', (error) => log(`  LAN discovery fallback error (${String(error)})`));
+  return { close: () => socket.close() };
 }
 
 /**
@@ -246,6 +308,15 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
           log,
         )
       : null;
+  const discoveryResponder =
+    (options.mdns ?? true)
+      ? await startDiscoveryResponder(
+          port,
+          options.leaderId ?? '',
+          options.leaderName?.trim() || MDNS_TYPE,
+          log,
+        )
+      : null;
 
   return {
     app,
@@ -260,6 +331,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
     networkStatus,
     stop: async (): Promise<void> => {
       bonjour?.unpublishAll(() => bonjour.destroy());
+      discoveryResponder?.close();
       await hub.close();
       await watcher?.close();
       await app.close();

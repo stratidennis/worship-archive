@@ -29,6 +29,14 @@ export type LanguageName = 'ro' | 'en';
 export const SESSION_PROTOCOL_VERSION = 1;
 
 /**
+ * A tiny UDP fallback for installed clients on networks where multicast DNS is not
+ * available. Windows can also give two separately installed Electron clients
+ * different firewall treatment, so discovery cannot rely on mDNS alone.
+ */
+export const LAN_DISCOVERY_PORT = 7371;
+export const LAN_DISCOVERY_REQUEST = `worship-archive-discover:${SESSION_PROTOCOL_VERSION}`;
+
+/**
  * How the stage screens should look, decided once for all of them.
  *
  * A stage display has nobody standing at it. It is a television on a bracket, and the
@@ -122,14 +130,14 @@ export function patchStageDisplay(
 }
 
 /**
- * What one screen should actually look like: its own settings over the shared ones.
+ * What one screen should actually look like.
  *
  * Installed screens are matched by stable device id, so renaming one cannot discard
  * its settings. `screen` remains as compatibility for browser links and installations
  * configured before stable ids existed.
  *
- * A screen with no name of its own is not a mistake; it simply takes the shared
- * settings, which is the right answer for the overwhelmingly common case of one screen.
+ * Language and font size may be configured per screen. Theme and chord colour always
+ * come from the Leader, so every view in the room uses one colour scheme.
  */
 export function resolveStageDisplay(
   state: SessionState,
@@ -142,12 +150,12 @@ export function resolveStageDisplay(
     null;
   const host = state.host;
   return {
-    // Three layers, narrowest first: this screen, then all screens, then the leader's
-    // own device — and only if all three are silent does the screen fall back to
-    // whatever its own browser happens to think, which is nobody's decision.
-    theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,
+    // Colour belongs to the Leader. A separate Stage or Band palette makes the room
+    // disagree with the screen it is being led from, so old per-screen colour values
+    // remain readable for compatibility but deliberately no longer take effect.
+    theme: host?.theme ?? null,
     language: own?.language ?? state.stage.language ?? host?.language ?? null,
-    chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
+    chordColor: host?.chordColor ?? null,
     // Not the leader's. See {@link HostDisplay}.
     maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
   };

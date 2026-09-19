@@ -54,7 +54,7 @@ export const DEFAULT_PREFS: Prefs = {
   transpose: 0,
   maxFontPx: 26,
   chordColor: null,
-  language: 'ro',
+  language: 'en',
   theme: 'auto',
   setHeaderExpanded: true,
   sidebarWidth: 288,

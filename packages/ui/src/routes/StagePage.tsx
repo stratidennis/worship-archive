@@ -147,7 +147,9 @@ export function StagePage() {
       <div
         id="main"
         ref={container}
-        className="min-h-0 flex-1 overflow-hidden px-4 py-3 sm:px-5"
+        className={`min-h-0 flex-1 overflow-hidden px-4 py-3 sm:px-5 ${
+          state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''
+        }`}
       >
         {state.output === 'cleared' ? null : song ? (
           <div
@@ -170,7 +172,7 @@ export function StagePage() {
             />
           </div>
         ) : (
-          <div className="mt-[20vh] flex justify-center">
+          <div className="flex items-center justify-center">
             {live.set ? (
               /* A service is running and the leader is between songs. The mark alone:
                  naming the state would be a caption on a wall about nothing. */
@@ -213,11 +215,13 @@ export function StagePage() {
               <span className="text-(--color-muted)">{t('band.yourName')}</span>
               <Input
                 value={screenName}
+                required
                 onChange={(event) => setScreenName(event.target.value)}
               />
             </label>
             <Button
               className="justify-self-start"
+              disabled={!screenName.trim()}
               onClick={() => {
                 if (!screenName.trim()) return;
                 void native.updateSettings({ name: screenName.trim() }).then(setClientState);
@@ -253,6 +257,11 @@ export function StagePage() {
                 void native.updateSettings({ preventSleep }).then(setClientState);
               }}
             />
+            <div className="mt-2 border-t border-(--color-line) pt-4">
+              <Button variant="danger" onClick={() => void native.quit()}>
+                {t('settings.quitApp')}
+              </Button>
+            </div>
           </div>
         </Sheet>
       )}
@@ -270,9 +279,13 @@ function StageSetting({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      {label}
+    <label className="flex items-start gap-2 text-sm">
+      <Checkbox
+        className="mt-0.5"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="min-w-0">{label}</span>
     </label>
   );
 }

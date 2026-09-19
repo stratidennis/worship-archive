@@ -121,7 +121,7 @@ export function SettingsPage() {
 
   return (
     <Scroll>
-      <div className="mx-auto max-w-[100rem] px-4 pb-10 pt-5">
+      <div className="mx-auto max-w-7xl px-4 pb-12 pt-8">
         <h1 className="mb-4 text-2xl font-bold">{t('settings.title')}</h1>
 
         {message && (
@@ -138,14 +138,11 @@ export function SettingsPage() {
           </p>
         )}
 
-        {/*
-          Columns rather than one narrow stack. These are a dozen small, unrelated
-          panels, and stacked in a 672px measure they ran well past the fold on a
-          laptop — so you scrolled to find a thing that would have fit on the screen.
-          `columns` rather than a grid because the panels are different heights and
-          nothing here needs to line up in rows.
-        */}
-        <div className="gap-4 lg:columns-2 xl:columns-3">
+        {/* A real grid, not CSS columns. Column balancing moved whole cards whenever
+            the Display card changed height, which made the page rearrange itself as a
+            setting was selected. Grid order is stable and its two wider columns leave
+            enough room for paths, screen names, and segmented controls. */}
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <Section title={t('settings.language')}>
             <LanguageChoice value={lang} onChange={setLang} />
           </Section>
@@ -159,7 +156,7 @@ export function SettingsPage() {
             )}
           </Section>
 
-          <Section title={t('settings.display')}>
+          <Section title={t('settings.display')} className="lg:col-span-2">
             {/*
               The same four questions, asked of two different things.
 
@@ -255,12 +252,6 @@ export function SettingsPage() {
                   </p>
                 )}
 
-                <ThemeChoice
-                  label={t('settings.theme')}
-                  value={stage.theme}
-                  onChange={(theme) => setStage({ theme })}
-                  inherit={inherit}
-                />
                 <LanguageChoice
                   label={t('settings.language')}
                   value={stage.language}
@@ -277,14 +268,9 @@ export function SettingsPage() {
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.maxFontPx : null) ?? 72}
                 />
-                <ChordColour
-                  value={stage.chordColor}
-                  onChange={(chordColor) => setStage({ chordColor })}
-                  defaultLabel={inherit}
-                />
-                <ChordSample
-                  colour={stage.chordColor ?? (selected ? shared.chordColor : null)}
-                />
+                <p className="mt-3 text-xs text-(--color-muted)">
+                  {t('settings.screensUseLeaderColours')}
+                </p>
               </>
             )}
           </Section>
@@ -333,6 +319,16 @@ export function SettingsPage() {
             >
               {t('settings.resync')}
             </Button>
+          </Section>
+
+          <Section title={t('settings.connections')}>
+            <p className="text-sm text-(--color-muted)">{t('settings.connectionsHint')}</p>
+            <Link
+              to="/join"
+              className="mt-3 inline-flex h-8 items-center rounded-md border border-(--color-line) px-2.5 text-sm font-medium hover:bg-(--color-line)"
+            >
+              {t('settings.openJoin')}
+            </Link>
           </Section>
 
           <Section title={t('settings.backup')}>
@@ -400,9 +396,17 @@ export function SettingsPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  className = '',
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="mb-4 break-inside-avoid rounded-xl border border-(--color-line) p-4">
+    <section className={`rounded-xl border border-(--color-line) p-5 ${className}`}>
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
         {title}
       </h2>

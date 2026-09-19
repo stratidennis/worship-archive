@@ -141,11 +141,7 @@ describe('how a stage screen should look', () => {
     expect(resolveStageDisplay(state, 'Anything').maxFontPx).toBe(60);
   });
 
-  /*
-    The point of the whole feature: the monitor by the drums and the television at the
-    back of the hall are not asking for the same number, and setting one must not move
-    the other.
-  */
+  /* Screen size can differ by distance, while colour remains the Leader's. */
   it('lets one screen differ without disturbing the rest', () => {
     const state = session({
       stage: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 60, chordColor: '#f59e0b' },
@@ -155,8 +151,7 @@ describe('how a stage screen should look', () => {
       theme: null,
       language: null,
       maxFontPx: 28,
-      // Only what it actually overrides; the rest still follows everyone else.
-      chordColor: '#f59e0b',
+      chordColor: null,
     });
     expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
   });
@@ -176,25 +171,24 @@ describe('how a stage screen should look', () => {
     });
   });
 
-  it('lets a choice made for the screens beat the leader\u2019s own', () => {
+  it('always uses the leader colour scheme over an old shared screen choice', () => {
     const state = session({
       stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
       host: { theme: 'light', language: 'en', chordColor: null },
     });
     const resolved = resolveStageDisplay(state, null);
-    expect(resolved.theme).toBe('stage');
-    // And only that one: the rest still follows the leader.
+    expect(resolved.theme).toBe('light');
     expect(resolved.language).toBe('en');
   });
 
-  it('lets one screen beat both', () => {
+  it('always uses the leader colour scheme over an old per-screen choice', () => {
     const state = session({
       stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
       stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } },
       host: { theme: 'dark', language: 'ro', chordColor: null },
     });
-    expect(resolveStageDisplay(state, 'Drums').theme).toBe('light');
-    expect(resolveStageDisplay(state, 'Back').theme).toBe('stage');
+    expect(resolveStageDisplay(state, 'Drums').theme).toBe('dark');
+    expect(resolveStageDisplay(state, 'Back').theme).toBe('dark');
   });
 
   it('keeps a screen override when its editable name changes', () => {

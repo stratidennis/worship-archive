@@ -12,6 +12,7 @@ const api = {
       Pick<ClientSettings, 'name' | 'showChords' | 'autoStart' | 'fullscreen' | 'preventSleep'>
     >,
   ): Promise<ClientSettings> => ipcRenderer.invoke('worship-client:update-settings', patch),
+  quit: (): Promise<void> => ipcRenderer.invoke('worship-client:quit'),
 };
 
 contextBridge.exposeInMainWorld('worshipClient', api);

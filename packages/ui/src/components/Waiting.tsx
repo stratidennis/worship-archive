@@ -1,5 +1,5 @@
 import { useT } from '../lib/i18n.js';
-import { Logo } from './Logo.js';
+import { Wordmark } from './Logo.js';
 
 /**
  * A screen with nothing on it yet.
@@ -20,8 +20,8 @@ export function WaitingForLeader({ compact = false }: { compact?: boolean }) {
     <div className="flex flex-col items-center gap-6">
       {/* Sized against the viewport rather than in points: the big variant is read
           from the back of a hall on a television nobody can walk up to. */}
-      <Logo
-        className={`text-(--color-chord) ${compact ? 'h-10' : 'h-[min(16vh,9rem)]'}`}
+      <Wordmark
+        className={`max-w-[86vw] text-(--color-chord) ${compact ? 'h-9' : 'h-[min(13vh,7rem)]'}`}
         label={t('app.name')}
       />
       <p
@@ -42,11 +42,11 @@ export function WaitingForLeader({ compact = false }: { compact?: boolean }) {
  */
 function Dots() {
   return (
-    <span aria-hidden className="mb-[0.3em] flex items-end gap-[0.22em]">
-      {[0, 160, 320].map((delay) => (
+    <span aria-hidden className="mb-[0.22em] flex items-end gap-[0.28em]">
+      {[0, 180, 360].map((delay) => (
         <span
           key={delay}
-          className="h-[0.24em] w-[0.24em] animate-bounce rounded-full bg-current"
+          className="waiting-dot h-[0.15em] w-[0.15em] rounded-full bg-current"
           style={{ animationDelay: `${delay}ms` }}
         />
       ))}

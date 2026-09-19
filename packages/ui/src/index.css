@@ -156,6 +156,31 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* A quiet travelling pulse: visible across a room without three heavy balls jumping. */
+@keyframes waiting-dot {
+  0%,
+  55%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0) scale(0.82);
+  }
+  22% {
+    opacity: 0.9;
+    transform: translateY(-0.32em) scale(1);
+  }
+}
+
+.waiting-dot {
+  animation: waiting-dot 1.35s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-dot {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
 /*
   Scrollbars.
 

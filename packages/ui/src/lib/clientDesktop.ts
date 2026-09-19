@@ -21,6 +21,7 @@ interface WorshipClientApi {
   ) => Promise<void>;
   state: () => Promise<ClientDesktopState>;
   updateSettings: (patch: EditableClientSettings) => Promise<ClientDesktopState>;
+  quit: () => Promise<void>;
 }
 
 declare global {

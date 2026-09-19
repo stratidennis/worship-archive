@@ -12,9 +12,8 @@ import { usePrefs } from './settings.js';
 /**
  * Two languages, one dictionary.
  *
- * Romanian is the default because that is what the band speaks; English exists because
- * the song library is not only Romanian, and because a visiting musician holding a
- * borrowed tablet should not be locked out of the controls.
+ * English is the predictable default on every fresh installation. Romanian remains an
+ * explicit choice, including when the Leader sends it to the Stage screens.
  *
  * The English dictionary is typed as `Record<Key, Entry>` over the Romanian one, so a
  * missing translation is a **compile error**. That is the whole point: a half-translated
@@ -340,6 +339,9 @@ const ro = {
   'settings.showChords': 'Arată acordurile',
   'settings.library': 'Arhiva',
   'settings.close': 'Închide setările',
+  'settings.quitApp': 'Închide aplicația',
+  'settings.screensUseLeaderColours':
+    'Culorile și tema ecranelor urmează întotdeauna dispozitivul liderului.',
   'settings.displayTarget': 'Pentru ce ecran',
   'settings.thisDevice': 'Acest dispozitiv',
   'settings.theScreens': 'Ecranele scenei',
@@ -382,6 +384,10 @@ const ro = {
   'settings.cleanupHint':
     'Caută acorduri scrise neobișnuit (Cm# în loc de C#m) și îți arată fiecare propunere înainte să schimbe ceva.',
   'settings.openCleanup': 'Vezi propunerile',
+  'settings.connections': 'Conectarea dispozitivelor',
+  'settings.connectionsHint':
+    'Deschide pagina cu codul QR și adresele de conectare chiar dacă modul Condu nu este pornit.',
+  'settings.openJoin': 'Deschide pagina de conectare',
   'settings.desktop': 'Aplicație desktop',
   'settings.preventSleep': 'Ține ecranul aprins',
   'settings.preventSleepHint': 'Împiedică adormirea calculatorului în timpul serviciului.',
@@ -752,6 +758,9 @@ const en: Record<TranslationKey, Entry> = {
   'settings.showChords': 'Show chords',
   'settings.library': 'Archive',
   'settings.close': 'Close settings',
+  'settings.quitApp': 'Quit app',
+  'settings.screensUseLeaderColours':
+    'Screen colours and theme always follow the Leader device.',
   'settings.displayTarget': 'Which screen',
   'settings.thisDevice': 'This device',
   'settings.theScreens': 'Stage screens',
@@ -794,6 +803,10 @@ const en: Record<TranslationKey, Entry> = {
   'settings.cleanupHint':
     'Finds chords written unusually (Cm# instead of C#m) and shows you every proposal before changing anything.',
   'settings.openCleanup': 'See the proposals',
+  'settings.connections': 'Connect devices',
+  'settings.connectionsHint':
+    'Open the QR code and connection addresses even when Lead mode has not been started.',
+  'settings.openJoin': 'Open the connection page',
   'settings.desktop': 'Desktop app',
   'settings.preventSleep': 'Keep the screen awake',
   'settings.preventSleepHint': 'Stops the computer sleeping during a service.',

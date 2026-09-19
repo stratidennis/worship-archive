@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useBlocker, useNavigate, useParams } from 'react-router-dom';
+import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   BLOCK_TYPES,
   SINGERS,
@@ -69,6 +69,8 @@ export function EditPage() {
   const { t, blockName, singerName } = useT();
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo ?? '/archive';
   const song = useUndoable<Song | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [preview, setPreview] = useState(false);
@@ -472,7 +474,10 @@ export function EditPage() {
                     confirmLabel: t('app.delete'),
                     danger: true,
                   }).then((ok) => {
-                    if (ok) void adminApi.deleteSong(id).then(() => navigate('/'));
+                    if (ok)
+                      void adminApi
+                        .deleteSong(id)
+                        .then(() => navigate(returnTo, { replace: true }));
                   });
                 }}
               >

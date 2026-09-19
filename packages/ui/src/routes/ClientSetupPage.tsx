@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Logo } from '../components/Logo.js';
-import { ThemeToggle } from '../components/ThemeToggle.js';
 import { Button, Checkbox, Input } from '../components/ui.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { useT } from '../lib/i18n.js';
@@ -54,9 +53,6 @@ export function ClientSetupPage() {
           <Logo className="h-[18px] text-(--color-chord)" />
           <span>{t('app.name')}</span>
         </div>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
       </header>
 
       <main id="main" className="grid flex-1 place-items-center px-4 py-10">
@@ -79,21 +75,23 @@ export function ClientSetupPage() {
           </label>
 
           {state?.role === 'stage' && (
-            <label className="mt-4 flex items-center gap-2 text-sm">
+            <label className="mt-4 flex w-full items-start gap-2 text-sm">
               <Checkbox
+                className="mt-0.5"
                 checked={showChords}
                 onChange={(event) => setShowChords(event.target.checked)}
               />
-              {t('settings.showChords')}
+              <span className="min-w-0">{t('settings.showChords')}</span>
             </label>
           )}
 
-          <label className="mt-4 flex items-center gap-2 text-sm">
+          <label className="mt-4 flex w-full items-start gap-2 text-sm">
             <Checkbox
+              className="mt-0.5"
               checked={autoStart}
               onChange={(event) => setAutoStart(event.target.checked)}
             />
-            {t('settings.autoStart')}
+            <span className="min-w-0">{t('settings.autoStart')}</span>
           </label>
 
           {error && (
@@ -102,7 +100,12 @@ export function ClientSetupPage() {
             </p>
           )}
 
-          <Button className="mt-6" variant="primary" type="submit" disabled={!state || saving}>
+          <Button
+            className="mt-6"
+            variant="primary"
+            type="submit"
+            disabled={!state || saving || !name.trim()}
+          >
             {saving ? t('app.loading') : t('setup.continue')}
           </Button>
         </form>

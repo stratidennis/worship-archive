@@ -159,3 +159,42 @@ function stripMinor(key: string): string {
 export function isMinorKey(key: string): boolean {
   return /(m|min|minor)\s*$/.test(key.trim());
 }
+
+/** One familiar spelling for each pitch class in filters and summaries. */
+const FILTER_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const FILTER_ORDER = ['A', 'Bb', 'B', 'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab'];
+
+/** Merge enharmonic spellings so, for example, D# and Eb share one filter. */
+export function canonicalFilterKey(key: string): string | null {
+  const cleaned = cleanKeyName(key);
+  if (!cleaned) return null;
+  const minor = isMinorKey(cleaned);
+  const root = minor ? cleaned.slice(0, -1) : cleaned;
+  const pitch = noteToPitchClass(root);
+  if (pitch === null) return null;
+  return `${FILTER_NAMES[pitch]}${minor ? 'm' : ''}`;
+}
+
+/** All ordinary spellings which should match a canonical key filter. */
+export function filterKeyAliases(key: string): string[] {
+  const canonical = canonicalFilterKey(key);
+  if (!canonical) return [];
+  const minor = isMinorKey(canonical);
+  const root = minor ? canonical.slice(0, -1) : canonical;
+  const pitch = noteToPitchClass(root)!;
+  const suffix = minor ? 'm' : '';
+  return [...new Set([`${SHARP_NAMES[pitch]}${suffix}`, `${FLAT_NAMES[pitch]}${suffix}`])];
+}
+
+/** Major keys chromatically from A, followed by minor keys in the same order. */
+export function compareFilterKeys(a: string, b: string): number {
+  const left = canonicalFilterKey(a) ?? a;
+  const right = canonicalFilterKey(b) ?? b;
+  const leftMinor = isMinorKey(left);
+  const rightMinor = isMinorKey(right);
+  if (leftMinor !== rightMinor) return leftMinor ? 1 : -1;
+  const leftRoot = leftMinor ? left.slice(0, -1) : left;
+  const rightRoot = rightMinor ? right.slice(0, -1) : right;
+  const byPitch = FILTER_ORDER.indexOf(leftRoot) - FILTER_ORDER.indexOf(rightRoot);
+  return byPitch || left.localeCompare(right);
+}

@@ -48,8 +48,8 @@ export function JoinPage() {
    *
    * Optional, and most installations will leave it. It earns its place when there is a
    * screen at the back and a monitor by the drums: the name is what tells them apart in
-   * the leader's connected list, and it is what lets one of them be given a text size
-   * or a theme of its own in Settings without touching the other.
+   * the leader's connected list, and it is what lets one of them be given its own text
+   * size in Settings without touching the other.
    */
   const [stageName, setStageName] = useState('');
   const [checks, setChecks] = useState<Record<string, CheckStatus>>({});
@@ -190,182 +190,188 @@ export function JoinPage() {
 
   return (
     <Scroll>
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        {/* The one screen someone sees before they have any idea what this is: they
-              are standing in a room being handed a QR code. */}
-        <Wordmark className="mb-6 h-12 text-(--color-chord) sm:h-16" label={t('app.name')} />
-        <h1 className="text-2xl font-bold">{t('join.title')}</h1>
-        <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
-
-        <Segmented label={t('join.title')} className="mt-5">
-          {(
-            [
-              ['/band', t('app.band')],
-              ['/stage', t('app.stage')],
-              ['/archive', t('app.library')],
-            ] as const
-          ).map(([value, label]) => (
-            <Segment
-              key={value}
-              active={path === value}
-              aria-pressed={path === value}
-              onClick={() => setPath(value)}
-            >
-              {label}
-            </Segment>
-          ))}
-        </Segmented>
-
-        {path === '/stage' && (
-          <>
-            <Segmented label={t('song.chords')} className="ml-2 mt-5">
-              <Segment active={stageChords} onClick={() => setStageChords(true)}>
-                {t('join.stageWithChords')}
-              </Segment>
-              <Segment active={!stageChords} onClick={() => setStageChords(false)}>
-                {t('join.stageWordsOnly')}
-              </Segment>
-            </Segmented>
-
-            <Field
-              label={t('join.screenName')}
-              hint={t('join.screenNameHint')}
-              className="mt-5 max-w-sm"
-            >
-              <Input
-                value={stageName}
-                onChange={(event) => setStageName(event.target.value)}
-                placeholder={t('app.stage')}
-                maxLength={60}
-              />
-            </Field>
-          </>
-        )}
-
-        {qr && (
-          <div className="mt-5 flex flex-col items-center gap-3">
-            {/* White plate: a QR on a dark background is unreadable to many cameras. */}
-            <img
-              src={qr}
-              alt={t('join.qrAlt', { url: url ?? '' })}
-              className="rounded-lg bg-white p-3"
-              width={280}
-              height={280}
-            />
-            {url && (
-              <div className="flex max-w-full flex-wrap items-center justify-center gap-2 text-sm">
-                <code className="max-w-full break-all rounded bg-(--color-line) px-2 py-1">
-                  {url}
-                </code>
-                <CopyLink url={url} />
-              </div>
-            )}
-            <p className="max-w-md text-center text-xs text-(--color-muted)">
-              {t('join.qrReliable')}
-            </p>
+      <div className="mx-auto max-w-7xl px-4 pb-12 pt-8">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <Wordmark className="h-11 text-(--color-chord) sm:h-14" label={t('app.name')} />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold">{t('join.title')}</h1>
+            <p className="mt-1 text-sm text-(--color-muted)">{t('join.subtitle')}</p>
           </div>
-        )}
+        </div>
 
-        {host && (
-          <div className="mt-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
-              {t('join.orType')}
-            </h2>
-            <ul className="mt-2 space-y-1.5">
-              {links.map((link) => (
-                <li
-                  key={link.url}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
-                >
-                  <code className="rounded bg-(--color-line) px-1.5 py-1">{link.url}</code>
-                  <CopyLink url={link.url} />
-                  <span className="text-(--color-muted)">— {link.hint}</span>
-                  <LinkCheck status={checks[new URL(link.url).origin]} />
-                  {link.kind === 'friendly' && (
-                    <span className="rounded-full bg-(--color-chord)/15 px-2 py-0.5 text-xs text-(--color-chord)">
-                      {t('join.friendly')}
-                    </span>
-                  )}
-                  {link.url === url && (
-                    <span className="rounded-full bg-(--color-chord)/15 px-2 py-0.5 text-xs text-(--color-chord)">
-                      {t('join.qrTag')}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {host.addresses.length > 1 && (
-              <p className="mt-2 text-xs text-(--color-muted)">{t('join.multipleNetworks')}</p>
-            )}
-            {host.addresses.length === 0 && (
-              <p className="mt-2 text-xs text-(--color-muted)">{t('join.noNetwork')}</p>
-            )}
-          </div>
-        )}
+        <div className="mt-7 grid items-start gap-6 lg:grid-cols-2">
+          <div className="grid gap-6">
+            <section className="rounded-xl border border-(--color-line) bg-(--color-surface) p-5">
+              <Segmented label={t('join.title')} className="w-full flex-wrap">
+                {(
+                  [
+                    ['/band', t('app.band')],
+                    ['/stage', t('app.stage')],
+                    ['/archive', t('app.library')],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Segment
+                    key={value}
+                    active={path === value}
+                    aria-pressed={path === value}
+                    onClick={() => setPath(value)}
+                  >
+                    {label}
+                  </Segment>
+                ))}
+              </Segmented>
 
-        {host && (
-          <section className="mt-8 rounded-xl border border-(--color-line) bg-(--color-surface) p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="min-w-0 flex-1 text-base font-bold">{t('join.diagnostics')}</h2>
-              <Button size="sm" onClick={() => void testConnections()}>
-                {t('join.testConnections')}
-              </Button>
-            </div>
-
-            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-[auto_1fr]">
-              <dt className="text-(--color-muted)">{t('join.server')}</dt>
-              <dd>
-                <DiagnosticDot good /> {t('join.serverRunning', { port: origin.port })}
-              </dd>
-              <dt className="text-(--color-muted)">{t('join.discovery')}</dt>
-              <dd>
-                <DiagnosticDot good={host.mdns === 'published'} />{' '}
-                {host.mdns === 'published'
-                  ? t('join.discoveryReady', {
-                      hostname: host.friendlyHostname ?? 'worship-archive.local',
-                    })
-                  : host.mdns === 'starting'
-                    ? t('join.discoveryStarting')
-                    : t('join.discoveryUnavailable')}
-              </dd>
-              <dt className="text-(--color-muted)">{t('join.networks')}</dt>
-              <dd>
-                {host.interfaces.length > 0
-                  ? host.interfaces
-                      .map((entry) => `${entry.name}: ${entry.address}`)
-                      .join(' · ')
-                  : t('join.noNetwork')}
-              </dd>
-            </dl>
-
-            <p className="mt-4 text-xs text-(--color-muted)">{t('join.testHint')}</p>
-
-            <div className="mt-5 border-t border-(--color-line) pt-4">
-              <h3 className="text-sm font-semibold">{t('join.permissionTitle')}</h3>
-              <p className="mt-1 text-sm text-(--color-muted)">
-                {nativeState?.platform === 'win32'
-                  ? t('join.permissionWindows')
-                  : nativeState?.platform === 'darwin'
-                    ? t('join.permissionMac')
-                    : t('join.permissionGeneric')}
-              </p>
-              {native && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mt-2"
-                  onClick={() => void native.openNetworkSettings()}
-                >
-                  {t('join.openNetworkSettings')}
-                </Button>
+              {path === '/stage' && (
+                <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                  <Segmented label={t('song.chords')} className="self-start flex-wrap">
+                    <Segment active={stageChords} onClick={() => setStageChords(true)}>
+                      {t('join.stageWithChords')}
+                    </Segment>
+                    <Segment active={!stageChords} onClick={() => setStageChords(false)}>
+                      {t('join.stageWordsOnly')}
+                    </Segment>
+                  </Segmented>
+                  <Field label={t('join.screenName')} hint={t('join.screenNameHint')}>
+                    <Input
+                      value={stageName}
+                      onChange={(event) => setStageName(event.target.value)}
+                      placeholder={t('app.stage')}
+                      maxLength={60}
+                    />
+                  </Field>
+                </div>
               )}
-            </div>
-          </section>
-        )}
+            </section>
 
-        {error && (
-          <p className="mt-6 text-sm text-(--color-muted)">{t('join.readError', { error })}</p>
-        )}
+            {qr && (
+              <section className="flex flex-col items-center gap-3 rounded-xl border border-(--color-line) p-5">
+                <img
+                  src={qr}
+                  alt={t('join.qrAlt', { url: url ?? '' })}
+                  className="rounded-lg bg-white p-3"
+                  width={280}
+                  height={280}
+                />
+                {url && (
+                  <div className="flex max-w-full items-center gap-2 text-sm">
+                    <code className="min-w-0 break-all rounded bg-(--color-line) px-2 py-1">
+                      {url}
+                    </code>
+                    <CopyLink url={url} />
+                  </div>
+                )}
+                <p className="max-w-md text-center text-xs text-(--color-muted)">
+                  {t('join.qrReliable')}
+                </p>
+              </section>
+            )}
+          </div>
+
+          <div className="grid gap-6">
+            {host && (
+              <section className="rounded-xl border border-(--color-line) bg-(--color-surface) p-5">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
+                  {t('join.orType')}
+                </h2>
+                <ul className="mt-3 grid gap-2">
+                  {links.map((link) => (
+                    <li key={link.url} className="rounded-lg border border-(--color-line) p-3">
+                      <div className="flex items-start gap-2">
+                        <code className="min-w-0 flex-1 break-all text-sm">{link.url}</code>
+                        <CopyLink url={link.url} />
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="mr-auto text-(--color-muted)">{link.hint}</span>
+                        <LinkCheck status={checks[new URL(link.url).origin]} />
+                        {link.kind === 'friendly' && (
+                          <span className="rounded-full bg-(--color-chord)/15 px-2 py-0.5 text-(--color-chord)">
+                            {t('join.friendly')}
+                          </span>
+                        )}
+                        {link.url === url && (
+                          <span className="rounded-full bg-(--color-chord)/15 px-2 py-0.5 text-(--color-chord)">
+                            {t('join.qrTag')}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {host.addresses.length > 1 && (
+                  <p className="mt-3 text-xs text-(--color-muted)">
+                    {t('join.multipleNetworks')}
+                  </p>
+                )}
+                {host.addresses.length === 0 && (
+                  <p className="mt-3 text-xs text-(--color-muted)">{t('join.noNetwork')}</p>
+                )}
+              </section>
+            )}
+
+            {host && (
+              <section className="rounded-xl border border-(--color-line) bg-(--color-surface) p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="min-w-0 flex-1 text-base font-bold">
+                    {t('join.diagnostics')}
+                  </h2>
+                  <Button size="sm" onClick={() => void testConnections()}>
+                    {t('join.testConnections')}
+                  </Button>
+                </div>
+                <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-[auto_1fr]">
+                  <dt className="text-(--color-muted)">{t('join.server')}</dt>
+                  <dd>
+                    <DiagnosticDot good /> {t('join.serverRunning', { port: origin.port })}
+                  </dd>
+                  <dt className="text-(--color-muted)">{t('join.discovery')}</dt>
+                  <dd>
+                    <DiagnosticDot good={host.mdns === 'published'} />{' '}
+                    {host.mdns === 'published'
+                      ? t('join.discoveryReady', {
+                          hostname: host.friendlyHostname ?? 'worship-archive.local',
+                        })
+                      : host.mdns === 'starting'
+                        ? t('join.discoveryStarting')
+                        : t('join.discoveryUnavailable')}
+                  </dd>
+                  <dt className="text-(--color-muted)">{t('join.networks')}</dt>
+                  <dd>
+                    {host.interfaces.length > 0
+                      ? host.interfaces
+                          .map((entry) => `${entry.name}: ${entry.address}`)
+                          .join(' · ')
+                      : t('join.noNetwork')}
+                  </dd>
+                </dl>
+                <p className="mt-4 text-xs text-(--color-muted)">{t('join.testHint')}</p>
+                <div className="mt-5 border-t border-(--color-line) pt-4">
+                  <h3 className="text-sm font-semibold">{t('join.permissionTitle')}</h3>
+                  <p className="mt-1 text-sm text-(--color-muted)">
+                    {nativeState?.platform === 'win32'
+                      ? t('join.permissionWindows')
+                      : nativeState?.platform === 'darwin'
+                        ? t('join.permissionMac')
+                        : t('join.permissionGeneric')}
+                  </p>
+                  {native && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="mt-2"
+                      onClick={() => void native.openNetworkSettings()}
+                    >
+                      {t('join.openNetworkSettings')}
+                    </Button>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {error && (
+              <p className="text-sm text-(--color-muted)">{t('join.readError', { error })}</p>
+            )}
+          </div>
+        </div>
       </div>
     </Scroll>
   );

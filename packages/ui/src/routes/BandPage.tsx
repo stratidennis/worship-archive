@@ -4,6 +4,7 @@ import { semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
+import { applyChordColor, applyTheme } from '../lib/theme.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
@@ -14,13 +15,7 @@ import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
 import { Button, Checkbox, IconButton, Input, Stepper } from '../components/ui.js';
 import { Sheet } from '../components/Sheet.js';
-import {
-  ChordColour,
-  ChordSample,
-  FontSize,
-  LanguageChoice,
-  ThemeChoice,
-} from '../components/DisplaySettings.js';
+import { FontSize, LanguageChoice } from '../components/DisplaySettings.js';
 import { IconMusic, IconSets, IconSettings } from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
@@ -66,6 +61,17 @@ export function BandPage() {
   const { state, status, clockOffset, libraryRev } = session;
   const live = useLiveSet(state.active ? state.setId : null, libraryRev);
   const [prefs, setPrefs] = usePrefs();
+
+  // Band and Stage are part of one room, so their palette is the Leader's palette.
+  // Local preferences remain a fallback only while no Leader state has arrived yet.
+  useEffect(() => {
+    applyTheme(state.host?.theme ?? prefs.theme);
+    applyChordColor(state.host?.chordColor ?? prefs.chordColor);
+    return () => {
+      applyTheme(prefs.theme);
+      applyChordColor(prefs.chordColor);
+    };
+  }, [state.host?.theme, state.host?.chordColor, prefs.theme, prefs.chordColor]);
 
   const [local, setLocal] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -403,7 +409,7 @@ export function BandPage() {
               {t('band.leaderNotOnSong')}
             </p>
           ) : (
-            <div className="mt-[18vh] flex justify-center">
+            <div className="flex h-full items-center justify-center">
               <WaitingForLeader compact />
             </div>
           )}
@@ -426,7 +432,12 @@ export function BandPage() {
             }
           }}
         >
-          <Input name="name" placeholder={t('band.yourName')} aria-label={t('band.yourName')} />
+          <Input
+            name="name"
+            required
+            placeholder={t('band.yourName')}
+            aria-label={t('band.yourName')}
+          />
         </form>
       )}
 
@@ -438,12 +449,14 @@ export function BandPage() {
                 <span className="text-(--color-muted)">{t('band.yourName')}</span>
                 <Input
                   value={clientName}
+                  required
                   onChange={(event) => setClientName(event.target.value)}
                 />
               </label>
               <Button
                 size="sm"
                 className="justify-self-start"
+                disabled={!clientName.trim()}
                 onClick={() => {
                   const trimmed = clientName.trim();
                   if (!trimmed) return;
@@ -457,8 +470,9 @@ export function BandPage() {
               >
                 {t('app.save')}
               </Button>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-start gap-2 text-sm">
                 <Checkbox
+                  className="mt-0.5"
                   checked={clientState.autoStart}
                   onChange={(event) => {
                     void clientDesktop()
@@ -466,22 +480,12 @@ export function BandPage() {
                       .then(setClientState);
                   }}
                 />
-                {t('settings.autoStart')}
+                <span className="min-w-0">{t('settings.autoStart')}</span>
               </label>
             </div>
           )}
-          <ThemeChoice
-            label={t('settings.theme')}
-            value={prefs.theme}
-            onChange={(theme) => setPrefs({ theme })}
-          />
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
           <FontSize value={prefs.maxFontPx} onChange={(maxFontPx) => setPrefs({ maxFontPx })} />
-          <ChordColour
-            value={prefs.chordColor}
-            onChange={(chordColor) => setPrefs({ chordColor })}
-          />
-          <ChordSample />
         </Sheet>
       )}
 
