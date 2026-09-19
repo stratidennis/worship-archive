@@ -23,6 +23,7 @@ import {
   Tray,
   type MenuItemConstructorOptions,
 } from 'electron';
+import { mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { startServer, type RunningServer } from '@worship/server';
@@ -30,6 +31,13 @@ import { loadSettings, saveSettings, isFirstRun, type DesktopSettings } from './
 
 // `__dirname` is the bundle's own folder: `resources/app/dist` when packaged.
 const RESOURCES = __dirname;
+
+// Keep the established data location while the installed product gains the visible
+// “Leader” name. A product-name change normally changes Electron's userData folder;
+// doing that silently would make an existing song library appear to have vanished.
+const legacyUserData = join(app.getPath('appData'), 'Worship Archive');
+mkdirSync(legacyUserData, { recursive: true });
+app.setPath('userData', legacyUserData);
 
 // Assigned in `bootstrap`, which cannot run before `app.whenReady()` — `loadSettings`
 // needs `app.getPath`, which does not exist before then.
@@ -340,10 +348,15 @@ function buildTray(): void {
 
 function registerIpc(): void {
   ipcMain.handle('worship:state', () => ({
+    installationId: settings.installationId,
+    deviceName: settings.deviceName,
     dataDir: settings.dataDir,
     port: server?.port ?? settings.port,
     addresses: server?.addresses ?? [],
     hostname: server?.hostname ?? '',
+    friendlyHostname: server?.friendlyHostname ?? 'worship-archive.local',
+    mdns: server?.networkStatus.mdns ?? 'unavailable',
+    mdnsError: server?.networkStatus.error ?? null,
     preventSleep: settings.preventSleep,
     autoStart: settings.autoStart,
     version: app.getVersion(),
@@ -417,6 +430,15 @@ function registerIpc(): void {
     setPreventSleep(Boolean(on)),
   );
   ipcMain.handle('worship:set-auto-start', (_event, on: boolean) => setAutoStart(Boolean(on)));
+  ipcMain.handle('worship:open-network-settings', async () => {
+    const target =
+      process.platform === 'win32'
+        ? 'ms-settings:network-status'
+        : process.platform === 'darwin'
+          ? 'x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork'
+          : 'https://support.microsoft.com/windows/windows-security-firewall-and-network-protection';
+    await shell.openExternal(target);
+  });
 }
 
 // ---- lifecycle -------------------------------------------------------------
@@ -430,6 +452,8 @@ async function bootstrap(): Promise<void> {
       dataDir: settings.dataDir,
       port: settings.port,
       uiDir: join(RESOURCES, 'ui'),
+      leaderId: settings.installationId,
+      leaderName: settings.deviceName,
     });
     // A moved port is the new truth; the join screen reads it from the server anyway,
     // but persisting it keeps the next launch on the same one.

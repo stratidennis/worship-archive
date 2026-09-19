@@ -19,6 +19,17 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const out = resolve(root, 'dist');
+const roleIndex = process.argv.indexOf('--role');
+const role = roleIndex >= 0 ? process.argv[roleIndex + 1] : 'leader';
+if (!['leader', 'band', 'stage'].includes(role)) {
+  throw new Error(`Unknown desktop role: ${role}`);
+}
+const productName =
+  role === 'leader'
+    ? 'Worship Archive Leader'
+    : role === 'band'
+      ? 'Worship Archive Band'
+      : 'Worship Archive Stage';
 
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
@@ -33,19 +44,23 @@ const common = {
   minify: false,
   logLevel: 'info',
   external: ['electron', 'better-sqlite3'],
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    __WORSHIP_DESKTOP_ROLE__: JSON.stringify(role),
+    __WORSHIP_PRODUCT_NAME__: JSON.stringify(productName),
+  },
 };
 
 await build({
   ...common,
-  entryPoints: [resolve(root, 'src/main.ts')],
+  entryPoints: [resolve(root, role === 'leader' ? 'src/main.ts' : 'src/client-main.ts')],
   outfile: resolve(out, 'main.cjs'),
 });
 
 await build({
   ...common,
-  entryPoints: [resolve(root, 'src/preload.ts')],
-  outfile: resolve(out, 'preload.cjs'),
+  entryPoints: [resolve(root, role === 'leader' ? 'src/preload.ts' : 'src/client-preload.ts')],
+  outfile: resolve(out, role === 'leader' ? 'preload.cjs' : 'client-preload.cjs'),
 });
 
 // Icons live next to the bundle so `__dirname` finds them identically in development
@@ -62,4 +77,4 @@ await cp(ui, resolve(out, 'ui'), { recursive: true }).catch(() => {
   );
 });
 
-console.log('  bundled to packages/desktop/dist');
+console.log(`  bundled ${productName} to packages/desktop/dist`);

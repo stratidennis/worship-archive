@@ -1,0 +1,24 @@
+extends: ./electron-builder.yml
+appId: ro.worshiparchive.band
+productName: Worship Archive Band
+artifactName: Worship-Archive-Band-${version}-${os}-${arch}.${ext}
+
+# The client bundle contains discovery, HTTP/WebSocket proxying and the UI. It neither
+# imports nor ships the Leader's SQLite database or server implementation.
+files:
+  - dist/**/*
+  - '!dist/**/*.map'
+  - package.json
+  - '!**/node_modules/**'
+asarUnpack: []
+npmRebuild: false
+extraMetadata:
+  dependencies: {}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Worship Archive Band

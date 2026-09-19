@@ -8,10 +8,15 @@
  */
 
 export interface DesktopState {
+  installationId: string;
+  deviceName: string;
   dataDir: string;
   port: number;
   addresses: string[];
   hostname: string;
+  friendlyHostname: string;
+  mdns: 'starting' | 'published' | 'unavailable' | 'disabled';
+  mdnsError: string | null;
   preventSleep: boolean;
   autoStart: boolean;
   version: string;
@@ -34,6 +39,7 @@ interface DesktopApi {
   openFile: () => Promise<PickedFile | null>;
   setPreventSleep: (on: boolean) => Promise<boolean>;
   setAutoStart: (on: boolean) => Promise<boolean>;
+  openNetworkSettings: () => Promise<void>;
 }
 
 declare global {

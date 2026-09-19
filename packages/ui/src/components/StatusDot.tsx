@@ -21,7 +21,9 @@ export function StatusDot({ status }: { status: ConnectionStatus }) {
       ? 'status.live'
       : status === 'connecting'
         ? 'status.connecting'
-        : 'status.offline',
+        : status === 'incompatible'
+          ? 'status.incompatible'
+          : 'status.offline',
   );
   return (
     <span

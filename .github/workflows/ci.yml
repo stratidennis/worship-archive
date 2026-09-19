@@ -39,9 +39,23 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Build Band desktop bundle
+        run: pnpm --filter @worship/desktop build:band
+
+      - name: Build Stage desktop bundle
+        run: pnpm --filter @worship/desktop build:stage
+
+      - name: Client bundles do not contain the Leader database
+        shell: bash
+        run: |
+          if grep -q "better-sqlite3" packages/desktop/dist/main.cjs; then
+            echo "Client bundle unexpectedly contains better-sqlite3"
+            exit 1
+          fi
+
       # Bundling Fastify is the one genuinely risky thing about the desktop build: its
       # plugin system reads function names at registration time, so a bundler change can
       # produce an app that installs perfectly and then refuses to start. That failure
       # would otherwise first appear on a laptop at a church.
       - name: Bundled server actually serves
-        run: pnpm smoke:desktop
+        run: pnpm --filter @worship/desktop build:leader && pnpm smoke:desktop

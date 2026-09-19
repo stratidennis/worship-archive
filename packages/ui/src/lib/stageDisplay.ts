@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_STAGE_DISPLAY,
   isStageDisplayEmpty,
@@ -25,10 +25,11 @@ import {
  */
 
 export interface StageScreen {
-  /** The name in that screen's own address; also what the leader sees in the list. */
+  /** Stable installation id. Legacy named browser screens use `legacy:<name>`. */
+  id: string;
+  /** Editable label shown to the leader. */
   name: string;
-  /** How many screens are connected under this name — usually one, never zero here. */
-  connected: number;
+  connected: boolean;
   /** Whether it has settings of its own, rather than only the shared ones. */
   configured: boolean;
 }
@@ -36,13 +37,14 @@ export interface StageScreen {
 export interface StageSettings {
   /** What every screen gets unless it says otherwise. */
   shared: StageDisplay;
+  /** Per-device displays keyed by stable id. */
   byScreen: Record<string, StageDisplay>;
   /** Named screens, whether connected now or only remembered. */
   screens: StageScreen[];
   /** Screens connected without a name of their own; they can only take the shared set. */
   unnamed: number;
-  /** `null` writes the shared settings, a name writes that one screen's. */
-  save: (screen: string | null, patch: Partial<StageDisplay>) => void;
+  /** `null` writes the shared settings, an id writes that one screen's. */
+  save: (screenId: string | null, patch: Partial<StageDisplay>) => void;
   reachable: boolean;
 }
 
@@ -55,14 +57,10 @@ const POLL_MS = 3000;
  */
 const SETTLE_MS = 1500;
 
-function same(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
 export function useStageDisplay(): StageSettings {
   const [shared, setShared] = useState<StageDisplay>(DEFAULT_STAGE_DISPLAY);
   const [byScreen, setByScreen] = useState<Record<string, StageDisplay>>({});
-  const [connected, setConnected] = useState<string[]>([]);
+  const [screens, setScreens] = useState<StageScreen[]>([]);
   const [unnamed, setUnnamed] = useState(0);
   const [reachable, setReachable] = useState(true);
   const quietUntil = useRef(0);
@@ -78,13 +76,46 @@ export function useStageDisplay(): StageSettings {
           setReachable(true);
 
           const stages = (body.devices ?? []).filter((device) => device.role === 'stage');
-          const names = stages.map((device) => device.name.trim()).filter(Boolean);
-          setConnected((current) => (same(current, names) ? current : names));
-          setUnnamed(stages.length - names.length);
+          const connected = stages
+            .filter((device) => device.deviceId && device.name.trim())
+            .map((device) => ({ id: device.deviceId!, name: device.name.trim() }));
+          setUnnamed(stages.length - connected.length);
 
           if (Date.now() < quietUntil.current) return;
           setShared(body.state?.stage ?? DEFAULT_STAGE_DISPLAY);
-          setByScreen(body.state?.stageBy ?? {});
+          const stable = body.state?.stageByDevice ?? {};
+          const legacy = body.state?.stageBy ?? {};
+          const displays: Record<string, StageDisplay> = {};
+          const next = new Map<string, StageScreen>();
+
+          for (const device of connected) {
+            displays[device.id] = stable[device.id]?.display ?? DEFAULT_STAGE_DISPLAY;
+            next.set(device.id, {
+              ...device,
+              connected: true,
+              configured: stable[device.id] !== undefined,
+            });
+          }
+          for (const [id, remembered] of Object.entries(stable)) {
+            displays[id] = remembered.display;
+            if (!next.has(id)) {
+              next.set(id, {
+                id,
+                name: remembered.name || id,
+                connected: false,
+                configured: true,
+              });
+            }
+          }
+          for (const [name, display] of Object.entries(legacy)) {
+            const id = `legacy:${name}`;
+            displays[id] = display;
+            if (!next.has(id)) {
+              next.set(id, { id, name, connected: false, configured: true });
+            }
+          }
+          setByScreen(displays);
+          setScreens([...next.values()].sort((a, b) => a.name.localeCompare(b.name)));
         })
         .catch(() => {
           if (!cancelled) setReachable(false);
@@ -99,47 +130,45 @@ export function useStageDisplay(): StageSettings {
     };
   }, []);
 
-  const screens = useMemo<StageScreen[]>(() => {
-    const counts = new Map<string, number>();
-    for (const name of connected) counts.set(name, (counts.get(name) ?? 0) + 1);
-    // Remembered screens stay in the list even while switched off, so a setting made
-    // for the screen at the back can be found and undone on a Tuesday.
-    for (const name of Object.keys(byScreen)) if (!counts.has(name)) counts.set(name, 0);
-    return [...counts.entries()]
-      .map(([name, count]) => ({
-        name,
-        connected: count,
-        configured: byScreen[name] !== undefined,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [connected, byScreen]);
+  const save = useCallback(
+    (screenId: string | null, patch: Partial<StageDisplay>) => {
+      // Optimistic: the control should move under the finger, and a screen at the other
+      // end of a hall is not where you find out whether the request landed.
+      quietUntil.current = Date.now() + SETTLE_MS;
+      if (screenId) {
+        setByScreen((current) => {
+          const next = patchStageDisplay(current[screenId] ?? DEFAULT_STAGE_DISPLAY, patch);
+          const merged = { ...current };
+          if (isStageDisplayEmpty(next)) delete merged[screenId];
+          else merged[screenId] = next;
+          return merged;
+        });
+      } else {
+        setShared((current) => patchStageDisplay(current, patch));
+      }
 
-  const save = useCallback((screen: string | null, patch: Partial<StageDisplay>) => {
-    // Optimistic: the control should move under the finger, and a screen at the other
-    // end of a hall is not where you find out whether the request landed.
-    quietUntil.current = Date.now() + SETTLE_MS;
-    if (screen) {
-      setByScreen((current) => {
-        const next = patchStageDisplay(current[screen] ?? DEFAULT_STAGE_DISPLAY, patch);
-        const merged = { ...current };
-        if (isStageDisplayEmpty(next)) delete merged[screen];
-        else merged[screen] = next;
-        return merged;
-      });
-    } else {
-      setShared((current) => patchStageDisplay(current, patch));
-    }
-
-    // The patch itself, not the merged result: `undefined` disappears in JSON, which
-    // is exactly "leave that one alone", while an explicit null survives and clears.
-    void fetch('/api/session/stage', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(screen ? { ...patch, screen } : patch),
-    })
-      .then((response) => setReachable(response.ok))
-      .catch(() => setReachable(false));
-  }, []);
+      // The patch itself, not the merged result: `undefined` disappears in JSON, which
+      // is exactly "leave that one alone", while an explicit null survives and clears.
+      void fetch('/api/session/stage', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          screenId
+            ? screenId.startsWith('legacy:')
+              ? { ...patch, screen: screenId.slice('legacy:'.length) }
+              : {
+                  ...patch,
+                  deviceId: screenId,
+                  screen: screens.find((candidate) => candidate.id === screenId)?.name ?? '',
+                }
+            : patch,
+        ),
+      })
+        .then((response) => setReachable(response.ok))
+        .catch(() => setReachable(false));
+    },
+    [screens],
+  );
 
   return { shared, byScreen, screens, unnamed, save, reachable };
 }

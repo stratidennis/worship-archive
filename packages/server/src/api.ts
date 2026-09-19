@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import {
   DEFAULT_STAGE_DISPLAY,
+  SESSION_PROTOCOL_VERSION,
   type HostDisplay,
   isStageDisplayEmpty,
   patchStageDisplay,
@@ -25,6 +26,7 @@ import type { SetStore } from './sets.js';
 import type { SessionHub } from './hub.js';
 import { auditLibrary, applyFixes, type Fix } from './cleanup.js';
 import { backupFilename, createBackup, isBackup, restoreBackup } from './backup.js';
+import { isLoopbackAddress } from './network.js';
 
 export interface ApiOptions {
   library: Library;
@@ -34,9 +36,16 @@ export interface ApiOptions {
   /** Advertised to clients so the QR code points somewhere reachable. */
   port?: number | undefined;
   mdnsName?: string | undefined;
+  networkStatus?: NetworkRuntimeStatus | undefined;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
+}
+
+export interface NetworkRuntimeStatus {
+  friendlyHostname: string;
+  mdns: 'starting' | 'published' | 'unavailable' | 'disabled';
+  error: string | null;
 }
 
 export function createServer(options: ApiOptions): FastifyInstance {
@@ -68,6 +77,23 @@ export function createServer(options: ApiOptions): FastifyInstance {
       }
     },
   );
+
+  /*
+    Remote devices may read and mirror the library, but the Leader installation is the
+    only writer. This is deliberately enforced at the network boundary rather than by
+    hiding buttons: a browser on the LAN can hand-write requests just as easily as it
+    can click them. Loopback still covers the packaged Leader and the local Vite proxy.
+  */
+  app.addHook('onRequest', async (request, reply) => {
+    const writes =
+      request.method === 'POST' ||
+      request.method === 'PUT' ||
+      request.method === 'PATCH' ||
+      request.method === 'DELETE';
+    if (writes && request.url.startsWith('/api/') && !isLoopbackAddress(request.ip)) {
+      return reply.code(403).send({ error: 'Leader controls are only available on the host' });
+    }
+  });
 
   // The LAN is the trust boundary here, not the browser origin — band devices load the
   // app from this same server. CORS is open so a Vite dev server on another port works.
@@ -288,20 +314,36 @@ export function createServer(options: ApiOptions): FastifyInstance {
    * Every LAN address is offered rather than a guess: a laptop on both WiFi and
    * Ethernet has two, and only one of them is the network the band is on.
    *
-   * `hostname` is the machine's own `.local` name, which macOS and Windows advertise
-   * over mDNS themselves. It is the one name that actually resolves in a browser — our
-   * own service advertisement does not create one.
+   * `friendlyHostname` is our best-effort multicast alias. The machine name and every
+   * numeric address remain available because managed or guest networks can suppress
+   * multicast even when ordinary device-to-device traffic is allowed.
    */
   app.get('/api/host', async () => {
-    const addresses = Object.values(networkInterfaces())
-      .flat()
-      .filter((i): i is NonNullable<typeof i> => Boolean(i))
-      .filter((i) => i.family === 'IPv4' && !i.internal)
-      .map((i) => i.address);
+    const interfaces = Object.entries(networkInterfaces()).flatMap(([name, entries]) =>
+      (entries ?? [])
+        .filter((entry) => entry.family === 'IPv4' && !entry.internal)
+        .map((entry) => ({ name, address: entry.address })),
+    );
     return {
-      addresses,
+      addresses: interfaces.map((entry) => entry.address),
+      interfaces,
       port: options.port ?? 7374,
       hostname: hostname(),
+      friendlyHostname: options.networkStatus?.friendlyHostname ?? options.mdnsName ?? null,
+      mdns: options.networkStatus?.mdns ?? 'disabled',
+      mdnsError: options.networkStatus?.error ?? null,
+      servesInterface: Boolean(options.uiDir),
+    };
+  });
+
+  /** A tiny uncached target used by the join page to test each advertised address. */
+  app.get('/api/network/ping', async (_request, reply) => {
+    reply.header('cache-control', 'no-store');
+    return {
+      ok: true,
+      leaderId: options.hub?.getState().leaderId ?? '',
+      protocol: SESSION_PROTOCOL_VERSION,
+      at: new Date().toISOString(),
     };
   });
 
@@ -356,7 +398,8 @@ export function createServer(options: ApiOptions): FastifyInstance {
   */
   app.put('/api/session/stage', async (request, reply) => {
     if (!options.hub) return reply.code(503).send({ error: 'no session' });
-    const body = request.body as (Partial<StageDisplay> & { screen?: unknown }) | undefined;
+    const body = request.body as
+      (Partial<StageDisplay> & { screen?: unknown; deviceId?: unknown }) | undefined;
     if (!body || typeof body !== 'object') return reply.code(400).send({ error: 'bad body' });
 
     /*
@@ -367,7 +410,19 @@ export function createServer(options: ApiOptions): FastifyInstance {
       neither, and would be forgotten the moment the screen was switched off.
     */
     const screen = typeof body.screen === 'string' ? body.screen.trim().slice(0, 60) : '';
+    const deviceId =
+      typeof body.deviceId === 'string' ? body.deviceId.trim().slice(0, 100) : '';
     const state = options.hub.getState();
+
+    if (deviceId) {
+      const current = state.stageByDevice[deviceId]?.display ?? DEFAULT_STAGE_DISPLAY;
+      const next = patchStageDisplay(current, body);
+      const stageByDevice = { ...state.stageByDevice };
+      if (isStageDisplayEmpty(next)) delete stageByDevice[deviceId];
+      else stageByDevice[deviceId] = { name: screen, display: next };
+      options.hub.patch({ stageByDevice });
+      return { deviceId, screen, stage: next };
+    }
 
     if (screen) {
       const next = patchStageDisplay(state.stageBy[screen] ?? DEFAULT_STAGE_DISPLAY, body);

@@ -21,6 +21,14 @@ export type ThemeName = 'auto' | 'light' | 'dark' | 'stage';
 export type LanguageName = 'ro' | 'en';
 
 /**
+ * Increment only when a released client can no longer speak to a released host.
+ *
+ * Application versions may differ while this remains equal. Keeping the wire version
+ * separate lets a Stage PC stay useful while the Leader receives an unrelated UI fix.
+ */
+export const SESSION_PROTOCOL_VERSION = 1;
+
+/**
  * How the stage screens should look, decided once for all of them.
  *
  * A stage display has nobody standing at it. It is a television on a bracket, and the
@@ -71,6 +79,12 @@ export interface HostDisplay {
   chordColor: string | null;
 }
 
+/** A remembered Stage device. The id is the map key; the name is only its editable label. */
+export interface StageDeviceDisplay {
+  name: string;
+  display: StageDisplay;
+}
+
 export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   theme: null,
   language: null,
@@ -110,16 +124,22 @@ export function patchStageDisplay(
 /**
  * What one screen should actually look like: its own settings over the shared ones.
  *
- * `screen` is the name that screen was given in its address (`/stage?name=Left`), not
- * its connection id and not a translated default. It has to survive the television
- * being switched off overnight, and it has to be something the leader can recognise in
- * a list — and those are the same requirement.
+ * Installed screens are matched by stable device id, so renaming one cannot discard
+ * its settings. `screen` remains as compatibility for browser links and installations
+ * configured before stable ids existed.
  *
  * A screen with no name of its own is not a mistake; it simply takes the shared
  * settings, which is the right answer for the overwhelmingly common case of one screen.
  */
-export function resolveStageDisplay(state: SessionState, screen: string | null): StageDisplay {
-  const own = (screen && state.stageBy[screen]) || null;
+export function resolveStageDisplay(
+  state: SessionState,
+  screen: string | null,
+  deviceId?: string | null,
+): StageDisplay {
+  const own =
+    (deviceId && state.stageByDevice[deviceId]?.display) ||
+    (screen && state.stageBy[screen]) ||
+    null;
   const host = state.host;
   return {
     // Three layers, narrowest first: this screen, then all screens, then the leader's
@@ -134,7 +154,27 @@ export function resolveStageDisplay(state: SessionState, screen: string | null):
 }
 
 export interface SessionState {
-  /** The set being led, or null when no service is running. */
+  /**
+   * Whether the Leader has deliberately entered Lead mode.
+   *
+   * A running server is not an active service. Clients are allowed to connect before
+   * rehearsal and must remain on their waiting screen until this becomes true.
+   */
+  active: boolean;
+  /** Stable identity of the Leader installation, independent of its changing IP. */
+  leaderId: string;
+  /** New for every false -> true transition, so a new service is unambiguous. */
+  sessionEpoch: string | null;
+  /**
+   * Increases on every change made by the Leader console.
+   *
+   * Band devices use this to know when a newer Leader choice supersedes a local key or
+   * capo override. `rev` also changes for administrative settings, so it cannot serve
+   * that narrower purpose.
+   */
+  leaderRevision: number;
+
+  /** The selected set. It can remain cached while `active` is false. */
   setId: string | null;
   /**
    * Index into the set's items.
@@ -165,6 +205,8 @@ export interface SessionState {
    * enough for the bass player" are not the same number.
    */
   stageBy: Record<string, StageDisplay>;
+  /** Stable per-device overrides. `stageBy` remains as migration support for old links. */
+  stageByDevice: Record<string, StageDeviceDisplay>;
 
   /** Beats per minute, or null when the metronome is off. */
   tempo: number | null;
@@ -185,11 +227,16 @@ export interface SessionState {
 }
 
 export const INITIAL_SESSION: SessionState = {
+  active: false,
+  leaderId: '',
+  sessionEpoch: null,
+  leaderRevision: 0,
   setId: null,
   itemIndex: 0,
   output: 'live',
   stage: DEFAULT_STAGE_DISPLAY,
   stageBy: {},
+  stageByDevice: {},
   host: null,
   tempo: null,
   beatsPerBar: 4,
@@ -211,6 +258,8 @@ export interface DeviceInfo {
   deviceId: string | null;
   name: string;
   role: DeviceRole;
+  /** Wire protocol understood by this device. */
+  protocolVersion: number;
   /** ISO time the device joined. */
   since: string;
 }
@@ -220,12 +269,24 @@ export type ServerMessage =
   | { t: 'session'; state: SessionState }
   | { t: 'devices'; devices: DeviceInfo[] }
   | { t: 'pong'; clientTime: number; serverTime: number }
-  | { t: 'reload'; reason: 'library' };
+  | { t: 'reload'; reason: 'library' }
+  | { t: 'incompatible'; serverProtocol: number; clientProtocol: number };
+
+/** Fields that only the host may derive; no WebSocket client is allowed to set them. */
+export type SessionPatch = Partial<
+  Omit<SessionState, 'rev' | 'leaderId' | 'sessionEpoch' | 'leaderRevision'>
+>;
 
 /** Everything a client sends. */
 export type ClientMessage =
-  | { t: 'hello'; role: DeviceRole; name: string; deviceId?: string }
-  | { t: 'patch'; patch: Partial<Omit<SessionState, 'rev'>> }
+  | {
+      t: 'hello';
+      role: DeviceRole;
+      name: string;
+      deviceId?: string;
+      protocolVersion: number;
+    }
+  | { t: 'patch'; patch: SessionPatch }
   | { t: 'ping'; clientTime: number };
 
 /**

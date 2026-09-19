@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
@@ -6,11 +7,12 @@ import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
+import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
-import { Button, IconButton, Input, Stepper } from '../components/ui.js';
+import { Button, Checkbox, IconButton, Input, Stepper } from '../components/ui.js';
 import { Sheet } from '../components/Sheet.js';
 import {
   ChordColour,
@@ -47,25 +49,43 @@ const NAME_KEY = 'worship-archive:device-name';
  */
 export function BandPage() {
   const { t, lang, setLang } = useT();
+  const [params] = useSearchParams();
   const [name, setName] = useState(() => {
     try {
-      return localStorage.getItem(NAME_KEY) ?? '';
+      return localStorage.getItem(NAME_KEY) ?? params.get('name')?.trim() ?? '';
     } catch {
-      return '';
+      return params.get('name')?.trim() ?? '';
     }
   });
-  const session = useSession('band', name || t('band.defaultName'));
+  const session = useSession(
+    'band',
+    name || t('band.defaultName'),
+    true,
+    params.get('device') ?? undefined,
+  );
   const { state, status, clockOffset, libraryRev } = session;
-  const live = useLiveSet(state.setId, libraryRev);
+  const live = useLiveSet(state.active ? state.setId : null, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
   const [local, setLocal] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clientState, setClientState] = useState<ClientDesktopState | null>(null);
+  const [clientName, setClientName] = useState(name);
   const [help, setHelp] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const songIndices = useSongIndices(live.set);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const native = clientDesktop();
+    if (!native) return;
+    void native.state().then((value) => {
+      setClientState(value);
+      setClientName(value.name);
+    });
+  }, [settingsOpen]);
 
   // Following again whenever the leader moves would yank the page away mid-glance, so
   // breaking away is sticky until the musician chooses to come back.
@@ -97,9 +117,7 @@ export function BandPage() {
   }, [viewing, state.transpose]);
   const leaderCapo = viewing?.item.capoOverride ?? 0;
 
-  const leaderSays = `${itemIndex}:${viewing?.item.keyOverride ?? ''}:${
-    viewing?.item.capoOverride ?? ''
-  }:${state.transpose}`;
+  const leaderSays = `${state.leaderRevision}:${itemIndex}`;
   const [heard, setHeard] = useState(leaderSays);
   const [shift, setShift] = useState(0);
   const [capo, setCapo] = useState<number | null>(null);
@@ -414,6 +432,44 @@ export function BandPage() {
 
       {settingsOpen && (
         <Sheet title={t('settings.title')} onClose={() => setSettingsOpen(false)}>
+          {clientState && (
+            <div className="mb-5 grid gap-2 border-b border-(--color-line) pb-5">
+              <label className="grid gap-1 text-sm">
+                <span className="text-(--color-muted)">{t('band.yourName')}</span>
+                <Input
+                  value={clientName}
+                  onChange={(event) => setClientName(event.target.value)}
+                />
+              </label>
+              <Button
+                size="sm"
+                className="justify-self-start"
+                onClick={() => {
+                  const trimmed = clientName.trim();
+                  if (!trimmed) return;
+                  void clientDesktop()
+                    ?.updateSettings({ name: trimmed })
+                    .then((value) => {
+                      setClientState(value);
+                      setName(value.name);
+                    });
+                }}
+              >
+                {t('app.save')}
+              </Button>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={clientState.autoStart}
+                  onChange={(event) => {
+                    void clientDesktop()
+                      ?.updateSettings({ autoStart: event.target.checked })
+                      .then(setClientState);
+                  }}
+                />
+                {t('settings.autoStart')}
+              </label>
+            </div>
+          )}
           <ThemeChoice
             label={t('settings.theme')}
             value={prefs.theme}

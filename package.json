@@ -26,7 +26,10 @@
     "abi:node": "node tools/src/native-abi.mjs node",
     "abi:electron": "node tools/src/native-abi.mjs electron",
     "smoke:desktop": "node packages/desktop/scripts/smoke.mjs",
-    "dist:desktop": "pnpm --filter @worship/desktop dist",
+    "dist:desktop": "pnpm --filter @worship/desktop dist:leader",
+    "dist:leader": "pnpm --filter @worship/desktop dist:leader",
+    "dist:band": "pnpm --filter @worship/desktop dist:band",
+    "dist:stage": "pnpm --filter @worship/desktop dist:stage",
     "icons": "python3 tools/src/make-icons.py",
     "trace:logo": "python3 tools/src/trace-logo.py"
   },

@@ -197,6 +197,18 @@ describe('how a stage screen should look', () => {
     expect(resolveStageDisplay(state, 'Back').theme).toBe('stage');
   });
 
+  it('keeps a screen override when its editable name changes', () => {
+    const state = session({
+      stageByDevice: {
+        'stage-installation-1': {
+          name: 'Old name',
+          display: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 34 },
+        },
+      },
+    });
+    expect(resolveStageDisplay(state, 'New name', 'stage-installation-1').maxFontPx).toBe(34);
+  });
+
   /*
     Size is the exception, and deliberately so: a ceiling chosen for a laptop on a
     music stand would be unreadable from the back of a hall.

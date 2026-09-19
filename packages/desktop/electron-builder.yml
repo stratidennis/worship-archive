@@ -1,6 +1,7 @@
 appId: ro.worshiparchive.app
-productName: Worship Archive
+productName: Worship Archive Leader
 copyright: MIT
+artifactName: Worship-Archive-Leader-${version}-${os}-${arch}.${ext}
 
 directories:
   output: release
@@ -40,6 +41,10 @@ npmRebuild: true
 mac:
   category: public.app-category.music
   icon: build/icon-mac.png
+  extendInfo:
+    NSLocalNetworkUsageDescription: Worship Archive uses the local network to connect the Leader, Band, and Stage devices.
+    NSBonjourServices:
+      - _http._tcp
   target:
     - target: dmg
       arch: [arm64, x64]
@@ -76,7 +81,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Worship Archive
+  shortcutName: Worship Archive Leader
 
 linux:
   icon: build/icon.png

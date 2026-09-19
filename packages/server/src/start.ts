@@ -9,9 +9,10 @@
 
 import { hostname, networkInterfaces } from 'node:os';
 import { resolve } from 'node:path';
+import { SESSION_PROTOCOL_VERSION } from '@worship/core';
 import chokidar, { type FSWatcher } from 'chokidar';
 import type { FastifyInstance } from 'fastify';
-import { createServer } from './api.js';
+import { createServer, type NetworkRuntimeStatus } from './api.js';
 import { Library } from './library.js';
 import { SetStore } from './sets.js';
 import { SessionHub } from './hub.js';
@@ -27,6 +28,12 @@ export interface StartOptions {
   portRetries?: number;
   /** Publish an mDNS service record. Off in tests, which should not touch the network. */
   mdns?: boolean;
+  /** Stable identity of the Leader installation. */
+  leaderId?: string;
+  /** Human-readable name shown when several Leaders are available. */
+  leaderName?: string;
+  /** Best-effort browser alias advertised over multicast DNS. */
+  friendlyHostname?: string;
   /** Watch the library folder and reindex on change. */
   watch?: boolean;
   log?: (message: string) => void;
@@ -43,6 +50,8 @@ export interface RunningServer {
   /** Every address a band device could reach this on. */
   addresses: string[];
   hostname: string;
+  friendlyHostname: string;
+  networkStatus: NetworkRuntimeStatus;
   stop: () => Promise<void>;
 }
 
@@ -64,11 +73,10 @@ export function lanAddresses(): string[] {
 /**
  * Advertise over mDNS.
  *
- * Note what this does and does not buy. It publishes a *service* record, which a native
- * client browsing `_http._tcp.local` can find — but it does **not** create a resolvable
- * hostname, so `http://worship-archive.local` does not work in a browser. What does work
- * is the machine's own `.local` name, which macOS and Windows advertise themselves.
- * That is why the QR code is the primary way in rather than a nicety.
+ * It publishes both the service record native clients browse and A/AAAA records for a
+ * memorable `.local` alias. The alias remains a convenience: multicast can be blocked
+ * by the network and two Leaders can contend for the same friendly name, so the QR code
+ * deliberately continues to contain a numeric address.
  *
  * The instance name carries the machine name, because two hosts on one network is a
  * normal Sunday — someone rehearsing in a side room while the service is set up in the
@@ -76,16 +84,28 @@ export function lanAddresses(): string[] {
  */
 async function publishMdns(
   port: number,
+  leaderId: string,
+  leaderName: string,
+  friendlyHostname: string,
+  status: NetworkRuntimeStatus,
   log: (m: string) => void,
 ): Promise<MdnsPublisher | null> {
   try {
     const { Bonjour } = await import('bonjour-service');
     const instance = new Bonjour();
     const service = instance.publish({
-      name: `${MDNS_TYPE} (${hostname().replace(/\.local$/, '')})`,
+      name: `${leaderName} (${hostname().replace(/\.local$/, '')})`,
       type: 'http',
+      // This adds A/AAAA records for the memorable alias as well as the service record.
+      // It is intentionally best-effort: networks that suppress multicast still use IP.
+      host: friendlyHostname,
       port,
-      txt: { app: MDNS_TYPE },
+      txt: {
+        app: MDNS_TYPE,
+        role: 'leader',
+        leaderId,
+        protocol: String(SESSION_PROTOCOL_VERSION),
+      },
     });
     /*
       A publish failure arrives asynchronously, long after the try/catch has returned —
@@ -96,10 +116,24 @@ async function publishMdns(
       so and carry on.
     */
     service.on('error', (error: unknown) => {
+      status.mdns = 'unavailable';
+      status.error = String(error);
       log(`  mDNS advertisement failed (${String(error)}) — use the QR code or an IP address`);
     });
+    service.once('up', () => {
+      status.mdns = 'published';
+      status.error = null;
+    });
+    setTimeout(() => {
+      if (status.mdns === 'starting') {
+        status.mdns = 'unavailable';
+        status.error = 'The local-network name was not published.';
+      }
+    }, 3000).unref();
     return instance as unknown as MdnsPublisher;
   } catch (error) {
+    status.mdns = 'unavailable';
+    status.error = String(error);
     log(`  mDNS unavailable (${String(error)}) — use the QR code or an IP address`);
     return null;
   }
@@ -144,11 +178,20 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
   );
   for (const f of initial.failed) log(`  could not read ${f.path}: ${f.error}`);
 
+  const friendlyHostname = (options.friendlyHostname ?? 'worship-archive.local')
+    .trim()
+    .toLowerCase();
+  const networkStatus: NetworkRuntimeStatus = {
+    friendlyHostname,
+    mdns: (options.mdns ?? true) ? 'starting' : 'disabled',
+    error: null,
+  };
   const serverOptions: Parameters<typeof createServer>[0] = {
     library,
     sets,
     port: options.port ?? 7374,
     mdnsName: `${MDNS_TYPE}.local`,
+    networkStatus,
     ...(options.uiDir ? { uiDir: options.uiDir } : {}),
   };
   const app = createServer(serverOptions);
@@ -158,7 +201,10 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
 
   // The hub upgrades connections on the HTTP server, so it can only exist once Fastify
   // has one — that is after listen().
-  const hub = new SessionHub(app.server, { statePath: resolve(dataDir, 'session.json') });
+  const hub = new SessionHub(app.server, {
+    statePath: resolve(dataDir, 'session.json'),
+    leaderId: options.leaderId,
+  });
   serverOptions.hub = hub;
 
   // Editing a .chopro by hand, or pulling from git, must show up without a restart.
@@ -189,7 +235,17 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
       .on('unlink', scheduleReindex);
   }
 
-  const bonjour = (options.mdns ?? true) ? await publishMdns(port, log) : null;
+  const bonjour =
+    (options.mdns ?? true)
+      ? await publishMdns(
+          port,
+          options.leaderId ?? '',
+          options.leaderName?.trim() || MDNS_TYPE,
+          friendlyHostname,
+          networkStatus,
+          log,
+        )
+      : null;
 
   return {
     app,
@@ -200,9 +256,11 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
     url: `http://localhost:${port}`,
     addresses: lanAddresses(),
     hostname: hostname(),
+    friendlyHostname,
+    networkStatus,
     stop: async (): Promise<void> => {
       bonjour?.unpublishAll(() => bonjour.destroy());
-      hub.close();
+      await hub.close();
       await watcher?.close();
       await app.close();
       library.close();

@@ -7,10 +7,15 @@
  */
 
 import { app } from 'electron';
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface DesktopSettings {
+  /** Stable identity advertised even when the laptop receives a new network address. */
+  installationId: string;
+  /** Friendly discovery name; editable separately from the operating-system hostname. */
+  deviceName: string;
   /** Where the `.chopro` files live. */
   dataDir: string;
   port: number;
@@ -24,8 +29,10 @@ export interface DesktopSettings {
 
 function defaults(): DesktopSettings {
   return {
+    installationId: randomUUID(),
+    deviceName: 'Worship Archive',
     dataDir: join(app.getPath('userData'), 'library'),
-    port: 7374,
+    port: 7373,
     preventSleep: true,
     autoStart: false,
     window: { width: 1280, height: 860, maximized: false },

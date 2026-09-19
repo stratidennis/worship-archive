@@ -17,15 +17,38 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            name: macOS
-            # Apple Silicon and Intel, so an older church laptop is covered too.
+            platform: macOS
             args: --mac
+            role: leader
+            config: electron-builder.yml
           - os: windows-latest
-            name: Windows
+            platform: Windows
             args: --win
+            role: leader
+            config: electron-builder.yml
+          - os: macos-latest
+            platform: macOS
+            args: --mac
+            role: band
+            config: electron-builder.band.yml
+          - os: windows-latest
+            platform: Windows
+            args: --win
+            role: band
+            config: electron-builder.band.yml
+          - os: macos-latest
+            platform: macOS
+            args: --mac
+            role: stage
+            config: electron-builder.stage.yml
+          - os: windows-latest
+            platform: Windows
+            args: --win
+            role: stage
+            config: electron-builder.stage.yml
 
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.name }}
+    name: ${{ matrix.platform }} · ${{ matrix.role }}
 
     steps:
       - uses: actions/checkout@v4
@@ -41,16 +64,17 @@ jobs:
       # This is the step that makes the difference between an app that starts and one
       # that dies on launch with NODE_MODULE_VERSION.
       - name: Rebuild native modules for Electron
+        if: matrix.role == 'leader'
         run: pnpm --filter @worship/desktop exec electron-builder install-app-deps
 
       - name: Build the UI
         run: pnpm --filter @worship/ui build
 
       - name: Bundle the main process
-        run: pnpm --filter @worship/desktop build
+        run: pnpm --filter @worship/desktop build:${{ matrix.role }}
 
       - name: Package
-        run: pnpm --filter @worship/desktop exec electron-builder ${{ matrix.args }} --publish never
+        run: pnpm --filter @worship/desktop exec electron-builder --config ${{ matrix.config }} ${{ matrix.args }} --publish never
         env:
           # Unsigned builds. There is no Apple developer account behind this project, and
           # a half-configured signing step fails at notarisation rather than skipping.
@@ -59,7 +83,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: worship-archive-${{ matrix.name }}
+          name: worship-archive-${{ matrix.role }}-${{ matrix.platform }}
           # The installers only. `release/` also holds the unpacked app directory, which
           # is hundreds of megabytes and of no use to anyone downloading this.
           path: |
@@ -82,11 +106,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: installers
-          merge-multiple: true
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: installers/*
+          files: installers/**/*
           draft: true
           generate_release_notes: true
           body: |
@@ -100,6 +123,11 @@ jobs:
             **right-click it and choose Open** the first time. Double-clicking an
             unsigned app shows a dialog with no way past it; right-click → Open does.
 
-            Both start the whole system with one double-click: the library, the LAN
-            server and the window. Everyone else joins from a browser — open
-            **Connect a device** for a QR code.
+            Choose the installer for this device's role:
+
+            - **Leader** owns the song library and starts the local-network server.
+            - **Band** finds the Leader automatically and opens the musician view.
+            - **Stage** finds the Leader automatically and opens the display view.
+
+            Band and Stage can be opened before the Leader. They remain on the waiting
+            screen and connect automatically when a compatible Leader appears.

@@ -1,0 +1,22 @@
+extends: ./electron-builder.yml
+appId: ro.worshiparchive.stage
+productName: Worship Archive Stage
+artifactName: Worship-Archive-Stage-${version}-${os}-${arch}.${ext}
+
+files:
+  - dist/**/*
+  - '!dist/**/*.map'
+  - package.json
+  - '!**/node_modules/**'
+asarUnpack: []
+npmRebuild: false
+extraMetadata:
+  dependencies: {}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Worship Archive Stage

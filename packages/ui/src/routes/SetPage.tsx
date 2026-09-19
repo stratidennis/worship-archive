@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   semitonesBetween,
   type ServiceSet,
+  type SessionPatch,
   type SessionState,
   type SetItem,
   type Song,
@@ -27,6 +28,7 @@ import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
 import { useLeaderSession } from '../components/LeaderSession.js';
+import type { ConnectionStatus } from '../lib/useSession.js';
 import { SaveBadge, type SaveState } from '../components/SaveBadge.js';
 import {
   Button,
@@ -1136,9 +1138,9 @@ function LeadControls({
   onAuto,
 }: {
   state: SessionState;
-  patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
+  patch: (p: SessionPatch) => void;
   clockOffset: number;
-  status: 'connecting' | 'live' | 'offline';
+  status: ConnectionStatus;
   auto: boolean;
   onAuto: (value: boolean) => void;
 }) {
@@ -1179,7 +1181,7 @@ function Tempo({
   clockOffset,
 }: {
   state: SessionState;
-  patch: (p: Partial<Omit<SessionState, 'rev'>>) => void;
+  patch: (p: SessionPatch) => void;
   clockOffset: number;
 }) {
   const { t } = useT();

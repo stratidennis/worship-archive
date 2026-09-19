@@ -102,6 +102,16 @@ describe('the stage screens’ appearance', () => {
   its own address — the same name the leader reads in the connected list.
 */
 describe('one screen at a time', () => {
+  it('keys installed screens by stable device id rather than editable name', async () => {
+    await put({ deviceId: 'stage-1', screen: 'Left', maxFontPx: 32 });
+    await put({ deviceId: 'stage-1', screen: 'Stage left', theme: 'dark' });
+
+    const remembered = hub.getState().stageByDevice['stage-1'];
+    expect(remembered?.name).toBe('Stage left');
+    expect(remembered?.display).toMatchObject({ maxFontPx: 32, theme: 'dark' });
+    expect(resolveStageDisplay(hub.getState(), 'Anything', 'stage-1').maxFontPx).toBe(32);
+  });
+
   it('sets a screen without touching the rest', async () => {
     await put({ maxFontPx: 60 });
     const response = await put({ screen: 'Drums', maxFontPx: 28 });
@@ -200,5 +210,25 @@ describe('the leader\u2019s own appearance', () => {
     const before = hub.getState().rev;
     await putHost({ theme: 'light', language: 'ro', chordColor: null });
     expect(hub.getState().rev).toBeGreaterThan(before);
+  });
+});
+
+describe('network diagnostics', () => {
+  it('reports the addresses and discovery status used by the join page', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/host' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      port: 7374,
+      mdns: 'disabled',
+      servesInterface: false,
+    });
+    expect(response.json().interfaces).toEqual(expect.any(Array));
+  });
+
+  it('has an uncached reachability target', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/network/ping' });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.json()).toMatchObject({ ok: true, protocol: 1 });
   });
 });

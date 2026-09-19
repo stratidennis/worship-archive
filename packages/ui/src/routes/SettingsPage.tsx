@@ -58,7 +58,7 @@ export function SettingsPage() {
     the list, and the selection has to drop with it — otherwise the controls would be
     editing a screen that no longer appears anywhere above them.
   */
-  const selected = screen !== null && screens.some((s) => s.name === screen) ? screen : null;
+  const selected = screen !== null && screens.some((s) => s.id === screen) ? screen : null;
   const stage = selected ? (byScreen[selected] ?? DEFAULT_STAGE_DISPLAY) : shared;
   /**
    * One screen inherits from all screens; all screens inherit from this one.
@@ -222,23 +222,19 @@ export function SettingsPage() {
                     </UiButton>
                     {screens.map((one) => (
                       <UiButton
-                        key={one.name}
+                        key={one.id}
                         size="sm"
-                        active={selected === one.name}
-                        onClick={() => setScreen(one.name)}
+                        active={selected === one.id}
+                        onClick={() => setScreen(one.id)}
                       >
                         <span
                           className="h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{
-                            background:
-                              one.connected > 0 ? 'var(--color-ok)' : 'var(--color-line)',
+                            background: one.connected ? 'var(--color-ok)' : 'var(--color-line)',
                           }}
                         />
                         {one.name}
-                        {one.connected > 1 && (
-                          <span className="tabular-nums opacity-60">×{one.connected}</span>
-                        )}
-                        {one.connected === 0 && (
+                        {!one.connected && (
                           <span className="opacity-60">{t('settings.screenOff')}</span>
                         )}
                       </UiButton>

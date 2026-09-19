@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   INITIAL_SESSION,
+  SESSION_PROTOCOL_VERSION,
   estimateClockOffset,
   randomId,
   type ClientMessage,
   type DeviceInfo,
   type DeviceRole,
+  type SessionPatch,
   type ServerMessage,
   type SessionState,
 } from '@worship/core';
@@ -22,7 +24,7 @@ import {
  * the device lands exactly where the service has got to.
  */
 
-export type ConnectionStatus = 'connecting' | 'live' | 'offline';
+export type ConnectionStatus = 'connecting' | 'live' | 'offline' | 'incompatible';
 
 export interface Session {
   state: SessionState;
@@ -32,7 +34,7 @@ export interface Session {
   status: ConnectionStatus;
   /** serverTime − clientTime, so the metronome agrees across devices. */
   clockOffset: number;
-  patch: (patch: Partial<Omit<SessionState, 'rev'>>) => void;
+  patch: (patch: SessionPatch) => void;
   /** Bumped when the host says the library changed on disk. */
   libraryRev: number;
   /**
@@ -57,7 +59,8 @@ const DEVICE_ID_KEY = 'worship-archive:device-id';
  * one machine would claim the same identity and each would kick the other off. Per-tab
  * is exactly the right granularity — a reload keeps it, a second tab gets its own.
  */
-function deviceId(): string {
+function deviceId(preferred?: string): string {
+  if (preferred?.trim()) return preferred.trim();
   try {
     const existing = sessionStorage.getItem(DEVICE_ID_KEY);
     if (existing) return existing;
@@ -77,7 +80,12 @@ function deviceId(): string {
  * from it. A socket that opened on mount would put a phantom "leader" in everyone's
  * device list for the whole time the set was merely being edited.
  */
-export function useSession(role: DeviceRole, name: string, enabled = true): Session {
+export function useSession(
+  role: DeviceRole,
+  name: string,
+  enabled = true,
+  persistentDeviceId?: string,
+): Session {
   const [state, setState] = useState<SessionState>(INITIAL_SESSION);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -92,7 +100,7 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
   const identity = useRef({ role, name });
   identity.current = { role, name };
   const myDeviceId = useRef<string>('');
-  if (!myDeviceId.current) myDeviceId.current = deviceId();
+  if (!myDeviceId.current) myDeviceId.current = deviceId(persistentDeviceId);
 
   useEffect(() => {
     if (!enabled) {
@@ -131,6 +139,7 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
             role: identity.current.role,
             name: identity.current.name,
             deviceId: myDeviceId.current,
+            protocolVersion: SESSION_PROTOCOL_VERSION,
           } satisfies ClientMessage),
         );
         ws.send(JSON.stringify({ t: 'ping', clientTime: Date.now() } satisfies ClientMessage));
@@ -160,6 +169,11 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
             break;
           case 'reload':
             setLibraryRev((n) => n + 1);
+            break;
+          case 'incompatible':
+            setStatus('incompatible');
+            closed.current = true;
+            ws.close();
             break;
         }
       };
@@ -202,6 +216,14 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
       const ws = socket.current;
       socket.current = null;
       if (ws) {
+        // Disabling Lead is an explicit end to the live session. Send it before closing
+        // so connected displays switch to their waiting screen immediately; the hub's
+        // disconnect safeguard covers crashes and power loss.
+        if (role === 'leader' && ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({ t: 'patch', patch: { active: false } } satisfies ClientMessage),
+          );
+        }
         ws.onopen = null;
         ws.onmessage = null;
         ws.onclose = null;
@@ -228,6 +250,7 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
         role,
         name,
         deviceId: myDeviceId.current,
+        protocolVersion: SESSION_PROTOCOL_VERSION,
       } satisfies ClientMessage),
     );
   }, [enabled, role, name, status]);
@@ -243,7 +266,7 @@ export function useSession(role: DeviceRole, name: string, enabled = true): Sess
     return () => clearInterval(timer);
   }, []);
 
-  const patch = useCallback((value: Partial<Omit<SessionState, 'rev'>>) => {
+  const patch = useCallback((value: SessionPatch) => {
     const ws = socket.current;
     if (ws?.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ t: 'patch', patch: value } satisfies ClientMessage));

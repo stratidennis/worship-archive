@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { resolveStageDisplay, semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
@@ -7,10 +7,14 @@ import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { setLanguageOverride, useT } from '../lib/i18n.js';
 import { applyChordColor, applyTheme } from '../lib/theme.js';
 import { usePrefs } from '../lib/settings.js';
+import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
+import { Sheet } from '../components/Sheet.js';
+import { Button, Checkbox, IconButton, Input } from '../components/ui.js';
+import { IconSettings } from '../components/icons.js';
 
 /** What a screen uses when nobody has said otherwise: big, because it is read far away. */
 export const STAGE_DEFAULT_FONT = 72;
@@ -29,6 +33,9 @@ export const STAGE_DEFAULT_FONT = 72;
 export function StagePage() {
   const { t } = useT();
   const [params] = useSearchParams();
+  const native = useMemo(() => clientDesktop(), []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clientState, setClientState] = useState<ClientDesktopState | null>(null);
   const showChords = params.get('chords') !== '0';
   const showBass = params.get('bass') === '1';
   /*
@@ -46,9 +53,23 @@ export function StagePage() {
     interface.
   */
   const screen = params.get('name')?.trim() ?? '';
+  const [screenName, setScreenName] = useState(screen);
 
-  const { state, status, clockOffset, libraryRev } = useSession('stage', screen);
-  const live = useLiveSet(state.setId, libraryRev);
+  useEffect(() => {
+    if (!native) return;
+    void native.state().then((value) => {
+      setClientState(value);
+      setScreenName(value.name);
+    });
+  }, [native]);
+
+  const { state, status, clockOffset, libraryRev, deviceId } = useSession(
+    'stage',
+    screen,
+    true,
+    params.get('device') ?? undefined,
+  );
+  const live = useLiveSet(state.active ? state.setId : null, libraryRev);
   const [prefs] = usePrefs();
 
   /*
@@ -59,7 +80,7 @@ export function StagePage() {
     laptop. So the session carries these, and anything left unset here falls back to
     what this screen would have done on its own.
   */
-  const stage = resolveStageDisplay(state, screen || null);
+  const stage = resolveStageDisplay(state, screen || null, deviceId);
   useEffect(() => {
     applyTheme(stage.theme ?? prefs.theme);
     return () => applyTheme(prefs.theme);
@@ -171,7 +192,87 @@ export function StagePage() {
             {status === 'connecting' ? t('status.reconnecting') : t('status.offline')}
           </span>
         )}
+        {native && (
+          <span className="pointer-events-auto opacity-20 transition-opacity hover:opacity-100 focus-within:opacity-100">
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label={t('settings.title')}
+              onClick={() => setSettingsOpen(true)}
+            >
+              <IconSettings size={15} />
+            </IconButton>
+          </span>
+        )}
       </div>
+
+      {settingsOpen && clientState && native && (
+        <Sheet title={t('settings.title')} onClose={() => setSettingsOpen(false)}>
+          <div className="grid gap-4">
+            <label className="grid gap-1 text-sm">
+              <span className="text-(--color-muted)">{t('band.yourName')}</span>
+              <Input
+                value={screenName}
+                onChange={(event) => setScreenName(event.target.value)}
+              />
+            </label>
+            <Button
+              className="justify-self-start"
+              onClick={() => {
+                if (!screenName.trim()) return;
+                void native.updateSettings({ name: screenName.trim() }).then(setClientState);
+              }}
+            >
+              {t('app.save')}
+            </Button>
+            <StageSetting
+              checked={clientState.showChords}
+              label={t('settings.showChords')}
+              onChange={(showChords) => {
+                void native.updateSettings({ showChords }).then(setClientState);
+              }}
+            />
+            <StageSetting
+              checked={clientState.autoStart}
+              label={t('settings.autoStart')}
+              onChange={(autoStart) => {
+                void native.updateSettings({ autoStart }).then(setClientState);
+              }}
+            />
+            <StageSetting
+              checked={clientState.fullscreen}
+              label={t('settings.fullscreen')}
+              onChange={(fullscreen) => {
+                void native.updateSettings({ fullscreen }).then(setClientState);
+              }}
+            />
+            <StageSetting
+              checked={clientState.preventSleep}
+              label={t('settings.preventSleep')}
+              onChange={(preventSleep) => {
+                void native.updateSettings({ preventSleep }).then(setClientState);
+              }}
+            />
+          </div>
+        </Sheet>
+      )}
     </div>
+  );
+}
+
+function StageSetting({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <Checkbox checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      {label}
+    </label>
   );
 }

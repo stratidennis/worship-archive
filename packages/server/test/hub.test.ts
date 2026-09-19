@@ -4,7 +4,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
-import type { ClientMessage, ServerMessage } from '@worship/core';
+import {
+  SESSION_PROTOCOL_VERSION,
+  type ClientMessage,
+  type ServerMessage,
+} from '@worship/core';
 import { SessionHub } from '../src/hub.js';
 
 let server: Server;
@@ -59,6 +63,21 @@ function send(client: Client, message: ClientMessage): void {
   client.ws.send(JSON.stringify(message));
 }
 
+function identify(
+  client: Client,
+  role: 'leader' | 'band' | 'stage',
+  deviceId: string,
+  name = role,
+): void {
+  send(client, {
+    t: 'hello',
+    role,
+    name,
+    deviceId,
+    protocolVersion: SESSION_PROTOCOL_VERSION,
+  });
+}
+
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'worship-hub-'));
   server = createServer();
@@ -68,7 +87,11 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  hub.close();
+  await hub.close();
+  // Node can otherwise keep a just-closed upgrade socket around until its keep-alive
+  // timeout, making the suite wait ten seconds per case even though the hub terminated
+  // every WebSocket above.
+  server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   rmSync(dir, { recursive: true, force: true });
 });
@@ -84,10 +107,22 @@ describe('joining', () => {
 
   it('announces the device to everyone', async () => {
     const leader = await connect();
-    send(leader, { t: 'hello', role: 'leader', name: 'Lider', deviceId: 'a' });
+    send(leader, {
+      t: 'hello',
+      role: 'leader',
+      name: 'Lider',
+      deviceId: 'a',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
 
     const stage = await connect();
-    send(stage, { t: 'hello', role: 'stage', name: 'Ecran', deviceId: 'b' });
+    send(stage, {
+      t: 'hello',
+      role: 'stage',
+      name: 'Ecran',
+      deviceId: 'b',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
 
     // A device is announced on connect and again on hello, so wait for the frame that
     // reflects both identities rather than just the count.
@@ -108,7 +143,13 @@ describe('joining', () => {
   */
   it('says which device each entry is, so a device can recognise itself', async () => {
     const leader = await connect();
-    send(leader, { t: 'hello', role: 'leader', name: 'Lider', deviceId: 'this-laptop' });
+    send(leader, {
+      t: 'hello',
+      role: 'leader',
+      name: 'Lider',
+      deviceId: 'this-laptop',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
     const frame = await waitFor(leader, 'devices', (m) =>
       m.devices.some((d) => d.deviceId === 'this-laptop'),
     );
@@ -119,13 +160,25 @@ describe('joining', () => {
 
   it('replaces a reconnecting device rather than listing it twice', async () => {
     const first = await connect();
-    send(first, { t: 'hello', role: 'band', name: 'Dennis', deviceId: 'same' });
+    send(first, {
+      t: 'hello',
+      role: 'band',
+      name: 'Dennis',
+      deviceId: 'same',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
     await waitFor(first, 'devices', (m) => m.devices.some((d) => d.name === 'Dennis'));
 
     // The same device comes back — a WiFi drop, a reload — before the heartbeat has
     // reaped the old socket.
     const second = await connect();
-    send(second, { t: 'hello', role: 'band', name: 'Dennis', deviceId: 'same' });
+    send(second, {
+      t: 'hello',
+      role: 'band',
+      name: 'Dennis',
+      deviceId: 'same',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
 
     const frame = await waitFor(second, 'devices', (m) => m.devices.length === 1);
     expect(frame.devices[0]!.name).toBe('Dennis');
@@ -134,9 +187,21 @@ describe('joining', () => {
 
   it('keeps two tabs on one machine separate', async () => {
     const a = await connect();
-    send(a, { t: 'hello', role: 'leader', name: 'Lider', deviceId: 'tab-1' });
+    send(a, {
+      t: 'hello',
+      role: 'leader',
+      name: 'Lider',
+      deviceId: 'tab-1',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
     const b = await connect();
-    send(b, { t: 'hello', role: 'stage', name: 'Ecran', deviceId: 'tab-2' });
+    send(b, {
+      t: 'hello',
+      role: 'stage',
+      name: 'Ecran',
+      deviceId: 'tab-2',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
     const frame = await waitFor(
       b,
       'devices',
@@ -149,9 +214,21 @@ describe('joining', () => {
 
   it('removes a device when it disconnects', async () => {
     const watcher = await connect();
-    send(watcher, { t: 'hello', role: 'leader', name: 'Lider', deviceId: 'w' });
+    send(watcher, {
+      t: 'hello',
+      role: 'leader',
+      name: 'Lider',
+      deviceId: 'w',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
     const other = await connect();
-    send(other, { t: 'hello', role: 'band', name: 'Altul', deviceId: 'o' });
+    send(other, {
+      t: 'hello',
+      role: 'band',
+      name: 'Altul',
+      deviceId: 'o',
+      protocolVersion: SESSION_PROTOCOL_VERSION,
+    });
     await waitFor(watcher, 'devices', (m) => m.devices.some((d) => d.name === 'Altul'));
 
     other.ws.close();
@@ -164,6 +241,8 @@ describe('driving the service', () => {
   it('pushes a patch to every device', async () => {
     const leader = await connect();
     const stage = await connect();
+    identify(leader, 'leader', 'leader-driving');
+    identify(stage, 'stage', 'stage-watching');
 
     send(leader, { t: 'patch', patch: { itemIndex: 5, output: 'cleared' } });
     const frame = await waitFor(stage, 'session', (m) => m.state.itemIndex === 5);
@@ -182,6 +261,7 @@ describe('driving the service', () => {
 
   it('will not let a client set rev itself', async () => {
     const client = await connect();
+    identify(client, 'leader', 'leader-rev');
     send(client, { t: 'patch', patch: { itemIndex: 1, rev: 9999 } as never });
     await waitFor(client, 'session', (m) => m.state.itemIndex === 1);
     // The client asked for rev 9999; the hub set its own.
@@ -202,6 +282,7 @@ describe('driving the service', () => {
   it('ignores malformed input instead of disturbing the service', async () => {
     const client = await connect();
     await waitFor(client, 'session');
+    identify(client, 'leader', 'leader-malformed');
     client.ws.send('not json at all');
     client.ws.send(JSON.stringify({ t: 'nonsense' }));
 
@@ -210,6 +291,58 @@ describe('driving the service', () => {
     const frame = await waitFor(client, 'session', (m) => m.state.itemIndex === 9);
     expect(frame.state.itemIndex).toBe(9);
     client.ws.close();
+  });
+
+  it('does not let Band or Stage devices drive the shared session', async () => {
+    const band = await connect();
+    identify(band, 'band', 'band-read-only');
+    send(band, { t: 'patch', patch: { itemIndex: 8, active: true } });
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(hub.getState()).toMatchObject({ itemIndex: 0, active: false });
+    band.ws.close();
+  });
+
+  it('creates a new epoch when the Leader starts a service', async () => {
+    const leader = await connect();
+    identify(leader, 'leader', 'leader-epoch');
+    send(leader, { t: 'patch', patch: { active: true, setId: 'sunday' } });
+    const started = await waitFor(leader, 'session', (m) => m.state.active);
+
+    expect(started.state.sessionEpoch).toEqual(expect.any(String));
+    expect(started.state.leaderRevision).toBeGreaterThan(0);
+    leader.ws.close();
+  });
+
+  it('returns to waiting when the last Leader disconnects', async () => {
+    const leader = await connect();
+    const stage = await connect();
+    identify(leader, 'leader', 'leader-leaving');
+    identify(stage, 'stage', 'stage-staying');
+    send(leader, { t: 'patch', patch: { active: true, setId: 'sunday' } });
+    await waitFor(stage, 'session', (m) => m.state.active);
+
+    leader.ws.close();
+    const stopped = await waitFor(stage, 'session', (m) => !m.state.active && m.state.rev > 0);
+    expect(stopped.state.setId).toBe('sunday');
+    stage.ws.close();
+  });
+
+  it('reports an incompatible client protocol and closes it', async () => {
+    const client = await connect();
+    send(client, {
+      t: 'hello',
+      role: 'stage',
+      name: 'Old screen',
+      deviceId: 'old-stage',
+      protocolVersion: SESSION_PROTOCOL_VERSION + 1,
+    });
+    const message = await waitFor(client, 'incompatible');
+    expect(message).toEqual({
+      t: 'incompatible',
+      serverProtocol: SESSION_PROTOCOL_VERSION,
+      clientProtocol: SESSION_PROTOCOL_VERSION + 1,
+    });
   });
 });
 
@@ -246,6 +379,18 @@ describe('surviving a host restart', () => {
     });
     // rev moves forward, so reconnecting clients accept the restored frame.
     expect(revived.getState().rev).toBeGreaterThan(0);
+    revived.close();
+    hub = new SessionHub(server, {});
+  });
+
+  it('never resumes Lead mode merely because the server restarted', async () => {
+    hub.patch({ active: true, setId: 'set-9' });
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    hub.close();
+
+    const revived = new SessionHub(server, { statePath: join(dir, 'session.json') });
+    expect(revived.getState()).toMatchObject({ active: false, setId: 'set-9' });
+    expect(revived.getState().sessionEpoch).toBeNull();
     revived.close();
     hub = new SessionHub(server, {});
   });

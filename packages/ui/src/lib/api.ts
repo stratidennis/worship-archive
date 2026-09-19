@@ -25,6 +25,17 @@ export interface Facets {
   keys: { name: string; count: number }[];
 }
 
+export interface HostInfo {
+  addresses: string[];
+  interfaces: { name: string; address: string }[];
+  port: number;
+  hostname: string;
+  friendlyHostname: string | null;
+  mdns: 'starting' | 'published' | 'unavailable' | 'disabled';
+  mdnsError: string | null;
+  servesInterface: boolean;
+}
+
 export interface SetSummary {
   id: string;
   title: string;
@@ -110,7 +121,7 @@ export const api = {
     };
   },
 
-  host: () => get<{ addresses: string[]; port: number; hostname: string }>('/api/host'),
+  host: () => get<HostInfo>('/api/host'),
 
   saveSong: (id: string, song: Song) =>
     send<Song>(`/api/songs/${encodeURIComponent(id)}`, 'PUT', song),

@@ -7,27 +7,34 @@
  */
 
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { Server } from 'node:http';
+import type { IncomingMessage, Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
   INITIAL_SESSION,
+  SESSION_PROTOCOL_VERSION,
   type ClientMessage,
   type DeviceInfo,
+  type SessionPatch,
   type ServerMessage,
   type SessionState,
 } from '@worship/core';
+import { isLoopbackAddress } from './network.js';
 
 interface Client {
   socket: WebSocket;
   device: DeviceInfo;
   alive: boolean;
+  identified: boolean;
+  canLead: boolean;
 }
 
 export interface HubOptions {
   path?: string;
   /** Where to persist session state, so a host restart does not lose the service. */
   statePath?: string | undefined;
+  /** Stable identity supplied by the Leader installation. */
+  leaderId?: string | undefined;
 }
 
 export class SessionHub {
@@ -36,13 +43,23 @@ export class SessionHub {
   private readonly wss: WebSocketServer;
   private readonly heartbeat: NodeJS.Timeout;
   private readonly statePath: string | undefined;
+  private readonly leaderId: string;
   private saveTimer: NodeJS.Timeout | null = null;
 
   constructor(server: Server, options: HubOptions = {}) {
     this.statePath = options.statePath;
+    this.leaderId = options.leaderId ?? '';
     this.restore();
+    this.state = {
+      ...this.state,
+      // A process restart never silently resumes a service. The set stays cached, but
+      // every remote screen waits for the Leader to deliberately switch Lead on.
+      active: false,
+      sessionEpoch: null,
+      leaderId: this.leaderId,
+    };
     this.wss = new WebSocketServer({ server, path: options.path ?? '/ws' });
-    this.wss.on('connection', (socket) => this.onConnection(socket));
+    this.wss.on('connection', (socket, request) => this.onConnection(socket, request));
 
     // A browser that goes to sleep, or a device carried out of range, does not close
     // its socket — it simply stops answering. Without this the leader's device list
@@ -105,11 +122,15 @@ export class SessionHub {
     }, 250);
   }
 
-  close(): void {
+  async close(): Promise<void> {
     if (this.saveTimer) clearTimeout(this.saveTimer);
     clearInterval(this.heartbeat);
-    for (const client of this.clients.values()) client.socket.terminate();
-    this.wss.close();
+    // Use the WebSocketServer's set as the source of truth. A peer can already have
+    // emitted `close` (and therefore left our device map) while Node still owns the
+    // upgraded socket for one more turn of the event loop.
+    for (const socket of this.wss.clients) socket.terminate();
+    this.clients.clear();
+    await new Promise<void>((resolve) => this.wss.close(() => resolve()));
   }
 
   getState(): SessionState {
@@ -121,11 +142,43 @@ export class SessionHub {
   }
 
   /** Apply a patch and push the result. `rev` is the hub's to set. */
-  patch(patch: Partial<Omit<SessionState, 'rev'>>): SessionState {
+  patch(patch: SessionPatch): SessionState {
     this.state = { ...this.state, ...patch, rev: this.state.rev + 1 };
     this.broadcast({ t: 'session', state: this.state });
     this.persist();
     return this.state;
+  }
+
+  /** Apply a command from an identified Leader, deriving host-owned revision fields. */
+  private patchFromLeader(patch: SessionPatch): SessionState {
+    // TypeScript protects our own clients; this destructuring protects the network
+    // boundary from hand-written JSON that tries to set host-owned fields.
+    const {
+      rev: _rev,
+      leaderId: _leaderId,
+      sessionEpoch: _sessionEpoch,
+      leaderRevision: _leaderRevision,
+      ...safe
+    } = patch as Partial<SessionState>;
+    const activates = safe.active === true && !this.state.active;
+    this.state = {
+      ...this.state,
+      ...safe,
+      sessionEpoch: activates ? randomUUID() : this.state.sessionEpoch,
+      leaderRevision: this.state.leaderRevision + 1,
+      rev: this.state.rev + 1,
+    };
+    this.broadcast({ t: 'session', state: this.state });
+    this.persist();
+    return this.state;
+  }
+
+  /** A service cannot remain live after its last Leader console disappears. */
+  private stopIfLeaderless(): void {
+    const hasLeader = [...this.clients.values()].some(
+      (client) => client.identified && client.device.role === 'leader',
+    );
+    if (this.state.active && !hasLeader) this.patch({ active: false });
   }
 
   /** Tell every device the library changed, so it can refetch what it is showing. */
@@ -146,7 +199,7 @@ export class SessionHub {
     this.broadcast({ t: 'devices', devices: this.getDevices() });
   }
 
-  private onConnection(socket: WebSocket): void {
+  private onConnection(socket: WebSocket, request: IncomingMessage): void {
     const id = randomUUID();
     const client: Client = {
       socket,
@@ -158,9 +211,12 @@ export class SessionHub {
         deviceId: null,
         name: '',
         role: 'band',
+        protocolVersion: SESSION_PROTOCOL_VERSION,
         since: new Date().toISOString(),
       },
       alive: true,
+      identified: false,
+      canLead: isLoopbackAddress(request.socket.remoteAddress),
     };
     this.clients.set(id, client);
 
@@ -182,6 +238,21 @@ export class SessionHub {
 
       switch (message.t) {
         case 'hello': {
+          if (message.protocolVersion !== SESSION_PROTOCOL_VERSION) {
+            socket.send(
+              JSON.stringify({
+                t: 'incompatible',
+                serverProtocol: SESSION_PROTOCOL_VERSION,
+                clientProtocol: message.protocolVersion,
+              } satisfies ServerMessage),
+            );
+            socket.close(1002, 'incompatible protocol');
+            break;
+          }
+          if (message.role === 'leader' && !client.canLead) {
+            socket.close(1008, 'Leader controls are local to the host');
+            break;
+          }
           // A device that reconnects — after a WiFi drop, a phone waking up, a page
           // reload — must replace its old entry rather than appear twice. Waiting for
           // the heartbeat to reap the stale socket would leave phantoms in the leader's
@@ -199,13 +270,19 @@ export class SessionHub {
             deviceId: message.deviceId ?? client.device.deviceId,
             name: message.name?.slice(0, 60) || '',
             role: message.role,
+            protocolVersion: message.protocolVersion,
           };
+          client.identified = true;
           this.broadcastDevices();
           break;
         }
 
         case 'patch':
-          this.patch(message.patch);
+          // Band and Stage screens can disagree locally, but they can never drive the
+          // shared room. A patch before hello is equally unauthorised.
+          if (client.identified && client.device.role === 'leader') {
+            this.patchFromLeader(message.patch);
+          }
           break;
 
         case 'ping':
@@ -223,6 +300,7 @@ export class SessionHub {
     const drop = (): void => {
       this.clients.delete(id);
       this.broadcastDevices();
+      this.stopIfLeaderless();
     };
     socket.on('close', drop);
     socket.on('error', drop);

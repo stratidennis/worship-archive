@@ -43,7 +43,16 @@ importers:
       better-sqlite3:
         specifier: ^12.4.1
         version: 12.11.1
+      bonjour-service:
+        specifier: ^1.4.4
+        version: 1.4.4
+      ws:
+        specifier: ^8.21.3
+        version: 8.21.3
     devDependencies:
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       '@worship/core':
         specifier: workspace:*
         version: link:../core

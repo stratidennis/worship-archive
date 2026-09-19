@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { useT } from '../lib/i18n.js';
 import { useLeading } from '../lib/leading.js';
 import { useSession, type Session } from '../lib/useSession.js';
@@ -18,6 +18,12 @@ export function LeaderSessionProvider({ children }: { children: React.ReactNode 
   const { t } = useT();
   const { setId } = useLeading();
   const session = useSession('leader', t('lead.roleLeader'), setId !== null);
+
+  useEffect(() => {
+    if (setId === null || !session.synced || session.state.active) return;
+    session.patch({ active: true });
+  }, [setId, session.synced, session.state.active, session.patch]);
+
   return (
     <LeaderSessionContext.Provider value={session}>{children}</LeaderSessionContext.Provider>
   );

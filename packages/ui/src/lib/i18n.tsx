@@ -71,6 +71,7 @@ const ro = {
   'status.live': 'conectat',
   'status.connecting': 'se conectează',
   'status.offline': 'deconectat',
+  'status.incompatible': 'necesită actualizare',
   'status.reconnecting': 'se reconectează…',
 
   // --- library --------------------------------------------------------------
@@ -240,7 +241,7 @@ const ro = {
   // --- join -----------------------------------------------------------------
   'join.title': 'Conectează un dispozitiv',
   'join.subtitle':
-    'Toate dispozitivele trebuie să fie pe același WiFi. Nu e nevoie de internet.',
+    'Toate dispozitivele trebuie să fie pe aceeași rețea locală. Nu e nevoie de internet.',
   'join.stageWithChords': 'Cu acorduri',
   'join.stageWordsOnly': 'Doar versuri',
   'join.screenName': 'Numele ecranului',
@@ -252,6 +253,32 @@ const ro = {
   'join.orType': 'Sau scrie adresa',
   'join.usuallyWorks': 'merge de obicei',
   'join.alwaysWorks': 'merge întotdeauna',
+  'join.friendly': 'adresă simplă',
+  'join.friendlyHint': 'adresă simplă; depinde de rețeaua locală',
+  'join.qrReliable':
+    'Codul QR folosește adresa numerică, cea mai sigură alegere pe orice rețea locală.',
+  'join.diagnostics': 'Diagnostic de rețea',
+  'join.testConnections': 'Testează adresele',
+  'join.server': 'Server',
+  'join.serverRunning': 'rulează pe portul {port}',
+  'join.discovery': 'Descoperire',
+  'join.discoveryReady': '{hostname} este publicat în rețeaua locală',
+  'join.discoveryStarting': 'se pornește…',
+  'join.discoveryUnavailable': 'adresa simplă nu a putut fi publicată; folosește codul QR',
+  'join.networks': 'Conexiuni',
+  'join.testHint':
+    'Acest test verifică adresele de pe laptop. Verificarea finală este să scanezi codul QR cu un alt dispozitiv conectat la aceeași rețea.',
+  'join.permissionTitle': 'Dacă alt dispozitiv nu se poate conecta',
+  'join.permissionWindows':
+    'Permite Worship Archive Leader în Windows Firewall pentru rețele private. Verifică și că rețeaua este marcată Private, nu Public.',
+  'join.permissionMac':
+    'Permite Worship Archive Leader la Confidențialitate și securitate → Rețea locală. Apoi redeschide aplicația dacă macOS o cere.',
+  'join.permissionGeneric':
+    'Permite aplicației accesul la rețeaua locală și verifică dacă toate dispozitivele sunt pe aceeași rețea Wi-Fi sau Ethernet.',
+  'join.openNetworkSettings': 'Deschide setările de rețea',
+  'join.testing': 'se testează',
+  'join.reachable': 'funcționează',
+  'join.unreachable': 'nu răspunde',
   'join.multipleNetworks':
     'Sunt mai multe adrese pentru că acest calculator e pe mai multe rețele. Încearcă-le pe rând.',
   'join.noNetwork': 'Acest calculator nu pare conectat la o rețea — nimeni nu îl poate găsi.',
@@ -356,6 +383,7 @@ const ro = {
   'settings.preventSleep': 'Ține ecranul aprins',
   'settings.preventSleepHint': 'Împiedică adormirea calculatorului în timpul serviciului.',
   'settings.autoStart': 'Pornește odată cu calculatorul',
+  'settings.fullscreen': 'Deschide pe tot ecranul',
   'settings.version': 'Versiunea {version}',
   'settings.mirror': 'Pe acest dispozitiv: {songs} salvate local',
   'settings.lastSync': 'ultima sincronizare {when}',
@@ -469,6 +497,7 @@ const en: Record<TranslationKey, Entry> = {
   'status.live': 'connected',
   'status.connecting': 'connecting',
   'status.offline': 'disconnected',
+  'status.incompatible': 'update required',
   'status.reconnecting': 'reconnecting…',
 
   'library.search': 'Search titles or lyrics…',
@@ -621,7 +650,7 @@ const en: Record<TranslationKey, Entry> = {
   'band.defaultName': 'Musician',
 
   'join.title': 'Connect a device',
-  'join.subtitle': 'Every device has to be on the same WiFi. No internet needed.',
+  'join.subtitle': 'Every device has to be on the same local network. No internet needed.',
   'join.stageWithChords': 'With chords',
   'join.stageWordsOnly': 'Words only',
   'join.screenName': 'Screen name',
@@ -633,6 +662,32 @@ const en: Record<TranslationKey, Entry> = {
   'join.orType': 'Or type the address',
   'join.usuallyWorks': 'usually works',
   'join.alwaysWorks': 'always works',
+  'join.friendly': 'simple address',
+  'join.friendlyHint': 'simple address; depends on the local network',
+  'join.qrReliable':
+    'The QR code uses the numeric address, which is the most reliable choice on any local network.',
+  'join.diagnostics': 'Network diagnostics',
+  'join.testConnections': 'Test addresses',
+  'join.server': 'Server',
+  'join.serverRunning': 'running on port {port}',
+  'join.discovery': 'Discovery',
+  'join.discoveryReady': '{hostname} is published on the local network',
+  'join.discoveryStarting': 'starting…',
+  'join.discoveryUnavailable': 'the simple address could not be published; use the QR code',
+  'join.networks': 'Connections',
+  'join.testHint':
+    'This test checks the addresses from the laptop. The final test is scanning the QR code with another device on the same network.',
+  'join.permissionTitle': 'If another device cannot connect',
+  'join.permissionWindows':
+    'Allow Worship Archive Leader through Windows Firewall on private networks. Also check that this network is marked Private rather than Public.',
+  'join.permissionMac':
+    'Allow Worship Archive Leader under Privacy & Security → Local Network. Reopen the application afterwards if macOS asks you to.',
+  'join.permissionGeneric':
+    'Allow the application to access the local network and check that every device is on the same Wi-Fi or Ethernet network.',
+  'join.openNetworkSettings': 'Open network settings',
+  'join.testing': 'testing',
+  'join.reachable': 'works',
+  'join.unreachable': 'not responding',
   'join.multipleNetworks':
     'There are several addresses because this computer is on more than one network. Try them in turn.',
   'join.noNetwork': 'This computer does not seem to be on a network — nobody can find it.',
@@ -731,6 +786,7 @@ const en: Record<TranslationKey, Entry> = {
   'settings.preventSleep': 'Keep the screen awake',
   'settings.preventSleepHint': 'Stops the computer sleeping during a service.',
   'settings.autoStart': 'Start with the computer',
+  'settings.fullscreen': 'Open in fullscreen',
   'settings.version': 'Version {version}',
   'settings.mirror': 'On this device: {songs} stored locally',
   'settings.lastSync': 'last synced {when}',

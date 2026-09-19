@@ -12,10 +12,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 export interface DesktopState {
+  installationId: string;
+  deviceName: string;
   dataDir: string;
   port: number;
   addresses: string[];
   hostname: string;
+  friendlyHostname: string;
+  mdns: 'starting' | 'published' | 'unavailable' | 'disabled';
+  mdnsError: string | null;
   preventSleep: boolean;
   autoStart: boolean;
   version: string;
@@ -48,6 +53,7 @@ const api = {
     ipcRenderer.invoke('worship:set-prevent-sleep', on),
   setAutoStart: (on: boolean): Promise<boolean> =>
     ipcRenderer.invoke('worship:set-auto-start', on),
+  openNetworkSettings: (): Promise<void> => ipcRenderer.invoke('worship:open-network-settings'),
 };
 
 export type WorshipDesktopApi = typeof api;
