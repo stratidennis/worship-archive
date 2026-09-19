@@ -27,7 +27,7 @@ export function WaitingForLeader({ compact = false }: { compact?: boolean }) {
       />
       <p
         className={`flex items-center gap-[0.65em] text-(--color-muted) ${
-          compact ? 'text-lg' : 'text-[clamp(1.25rem,3vh,2.25rem)]'
+          compact ? 'text-[clamp(1.75rem,5vw,2.25rem)]' : 'text-[clamp(1.25rem,3vh,2.25rem)]'
         }`}
       >
         <span>{t('band.waiting')}</span>
@@ -46,7 +46,7 @@ function Spinner({ compact }: { compact: boolean }) {
     <span
       aria-hidden
       className={`waiting-spinner inline-block shrink-0 rounded-full border-current border-r-transparent ${
-        compact ? 'h-5 w-5 border-2' : 'h-[0.9em] w-[0.9em] border-[0.09em]'
+        compact ? 'h-10 w-10 border-4' : 'h-[0.9em] w-[0.9em] border-[0.09em]'
       }`}
     />
   );

@@ -34,6 +34,7 @@ export interface PickedFile {
 interface DesktopApi {
   isDesktop: true;
   state: () => Promise<DesktopState>;
+  retryServer: () => Promise<boolean>;
   chooseDataDir: () => Promise<string | null>;
   revealDataDir: () => Promise<void>;
   pickFiles: () => Promise<PickedFile[] | null>;

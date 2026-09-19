@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Line } from '@worship/core';
 import { useT } from '../lib/i18n.js';
-import { IconMusic } from './icons.js';
 
 /**
  * One editable lyric line, with its chords stacked above the right syllables.
@@ -31,8 +30,14 @@ interface Segment {
   text: string;
 }
 
-function segmentsOf(line: Line, layer: 'chords' | 'bass'): Segment[] {
-  const anchors = [...line[layer]].sort((a, b) => a.at - b.at);
+function segmentsOf(line: Line, layer: 'chords' | 'bass', editingAt: number | null): Segment[] {
+  const anchors = [...line[layer]];
+  // A new chord has no stored anchor yet. Insert a temporary empty one so the editor
+  // has a segment to attach its input to at the position the user just clicked.
+  if (editingAt !== null && !anchors.some((anchor) => anchor.at === editingAt)) {
+    anchors.push({ at: editingAt, raw: '' });
+  }
+  anchors.sort((a, b) => a.at - b.at);
   const out: Segment[] = [];
 
   if (anchors.length === 0 || (anchors[0]?.at ?? 0) > 0) {
@@ -69,7 +74,7 @@ export function LineEditor({
   const [editingAt, setEditingAt] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
 
-  const segments = useMemo(() => segmentsOf(line, layer), [line, layer]);
+  const segments = useMemo(() => segmentsOf(line, layer, editingAt), [line, layer, editingAt]);
 
   useEffect(() => {
     if (autoFocus) input.current?.focus();
@@ -78,6 +83,34 @@ export function LineEditor({
   const startChordAt = (at: number): void => {
     setEditingAt(at);
     setDraft(line[layer].find((a) => a.at === at)?.raw ?? '');
+  };
+
+  /**
+   * Turn a click above the lyric into the nearest character boundary.
+   *
+   * Measuring the actual input font matters here: dividing by an average character
+   * width puts a chord over the wrong syllable as soon as a line contains both narrow
+   * letters such as `i` and wide ones such as `m`.
+   */
+  const startChordAtPointer = (clientX: number): void => {
+    const lyric = input.current;
+    if (!lyric) return;
+    const context = document.createElement('canvas').getContext('2d');
+    if (!context) return;
+    const style = window.getComputedStyle(lyric);
+    context.font = style.font;
+    const x = Math.max(0, clientX - lyric.getBoundingClientRect().left + lyric.scrollLeft);
+    let at = line.text.length;
+    for (let index = 0; index <= line.text.length; index++) {
+      const here = context.measureText(line.text.slice(0, index)).width;
+      const next = context.measureText(line.text.slice(0, index + 1)).width;
+      if (x <= (here + next) / 2) {
+        at = index;
+        break;
+      }
+    }
+    lyric.setSelectionRange(at, at);
+    startChordAt(at);
   };
 
   const commitChord = (): void => {
@@ -110,8 +143,9 @@ export function LineEditor({
     <div className="group relative">
       {showChords && (
         <div
-          className="flex h-[1.15em] items-end text-[0.72em] font-semibold leading-[1.1]"
-          aria-hidden
+          className="relative flex h-[1.15em] w-full cursor-text items-end text-[0.72em] font-semibold leading-[1.1]"
+          title={t('edit.addChord')}
+          onClick={(event) => startChordAtPointer(event.clientX)}
         >
           {segments.map((segment, i) => (
             <span key={i} className="relative whitespace-pre">
@@ -125,6 +159,7 @@ export function LineEditor({
                   // not appending to it. Without this, clicking "G" and typing "Am"
                   // silently produces "GAm".
                   onFocus={(e) => e.currentTarget.select()}
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setDraft(e.target.value)}
                   onBlur={commitChord}
                   onKeyDown={(e) => {
@@ -139,13 +174,16 @@ export function LineEditor({
                     }
                   }}
                   className="absolute left-0 top-0 z-10 w-16 rounded border border-(--color-chord) bg-(--color-stage-bg) px-1 text-[1em] font-semibold text-(--color-chord-ink) outline-none"
-                  placeholder="acord"
-                  aria-label="Acord"
+                  placeholder={t('edit.chordPlaceholder')}
+                  aria-label={t('edit.chordPlaceholder')}
                 />
               ) : segment.chord ? (
                 <button
                   type="button"
-                  onClick={() => startChordAt(segment.at)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    startChordAt(segment.at);
+                  }}
                   className="absolute left-0 top-0 cursor-pointer rounded px-0.5 font-semibold text-(--color-chord-ink) hover:bg-(--color-chord)/15"
                   title={t('edit.editChord')}
                   aria-label={t('edit.editChord')}
@@ -155,6 +193,11 @@ export function LineEditor({
               ) : null}
             </span>
           ))}
+          {line[layer].length === 0 && editingAt === null && (
+            <span className="pointer-events-none absolute left-0 top-0 text-[0.82em] font-normal text-(--color-muted) opacity-0 transition-opacity group-focus-within:opacity-45 group-hover:opacity-45">
+              {t('edit.addChord')}
+            </span>
+          )}
         </div>
       )}
 
@@ -183,17 +226,6 @@ export function LineEditor({
           className="w-full bg-transparent leading-[1.25] outline-none focus:bg-(--color-chord)/5"
           placeholder="…"
         />
-        {showChords && (
-          <button
-            type="button"
-            onClick={() => startChordAt(input.current?.selectionStart ?? 0)}
-            className="shrink-0 rounded px-1.5 text-xs text-(--color-muted) opacity-0 transition-opacity hover:bg-(--color-line) group-focus-within:opacity-100 group-hover:opacity-100"
-            title={t('edit.addChord')}
-            aria-label={t('edit.addChord')}
-          >
-            <IconMusic size={14} />
-          </button>
-        )}
       </div>
     </div>
   );

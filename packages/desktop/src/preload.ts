@@ -42,6 +42,9 @@ const api = {
 
   state: (): Promise<DesktopState> => ipcRenderer.invoke('worship:state'),
 
+  /** Try to start the embedded Leader server again without restarting the app. */
+  retryServer: (): Promise<boolean> => ipcRenderer.invoke('worship:retry-server'),
+
   /** Returns the chosen folder; the app restarts immediately afterwards. */
   chooseDataDir: (): Promise<string | null> => ipcRenderer.invoke('worship:choose-data-dir'),
   revealDataDir: (): Promise<void> => ipcRenderer.invoke('worship:reveal-data-dir'),

@@ -22,7 +22,13 @@ import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
 import { Button, Checkbox, IconButton, Input, Select } from '../components/ui.js';
 import { Sheet } from '../components/Sheet.js';
-import { AccidentalChoice, FontSize, LanguageChoice } from '../components/DisplaySettings.js';
+import {
+  AccidentalChoice,
+  ChordColour,
+  ChordSample,
+  FontSize,
+  LanguageChoice,
+} from '../components/DisplaySettings.js';
 import { IconMusic, IconSets, IconSettings } from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
@@ -291,13 +297,13 @@ export function BandPage() {
         */}
         <div className="order-last flex w-full flex-wrap items-center gap-1.5 sm:order-none sm:w-auto">
           <label className="flex items-center gap-1.5 text-xs">
-            <span className="text-(--color-muted)">{t('performance.yourKey')}</span>
+            <span className="text-(--color-muted)">{t('band.key')}</span>
             <Select
               tight
-              className="w-24"
+              className="w-40"
               value={displayedKeyOverride ?? ''}
               onChange={(event) => setDisplayedKeyOverride(event.target.value || null)}
-              aria-label={t('performance.yourKey')}
+              aria-label={t('band.key')}
             >
               <option value="">
                 {t('band.asLeader')}
@@ -554,7 +560,13 @@ export function BandPage() {
           )}
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
           <FontSize value={prefs.maxFontPx} onChange={(maxFontPx) => setPrefs({ maxFontPx })} />
+          <ChordColour
+            value={prefs.chordColor}
+            onChange={(chordColor) => setPrefs({ chordColor })}
+          />
+          <ChordSample colour={prefs.chordColor} />
           <div className="mt-5 border-t border-(--color-line) pt-4">
+            <span className="mb-2 block text-sm">{t('settings.accidentals')}</span>
             <label className="flex items-start gap-2 text-sm">
               <Checkbox
                 className="mt-0.5"

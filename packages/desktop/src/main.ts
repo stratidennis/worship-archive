@@ -57,6 +57,7 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let sleepBlocker: number | null = null;
 let startupError: Error | null = null;
+let serverStart: Promise<boolean> | null = null;
 
 /**
  * A second launch must not start a second server.
@@ -184,7 +185,12 @@ function createWindow(path = '/'): BrowserWindow {
   });
 
   if (settings.window.maximized) created.maximize();
-  created.once('ready-to-show', () => created.show());
+  created.once('ready-to-show', () => {
+    // The Leader is a workspace, like the Band app: use all available room while
+    // remaining a normal window with the operating system's title bar and controls.
+    if (!created.isMaximized()) created.maximize();
+    created.show();
+  });
   created.on('close', rememberWindow);
   created.on('closed', () => {
     win = null;
@@ -210,27 +216,54 @@ function createWindow(path = '/'): BrowserWindow {
 /**
  * What to show when the server did not start.
  *
- * A packaged app that opens a blank window tells the user nothing. This at least names
- * the error and the folder, which is enough to ask for help with.
+ * This page deliberately uses the same blue-neutral palette as the application. It is
+ * a recovery state, not a second miniature product with its own amber theme.
  */
 function failurePage(error: Error | null): string {
-  const message = error ? error.message : 'Serverul nu a pornit.';
-  const dataDir = settings?.dataDir ?? '';
-  const html = `<!doctype html><html lang="ro"><meta charset="utf-8">
+  const detail = error?.message ?? '';
+  const escaped = detail.replace(/[<&]/g, (c) => (c === '<' ? '&lt;' : '&amp;'));
+  const html = `<!doctype html><html lang="en"><meta charset="utf-8">
 <title>Worship Archive</title>
 <style>
-  body{font:15px/1.6 system-ui,sans-serif;background:#16181a;color:#e8eaed;margin:0;
+  body{box-sizing:border-box;font:15px/1.6 system-ui,sans-serif;background:#25272a;color:#f0f1f2;margin:0;
        display:grid;place-items:center;height:100vh;padding:24px;text-align:center}
-  code{background:#26292c;padding:2px 6px;border-radius:4px;font-size:13px}
+  main{max-width:31rem}
   button{font:inherit;font-weight:650;padding:10px 14px;border:0;border-radius:7px;
-         background:#d9962f;color:#151515;cursor:pointer}
-  h1{font-size:20px;margin:0 0 8px}
-  p{max-width:46ch;color:#a9b0b6}
+         background:#4ea1ef;color:#08131e;cursor:pointer}
+  button:disabled{cursor:wait;opacity:.65}
+  h1{font-size:22px;margin:0 0 8px}
+  p{margin:8px 0 18px;color:#b4b8bd}
+  small{display:block;margin-top:14px;color:#8f959b}
+  details{margin-top:16px;color:#8f959b;font-size:12px;overflow-wrap:anywhere}
 </style>
-<h1>Worship Archive nu a putut porni</h1>
-<p>${message.replace(/[<&]/g, (c) => (c === '<' ? '&lt;' : '&amp;'))}</p>
-<p>Dosarul arhivei: <code>${dataDir.replace(/[<&]/g, '')}</code></p>
-<button onclick="window.worship.chooseDataDir()">Alege alt dosar…</button>`;
+<main>
+  <h1>Worship Archive could not start</h1>
+  <p>Its local server did not start. You can try again now.</p>
+  <button id="retry" onclick="retryServer()">Try again</button>
+  <small id="status">If retrying does not work, close the app and open it again.</small>
+  ${escaped ? `<details><summary>Technical details</summary>${escaped}</details>` : ''}
+</main>
+<script>
+  async function retryServer() {
+    var button = document.getElementById('retry');
+    var status = document.getElementById('status');
+    button.disabled = true;
+    button.textContent = 'Trying…';
+    status.textContent = 'Starting the local server…';
+    try {
+      var ok = await window.worship.retryServer();
+      if (!ok) {
+        button.disabled = false;
+        button.textContent = 'Try again';
+        status.textContent = 'It still could not start. Close the app and open it again.';
+      }
+    } catch (_) {
+      button.disabled = false;
+      button.textContent = 'Try again';
+      status.textContent = 'It still could not start. Close the app and open it again.';
+    }
+  }
+</script>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -380,6 +413,17 @@ function buildTray(): void {
 // ---- IPC: only what a browser genuinely cannot do --------------------------
 
 function registerIpc(): void {
+  ipcMain.handle('worship:retry-server', async () => {
+    const started = await startLeaderServer();
+    if (started) {
+      buildTray();
+      if (win && !win.isDestroyed()) loadCurrentUi(win, '/');
+    } else if (win && !win.isDestroyed()) {
+      void win.loadURL(failurePage(startupError));
+    }
+    return started;
+  });
+
   ipcMain.handle('worship:state', () => ({
     installationId: settings.installationId,
     deviceName: settings.deviceName,
@@ -546,27 +590,43 @@ function registerIpc(): void {
 
 // ---- lifecycle -------------------------------------------------------------
 
+async function startLeaderServer(): Promise<boolean> {
+  if (server) return true;
+  if (serverStart) return serverStart;
+
+  serverStart = (async () => {
+    try {
+      server = await startServer({
+        dataDir: settings.dataDir,
+        port: settings.port,
+        uiDir: join(RESOURCES, 'ui'),
+        leaderId: settings.installationId,
+        leaderName: settings.deviceName,
+      });
+      startupError = null;
+      // A moved port is the new truth; the join screen reads it from the server anyway,
+      // but persisting it keeps the next launch on the same one.
+      settings.port = server.port;
+      saveSettings(settings);
+      console.log(`Worship Archive on ${server.url} (library: ${settings.dataDir})`);
+      return true;
+    } catch (error) {
+      startupError = error instanceof Error ? error : new Error(String(error));
+      console.error('the server did not start:', startupError);
+      return false;
+    } finally {
+      serverStart = null;
+    }
+  })();
+
+  return serverStart;
+}
+
 async function bootstrap(): Promise<void> {
   settings = loadSettings();
   setPreventSleep(settings.preventSleep);
 
-  try {
-    server = await startServer({
-      dataDir: settings.dataDir,
-      port: settings.port,
-      uiDir: join(RESOURCES, 'ui'),
-      leaderId: settings.installationId,
-      leaderName: settings.deviceName,
-    });
-    // A moved port is the new truth; the join screen reads it from the server anyway,
-    // but persisting it keeps the next launch on the same one.
-    settings.port = server.port;
-    saveSettings(settings);
-    console.log(`Worship Archive on ${server.url} (library: ${settings.dataDir})`);
-  } catch (error) {
-    startupError = error instanceof Error ? error : new Error(String(error));
-    console.error('the server did not start:', startupError);
-  }
+  await startLeaderServer();
 
   registerIpc();
   buildMenu();

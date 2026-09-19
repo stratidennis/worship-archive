@@ -46,7 +46,7 @@ export function AccidentalChoice({
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {ENHARMONIC_PAIRS.map((pair) => (
-        <Field key={pair.pitch} label={`${pair.sharp} / ${pair.flat}`}>
+        <Field key={pair.pitch} label={`${pair.sharp} / ${pair.flat}`} className="mt-0">
           <Segmented label={`${pair.sharp} / ${pair.flat}`} className="w-full">
             <Segment
               className="flex-1"
@@ -292,9 +292,17 @@ export function ChordSample({ colour }: { colour?: string | null }) {
   );
 }
 
-function Field({ label, children }: { label?: string | undefined; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  className = 'mt-4 first:mt-0',
+}: {
+  label?: string | undefined;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="mt-4 first:mt-0">
+    <div className={className}>
       {label && <span className="mb-1.5 block text-sm">{label}</span>}
       {children}
     </div>

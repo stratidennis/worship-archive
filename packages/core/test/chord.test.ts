@@ -56,12 +56,12 @@ describe('roots and accidentals', () => {
     expect(tr('Bb', 1)).toBe('B');
   });
 
-  it('accepts lowercase roots — 28 occurrences in the library', () => {
+  it('understands lowercase roots as minor chords', () => {
     expect(parseChord('b').kind).toBe('chords');
     expect(parseChord('c#').kind).toBe('chords');
-    expect(tr('b', 1)).toBe('C');
-    expect(tr('c#', 1)).toBe('D');
-    expect(tr('f#', 2)).toBe('G#');
+    expect(tr('b', 1)).toBe('Cm');
+    expect(tr('c#', 1)).toBe('Dm');
+    expect(tr('f#', 2)).toBe('G#m');
   });
 
   it('moves an accidental typed after the quality back onto the root', () => {
@@ -210,9 +210,10 @@ describe('normalise suggests fixes without applying them', () => {
     expect(normalise('Gm#')?.fixed).toBe('G#m');
   });
 
-  it('uppercases lowercase roots', () => {
-    expect(normalise('b')?.fixed).toBe('B');
-    expect(normalise('c#')?.fixed).toBe('C#');
+  it('expands lowercase roots to minor chords', () => {
+    expect(normalise('b')?.fixed).toBe('Bm');
+    expect(normalise('c#')?.fixed).toBe('C#m');
+    expect(normalise('a7')?.fixed).toBe('Am7');
     expect(normalise('f#')?.reason).toContain('lowercase root');
   });
 

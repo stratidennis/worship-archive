@@ -23,16 +23,16 @@ export function PerformanceInfo({
   const { t } = useT();
   const leader = [
     intendedKey ? t('performance.intendedKey', { key: intendedKey }) : null,
-    transpose !== 0 ? t('performance.transpose', { amount: signed(transpose) }) : null,
     capo !== 0 ? t('performance.capo', { fret: capo }) : null,
+    transpose !== 0 ? t('performance.transpose', { amount: signed(transpose) }) : null,
   ].filter(Boolean);
   const mine = [
     displayedKey ? t('performance.yourChords', { key: displayedKey }) : null,
-    instrumentTranspose !== null && instrumentTranspose !== undefined
-      ? t('performance.pianoTranspose', { amount: signed(instrumentTranspose) })
-      : null,
     instrumentCapo !== null && instrumentCapo !== undefined
       ? t('performance.capoOption', { fret: instrumentCapo })
+      : null,
+    instrumentTranspose !== null && instrumentTranspose !== undefined
+      ? t('performance.pianoTranspose', { amount: signed(instrumentTranspose) })
       : null,
   ].filter(Boolean);
 

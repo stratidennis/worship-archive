@@ -51,9 +51,9 @@ describe('auditing a song', () => {
     expect(misplaced?.reason).toMatch(/accidental/);
   });
 
-  it('proposes a fix for a lowercase root', () => {
+  it('proposes a minor chord for a lowercase root', () => {
     const found = auditSong(parseChordPro(MESSY));
-    expect(found.find((s) => s.raw === 'g')?.fixed).toBe('G');
+    expect(found.find((s) => s.raw === 'g')?.fixed).toBe('Gm');
   });
 
   it('carries the lyric line, so a reviewer sees the chord in place', () => {

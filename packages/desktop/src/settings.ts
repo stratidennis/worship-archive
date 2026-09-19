@@ -36,7 +36,7 @@ function defaults(): DesktopSettings {
     port: 7373,
     preventSleep: true,
     autoStart: false,
-    window: { width: 1280, height: 860, maximized: false },
+    window: { width: 1280, height: 860, maximized: true },
   };
 }
 

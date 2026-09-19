@@ -275,11 +275,16 @@ export function SettingsPage() {
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.maxFontPx : null) ?? 72}
                 />
-                <StageChordChoice
-                  value={stage.showChords}
-                  inherit={inherit}
-                  onChange={(showChords) => setStage({ showChords })}
-                />
+                {/* Whether chords are shown belongs to a physical display, not to an
+                    abstract "all screens" default. It is offered only after the
+                    Leader has selected a named, connected-or-remembered screen. */}
+                {selected && (
+                  <StageChordChoice
+                    value={stage.showChords}
+                    inherit={inherit}
+                    onChange={(showChords) => setStage({ showChords })}
+                  />
+                )}
                 <ChordColour
                   value={stage.chordColor}
                   onChange={(chordColor) => setStage({ chordColor })}

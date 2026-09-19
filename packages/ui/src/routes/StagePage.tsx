@@ -213,7 +213,11 @@ export function StagePage() {
           </span>
         )}
         {native && (
-          <span className="pointer-events-auto opacity-10 transition-opacity hover:opacity-100 focus-within:opacity-100">
+          <span
+            className={`pointer-events-auto transition-opacity hover:opacity-100 ${
+              settingsOpen ? 'opacity-100' : 'opacity-10'
+            }`}
+          >
             <IconButton
               size="sm"
               variant="ghost"

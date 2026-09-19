@@ -118,6 +118,18 @@ function parseSingle(text: string, sep: string): Chord | null {
   let rootText = m[1]! + (m[2] ?? '');
   let quality = base.slice(rootText.length);
 
+  // In chord charts a lowercase root is shorthand for minor, not merely a missed
+  // Shift key. Keep `raw` untouched for round-tripping, but understand `a`, `c#` and
+  // `f#7` as Am, C#m and F#m7 so cleanup and transposition preserve the harmony.
+  const lowercaseRoot = /^[a-g]/.test(m[1]!);
+  if (
+    lowercaseRoot &&
+    !/^(?:m|min|minor|-)/.test(quality) &&
+    !/^(?:M|maj|major)/.test(quality)
+  ) {
+    quality = `m${quality}`;
+  }
+
   // `Cm#` is understood as `C#m`. The semantic root gains the accidental; `raw` keeps
   // the original text, so nothing on screen changes until the chord is transposed.
   if (!m[2]) {
