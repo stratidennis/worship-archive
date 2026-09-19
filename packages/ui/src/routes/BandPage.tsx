@@ -300,7 +300,7 @@ export function BandPage() {
             <span className="text-(--color-muted)">{t('band.key')}</span>
             <Select
               tight
-              className="w-36"
+              className="w-44"
               value={displayedKeyOverride ?? ''}
               onChange={(event) => setDisplayedKeyOverride(event.target.value || null)}
               aria-label={t('band.key')}

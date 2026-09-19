@@ -1525,7 +1525,7 @@ function SongControls({
           onChange={(e) => onPatch({ keyOverride: e.target.value || null })}
           aria-label={t('sets.key')}
           tight
-          className="w-36"
+          className="w-44"
         >
           <option value="">
             {t('sets.performanceKey', {
