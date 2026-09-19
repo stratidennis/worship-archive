@@ -102,11 +102,11 @@ export function SongPage() {
                     song.performanceKey,
                 })
               : t('song.key', { key: soundingKey })}
+            {prefs.capo > 0 && ` · ${t('song.capo', { fret: prefs.capo })}`}
             {prefs.transpose !== 0 &&
               ` · ${t('song.transposed', {
                 amount: `${prefs.transpose > 0 ? '+' : ''}${prefs.transpose}`,
               })}`}
-            {prefs.capo > 0 && ` · ${t('song.capo', { fret: prefs.capo })}`}
             {song.tempo && ` · ${song.tempo} bpm`}
             {song.timeSignature && ` · ${song.timeSignature}`}
           </p>
@@ -115,6 +115,19 @@ export function SongPage() {
 
       <HeaderActions>
         <div className="flex flex-wrap items-center gap-1.5">
+          <Stepper
+            caption={t('song.capoLabel')}
+            value={prefs.capo}
+            onChange={(capo) => setPrefs({ capo })}
+            min={0}
+            max={11}
+            resetTo={0}
+            labels={{
+              down: t('song.capoDown'),
+              up: t('song.capoUp'),
+              reset: t('song.capoReset'),
+            }}
+          />
           <Stepper
             caption={t('song.pitch')}
             value={prefs.transpose}
@@ -127,19 +140,6 @@ export function SongPage() {
               down: t('song.transposeDown'),
               up: t('song.transposeUp'),
               reset: t('song.transposeReset'),
-            }}
-          />
-          <Stepper
-            caption={t('song.capoLabel')}
-            value={prefs.capo}
-            onChange={(capo) => setPrefs({ capo })}
-            min={0}
-            max={11}
-            resetTo={0}
-            labels={{
-              down: t('song.capoDown'),
-              up: t('song.capoUp'),
-              reset: t('song.capoReset'),
             }}
           />
           <Button

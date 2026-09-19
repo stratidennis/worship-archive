@@ -35,12 +35,8 @@ export interface Prefs {
   /** Band installations follow the Leader until the musician explicitly opts out. */
   bandFollowsLeaderAccidentals: boolean;
   language: 'ro' | 'en';
-  /**
-   * `auto` follows the operating system. `stage` is not a darker dark — it is a
-   * different job: near-black with warm high-contrast text, for a display read from
-   * across a room with the house lights down.
-   */
-  theme: 'auto' | 'light' | 'dark' | 'stage';
+  /** `auto` follows the operating system. */
+  theme: 'auto' | 'light' | 'dark';
   /** The set workspace's tools row. Collapsed during a service, expanded while building one. */
   setHeaderExpanded: boolean;
   /**
@@ -74,9 +70,16 @@ function read(): Prefs {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_PREFS;
     const saved = JSON.parse(raw) as Partial<Prefs>;
+    const theme =
+      saved.theme === 'light' || saved.theme === 'dark' || saved.theme === 'auto'
+        ? saved.theme
+        : DEFAULT_PREFS.theme;
     return {
       ...DEFAULT_PREFS,
       ...saved,
+      // Older builds offered a separate Stage palette. Treat that retired value as
+      // the normal system theme instead of leaving an unsupported data attribute.
+      theme,
       accidentalPreferences: {
         ...DEFAULT_ACCIDENTAL_PREFERENCES,
         ...(saved.accidentalPreferences ?? {}),

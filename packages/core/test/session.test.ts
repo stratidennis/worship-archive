@@ -181,22 +181,22 @@ describe('how a stage screen should look', () => {
 
   it('allows a shared screen theme to differ from the leader', () => {
     const state = session({
-      stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
+      stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'dark' },
       host: { theme: 'light', language: 'en', chordColor: null },
     });
     const resolved = resolveStageDisplay(state, null);
-    expect(resolved.theme).toBe('stage');
+    expect(resolved.theme).toBe('dark');
     expect(resolved.language).toBe('en');
   });
 
-  it('allows one screen theme to differ from both shared and leader themes', () => {
+  it('allows one screen theme to override the shared screen theme', () => {
     const state = session({
-      stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
+      stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'dark' },
       stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } },
       host: { theme: 'dark', language: 'ro', chordColor: null },
     });
     expect(resolveStageDisplay(state, 'Drums').theme).toBe('light');
-    expect(resolveStageDisplay(state, 'Back').theme).toBe('stage');
+    expect(resolveStageDisplay(state, 'Back').theme).toBe('dark');
   });
 
   it('keeps a screen override when its editable name changes', () => {

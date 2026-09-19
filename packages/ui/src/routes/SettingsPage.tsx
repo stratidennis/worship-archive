@@ -150,11 +150,6 @@ export function SettingsPage() {
 
           <Section title={t('settings.theme')}>
             <ThemeChoice value={prefs.theme} onChange={(theme) => setPrefs({ theme })} />
-            {prefs.theme === 'stage' && (
-              <p className="mt-2 text-xs text-(--color-muted)">
-                {t('settings.themeStageHint')}
-              </p>
-            )}
           </Section>
 
           <Section title={t('settings.display')} className="lg:col-span-2">
@@ -281,7 +276,6 @@ export function SettingsPage() {
                 {selected && (
                   <StageChordChoice
                     value={stage.showChords}
-                    inherit={inherit}
                     onChange={(showChords) => setStage({ showChords })}
                   />
                 )}
@@ -444,12 +438,10 @@ function Section({
 
 function StageChordChoice({
   value,
-  inherit,
   onChange,
 }: {
   value: boolean | null;
-  inherit: string;
-  onChange: (value: boolean | null) => void;
+  onChange: (value: boolean) => void;
 }) {
   const { t } = useT();
   return (
@@ -458,10 +450,7 @@ function StageChordChoice({
         {t('song.chords')}
       </span>
       <Segmented label={t('song.chords')} className="max-w-full flex-wrap">
-        <Segment active={value === null} onClick={() => onChange(null)}>
-          {inherit}
-        </Segment>
-        <Segment active={value === true} onClick={() => onChange(true)}>
+        <Segment active={value !== false} onClick={() => onChange(true)}>
           {t('settings.chordsShown')}
         </Segment>
         <Segment active={value === false} onClick={() => onChange(false)}>

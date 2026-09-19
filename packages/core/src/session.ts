@@ -18,7 +18,7 @@ import type { AccidentalPreferences } from './key.js';
  */
 export type OutputMode = 'live' | 'cleared';
 export type DeviceRole = 'leader' | 'band' | 'stage';
-export type ThemeName = 'auto' | 'light' | 'dark' | 'stage';
+export type ThemeName = 'auto' | 'light' | 'dark';
 export type LanguageName = 'ro' | 'en';
 
 /**
@@ -49,8 +49,9 @@ export const LAN_DISCOVERY_REQUEST = `worship-archive-discover:${SESSION_PROTOCO
  * `null` means "whatever that screen would do on its own", which is what an
  * untouched installation should be: one setting to change, not four to keep in step.
  *
- * Whether chords are shown is per screen too: the monitor facing the band may want
- * them while the one facing the room does not.
+ * Whether chords are shown is exclusively per screen: the monitor facing the band may
+ * want them while the one facing the room does not. There is deliberately no shared
+ * chord-visibility rule.
  */
 export interface StageDisplay {
   theme: ThemeName | null;
@@ -160,7 +161,7 @@ export function resolveStageDisplay(
     theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,
     language: own?.language ?? state.stage.language ?? host?.language ?? null,
     chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
-    showChords: own?.showChords ?? state.stage.showChords ?? null,
+    showChords: own?.showChords ?? null,
     // Not the leader's. See {@link HostDisplay}.
     maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
   };

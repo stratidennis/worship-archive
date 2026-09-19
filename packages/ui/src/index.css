@@ -60,11 +60,10 @@
 /*
   Dark.
 
-  Not as dark as it can go — that is what the stage theme is for. This one is read for
-  an hour at a time, on a laptop on a music stand in a lit room, and near-black behind
-  white text makes the letters glare and the edges shimmer. A grey around 23% lightness
-  with almost no colour in it holds the same contrast without the halation, and the
-  surfaces above it stay a few points apart so a header still reads as a header.
+  This one is read for an hour at a time, on a laptop on a music stand in a lit room.
+  A grey around 23% lightness with almost no colour in it holds strong contrast without
+  the halation of pure black, and the surfaces above it stay a few points apart so a
+  header still reads as a header.
 */
 :root[data-theme='dark'] {
   --color-stage-bg: oklch(23% 0.005 265);
@@ -79,30 +78,6 @@
   --color-ok: oklch(74% 0.15 150);
   --color-surface: oklch(27% 0.005 265);
   --color-raised: oklch(25.5% 0.005 265);
-}
-
-/*
-  Stage.
-
-  Not simply a darker dark. A display read from twenty metres in a room with the lights
-  down needs near-black rather than dark grey — grey glows and washes out the words —
-  and warm rather than blue-white text, which is easier on eyes looking at it for an
-  hour. Chords stay clearly distinct from lyrics but stop competing with them for
-  attention: on stage the words are what people are reading.
-*/
-:root[data-theme='stage'] {
-  --color-stage-bg: oklch(8% 0.004 260);
-  --color-stage-fg: oklch(97% 0.012 90);
-  --color-chord: oklch(84% 0.14 85);
-  --color-bass: oklch(80% 0.13 155);
-  --color-muted: oklch(62% 0.01 260);
-  --color-line: oklch(22% 0.006 260);
-  --color-cue: oklch(78% 0.14 70);
-  --color-cue-bg: oklch(16% 0.02 70);
-  --color-focus: oklch(84% 0.14 85);
-  --color-ok: oklch(76% 0.14 150);
-  --color-surface: oklch(12% 0.005 260);
-  --color-raised: oklch(11% 0.005 260);
 }
 
 /*
@@ -127,8 +102,7 @@
   color-scheme: light;
 }
 
-:root[data-theme='dark'],
-:root[data-theme='stage'] {
+:root[data-theme='dark'] {
   color-scheme: dark;
 }
 

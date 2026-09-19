@@ -224,21 +224,31 @@ export function JoinPage() {
 
               {path === '/stage' && (
                 <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                  <Segmented label={t('song.chords')} className="self-start flex-wrap">
-                    <Segment active={stageChords} onClick={() => setStageChords(true)}>
-                      {t('join.stageWithChords')}
-                    </Segment>
-                    <Segment active={!stageChords} onClick={() => setStageChords(false)}>
-                      {t('join.stageWordsOnly')}
-                    </Segment>
-                  </Segmented>
-                  <Field label={t('join.screenName')} hint={t('join.screenNameHint')}>
+                  <Field label={t('join.screenName')}>
                     <Input
                       value={stageName}
                       onChange={(event) => setStageName(event.target.value)}
                       placeholder={t('app.stage')}
                       maxLength={60}
                     />
+                  </Field>
+                  <Field label={t('song.chords')}>
+                    <Segmented label={t('song.chords')} className="w-full">
+                      <Segment
+                        className="min-w-0 flex-1"
+                        active={stageChords}
+                        onClick={() => setStageChords(true)}
+                      >
+                        {t('join.stageWithChords')}
+                      </Segment>
+                      <Segment
+                        className="min-w-0 flex-1"
+                        active={!stageChords}
+                        onClick={() => setStageChords(false)}
+                      >
+                        {t('join.stageWordsOnly')}
+                      </Segment>
+                    </Segmented>
                   </Field>
                 </div>
               )}

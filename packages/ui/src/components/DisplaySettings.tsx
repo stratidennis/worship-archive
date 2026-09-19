@@ -136,7 +136,6 @@ export function ThemeChoice<T extends ThemeName | null>({
             ['auto', t('settings.themeAuto')],
             ['light', t('settings.themeLight')],
             ['dark', t('settings.themeDark')],
-            ['stage', t('settings.themeStage')],
           ] as const
         ).map(([name, label]) => (
           <Segment key={name} active={value === name} onClick={() => onChange(name as T)}>

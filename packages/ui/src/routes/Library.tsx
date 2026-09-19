@@ -65,6 +65,7 @@ function KeyBadge({ song }: { song: SongSummary }) {
 
 export function Library() {
   const { t } = useT();
+  const [prefs] = usePrefs();
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -223,7 +224,7 @@ export function Library() {
                   active={key === k.name}
                   onClick={() => setParam('key', key === k.name ? '' : k.name)}
                 >
-                  {k.name}
+                  {preferredKeyName(k.name, prefs.accidentalPreferences) ?? k.name}
                 </Chip>
               ))}
             </div>

@@ -402,6 +402,15 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const body = request.body as
       (Partial<StageDisplay> & { screen?: unknown; deviceId?: unknown }) | undefined;
     if (!body || typeof body !== 'object') return reply.code(400).send({ error: 'bad body' });
+    if (
+      body.theme !== undefined &&
+      body.theme !== null &&
+      body.theme !== 'auto' &&
+      body.theme !== 'light' &&
+      body.theme !== 'dark'
+    ) {
+      return reply.code(400).send({ error: 'bad theme' });
+    }
 
     /*
       With a `screen`, this is about that one television; without one, about all of them.
@@ -436,7 +445,12 @@ export function createServer(options: ApiOptions): FastifyInstance {
       return { screen, stage: next };
     }
 
-    const stage = patchStageDisplay(state.stage, body);
+    // Chord visibility only makes sense for one physical display. Keep the shared
+    // Stage appearance for language, theme, size and colour, but never create a hidden
+    // all-screens chord rule that the Settings page cannot show or undo.
+    const sharedPatch = { ...body };
+    delete sharedPatch.showChords;
+    const stage = patchStageDisplay(state.stage, sharedPatch);
     options.hub.patch({ stage });
     return { stage };
   });
@@ -454,7 +468,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     if (!body || typeof body !== 'object') return reply.code(400).send({ error: 'bad body' });
     // `auto` is not a look, it is a question, and the answer is the *host's* — which is
     // why the device resolves it before sending. See HostDisplay.
-    const themes: HostDisplay['theme'][] = ['light', 'dark', 'stage'];
+    const themes: HostDisplay['theme'][] = ['light', 'dark'];
     const theme = themes.find((name) => name === body.theme);
     const language = body.language === 'en' || body.language === 'ro' ? body.language : null;
     if (!theme || !language) return reply.code(400).send({ error: 'bad body' });

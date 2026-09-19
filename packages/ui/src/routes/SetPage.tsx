@@ -1012,6 +1012,7 @@ function ArchiveSearch({
   onChange: (next: { collection: string; key: string }) => void;
 }) {
   const { t } = useT();
+  const [prefs] = usePrefs();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -1085,6 +1086,7 @@ function ArchiveSearch({
             value={draft.key}
             onChange={(key) => setDraft((d) => ({ ...d, key }))}
             allLabel={t('library.all')}
+            formatOption={(key) => preferredKeyName(key, prefs.accidentalPreferences) ?? key}
             className={facets.collections.length > 0 ? 'mt-3' : ''}
           />
 
@@ -1128,6 +1130,7 @@ function FilterGroup({
   value,
   onChange,
   allLabel,
+  formatOption = (option) => option,
   className = '',
 }: {
   label: string;
@@ -1135,6 +1138,7 @@ function FilterGroup({
   value: string;
   onChange: (value: string) => void;
   allLabel: string;
+  formatOption?: (option: string) => string;
   className?: string;
 }) {
   return (
@@ -1148,7 +1152,7 @@ function FilterGroup({
         </Chip>
         {options.map(([name, count]) => (
           <Chip key={name} active={value === name} onClick={() => onChange(name)}>
-            {name}
+            {formatOption(name)}
             <span className="ml-1 opacity-60 tabular-nums">{count}</span>
           </Chip>
         ))}
@@ -1409,12 +1413,12 @@ function Preview({
           <p className="truncate text-xs text-(--color-muted)">
             {[
               transposeTo ?? native ?? '',
+              capo ? t('song.capo', { fret: capo }) : '',
               keyboardTranspose
                 ? t('song.transposed', {
                     amount: keyboardTranspose > 0 ? `+${keyboardTranspose}` : keyboardTranspose,
                   })
                 : '',
-              capo ? t('song.capo', { fret: capo }) : '',
               song.tempo ? `${song.tempo} bpm` : '',
               song.blocks.length > 0 ? blockName(song.blocks[0]!.type) : '',
             ]
@@ -1472,7 +1476,7 @@ function Preview({
 }
 
 /**
- * Intended key, keyboard transpose and capo for this set only — changing Sunday's
+ * Intended key, capo and keyboard transpose for this set only — changing Sunday's
  * setup must not edit the library.
  *
  * All three use the same compact selector treatment, so the row stays legible even on
@@ -1503,30 +1507,16 @@ function SongControls({
           onChange={(e) => onPatch({ keyOverride: e.target.value || null })}
           aria-label={t('sets.key')}
           tight
-          className="w-20"
+          className="w-36"
         >
           <option value="">
-            {preferredKeyName(nativeKey, prefs.accidentalPreferences) ?? '—'}
+            {t('sets.intendedKey', {
+              key: preferredKeyName(nativeKey, prefs.accidentalPreferences) ?? '—',
+            })}
           </option>
           {keys.map((k) => (
             <option key={k} value={k}>
               {k}
-            </option>
-          ))}
-        </Select>
-      </label>
-      <label className="flex items-center gap-1.5">
-        <span className="text-(--color-muted)">{t('sets.transpose')}</span>
-        <Select
-          value={String(item.transposeOverride ?? 0)}
-          onChange={(e) => onPatch({ transposeOverride: Number(e.target.value) })}
-          aria-label={t('sets.transpose')}
-          tight
-          className="w-20"
-        >
-          {Array.from({ length: 23 }, (_, index) => index - 11).map((amount) => (
-            <option key={amount} value={amount}>
-              {amount > 0 ? `+${amount}` : amount}
             </option>
           ))}
         </Select>
@@ -1546,6 +1536,22 @@ function SongControls({
           {Array.from({ length: 12 }, (_, fret) => (
             <option key={fret} value={fret}>
               {fret}
+            </option>
+          ))}
+        </Select>
+      </label>
+      <label className="flex items-center gap-1.5">
+        <span className="text-(--color-muted)">{t('sets.transpose')}</span>
+        <Select
+          value={String(item.transposeOverride ?? 0)}
+          onChange={(e) => onPatch({ transposeOverride: Number(e.target.value) })}
+          aria-label={t('sets.transpose')}
+          tight
+          className="w-20"
+        >
+          {Array.from({ length: 23 }, (_, index) => index - 11).map((amount) => (
+            <option key={amount} value={amount}>
+              {amount > 0 ? `+${amount}` : amount}
             </option>
           ))}
         </Select>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Line } from '@worship/core';
+import { parseChord, type Line } from '@worship/core';
 import { useT } from '../lib/i18n.js';
 
 /**
@@ -71,8 +71,11 @@ export function LineEditor({
 }: LineEditorProps) {
   const { t } = useT();
   const input = useRef<HTMLInputElement>(null);
+  const chordInput = useRef<HTMLInputElement>(null);
+  const endingChord = useRef(false);
   const [editingAt, setEditingAt] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
+  const [chordError, setChordError] = useState(false);
 
   const segments = useMemo(() => segmentsOf(line, layer, editingAt), [line, layer, editingAt]);
 
@@ -83,10 +86,11 @@ export function LineEditor({
   const startChordAt = (at: number): void => {
     setEditingAt(at);
     setDraft(line[layer].find((a) => a.at === at)?.raw ?? '');
+    setChordError(false);
   };
 
   /**
-   * Turn a click above the lyric into the nearest character boundary.
+   * Turn a click above the lyric into the character directly under it.
    *
    * Measuring the actual input font matters here: dividing by an average character
    * width puts a chord over the wrong syllable as soon as a line contains both narrow
@@ -99,12 +103,22 @@ export function LineEditor({
     if (!context) return;
     const style = window.getComputedStyle(lyric);
     context.font = style.font;
-    const x = Math.max(0, clientX - lyric.getBoundingClientRect().left + lyric.scrollLeft);
+    const letterSpacing = Number.parseFloat(style.letterSpacing) || 0;
+    const borderLeft = Number.parseFloat(style.borderLeftWidth) || 0;
+    const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+    const x = Math.max(
+      0,
+      clientX -
+        lyric.getBoundingClientRect().left -
+        borderLeft -
+        paddingLeft +
+        lyric.scrollLeft,
+    );
     let at = line.text.length;
-    for (let index = 0; index <= line.text.length; index++) {
-      const here = context.measureText(line.text.slice(0, index)).width;
-      const next = context.measureText(line.text.slice(0, index + 1)).width;
-      if (x <= (here + next) / 2) {
+    for (let index = 0; index < line.text.length; index++) {
+      const next =
+        context.measureText(line.text.slice(0, index + 1)).width + letterSpacing * index;
+      if (x < next) {
         at = index;
         break;
       }
@@ -113,21 +127,27 @@ export function LineEditor({
     startChordAt(at);
   };
 
-  const commitChord = (): void => {
-    if (editingAt !== null) onChordChange(editingAt, draft);
+  const commitChord = (focusLyric: boolean): boolean => {
+    if (endingChord.current) return true;
+    const value = draft.trim();
+    if (value !== '' && parseChord(value).kind === 'unparsed') {
+      setChordError(true);
+      requestAnimationFrame(() => chordInput.current?.focus());
+      return false;
+    }
+    endingChord.current = true;
+    if (editingAt !== null) onChordChange(editingAt, value);
     setEditingAt(null);
     setDraft('');
-    input.current?.focus();
+    setChordError(false);
+    requestAnimationFrame(() => {
+      if (focusLyric) input.current?.focus();
+      endingChord.current = false;
+    });
+    return true;
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
-    // F9 places a chord at the caret — the same key the old SongEditor used, so the
-    // muscle memory carries over.
-    if (event.key === 'F9') {
-      event.preventDefault();
-      startChordAt(input.current?.selectionStart ?? 0);
-      return;
-    }
     if (event.key === 'Enter') {
       event.preventDefault();
       onEnter();
@@ -143,7 +163,7 @@ export function LineEditor({
     <div className="group relative">
       {showChords && (
         <div
-          className="relative flex h-[1.15em] w-full cursor-text items-end text-[0.72em] font-semibold leading-[1.1]"
+          className="relative flex h-[1.15em] w-full cursor-text items-end font-normal leading-[1.1]"
           title={t('edit.addChord')}
           onClick={(event) => startChordAtPointer(event.clientX)}
         >
@@ -152,31 +172,57 @@ export function LineEditor({
               {/* Invisible spacer: identical metrics to the lyric below. */}
               <span className="invisible">{segment.text || ' '}</span>
               {editingAt === segment.at ? (
-                <input
-                  autoFocus
-                  value={draft}
-                  // Select on focus: editing a chord almost always means replacing it,
-                  // not appending to it. Without this, clicking "G" and typing "Am"
-                  // silently produces "GAm".
-                  onFocus={(e) => e.currentTarget.select()}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={commitChord}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Tab') {
-                      e.preventDefault();
-                      commitChord();
+                <>
+                  <input
+                    ref={chordInput}
+                    autoFocus
+                    value={draft}
+                    // Select on focus: editing a chord almost always means replacing it,
+                    // not appending to it. Without this, clicking "G" and typing "Am"
+                    // silently produces "GAm".
+                    onFocus={(e) => e.currentTarget.select()}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      setDraft(e.target.value);
+                      if (chordError) setChordError(false);
+                    }}
+                    onBlur={() => commitChord(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        commitChord(true);
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        endingChord.current = true;
+                        setEditingAt(null);
+                        setChordError(false);
+                        requestAnimationFrame(() => {
+                          input.current?.focus();
+                          endingChord.current = false;
+                        });
+                      }
+                    }}
+                    aria-invalid={chordError || undefined}
+                    aria-describedby={
+                      chordError ? `chord-error-${layer}-${editingAt}` : undefined
                     }
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      setEditingAt(null);
-                      input.current?.focus();
-                    }
-                  }}
-                  className="absolute left-0 top-0 z-10 w-16 rounded border border-(--color-chord) bg-(--color-stage-bg) px-1 text-[1em] font-semibold text-(--color-chord-ink) outline-none"
-                  placeholder={t('edit.chordPlaceholder')}
-                  aria-label={t('edit.chordPlaceholder')}
-                />
+                    className={`absolute left-0 top-0 z-10 w-16 rounded border bg-(--color-stage-bg) px-1 text-[0.72em] font-semibold text-(--color-chord-ink) outline-none ${
+                      chordError ? 'border-red-500' : 'border-(--color-chord)'
+                    }`}
+                    placeholder={t('edit.chordPlaceholder')}
+                    aria-label={t('edit.chordPlaceholder')}
+                  />
+                  {chordError && (
+                    <span
+                      id={`chord-error-${layer}-${editingAt}`}
+                      role="alert"
+                      className="absolute left-0 top-full z-20 mt-1 rounded-md border border-red-500/40 bg-(--color-surface) px-2 py-1 text-xs font-normal whitespace-nowrap text-red-500 shadow-lg"
+                    >
+                      {t('edit.invalidChord')}
+                    </span>
+                  )}
+                </>
               ) : segment.chord ? (
                 <button
                   type="button"
@@ -184,7 +230,7 @@ export function LineEditor({
                     event.stopPropagation();
                     startChordAt(segment.at);
                   }}
-                  className="absolute left-0 top-0 cursor-pointer rounded px-0.5 font-semibold text-(--color-chord-ink) hover:bg-(--color-chord)/15"
+                  className="absolute left-0 top-0 cursor-pointer rounded px-0.5 text-[0.72em] font-semibold text-(--color-chord-ink) hover:bg-(--color-chord)/15"
                   title={t('edit.editChord')}
                   aria-label={t('edit.editChord')}
                 >
@@ -194,7 +240,7 @@ export function LineEditor({
             </span>
           ))}
           {line[layer].length === 0 && editingAt === null && (
-            <span className="pointer-events-none absolute left-0 top-0 text-[0.82em] font-normal text-(--color-muted) opacity-0 transition-opacity group-focus-within:opacity-45 group-hover:opacity-45">
+            <span className="pointer-events-none absolute left-0 top-0 text-[0.6em] font-normal text-(--color-muted) opacity-0 transition-opacity group-focus-within:opacity-45 group-hover:opacity-45">
               {t('edit.addChord')}
             </span>
           )}

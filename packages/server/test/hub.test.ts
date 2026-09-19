@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
 import {
+  DEFAULT_STAGE_DISPLAY,
   SESSION_PROTOCOL_VERSION,
   type ClientMessage,
   type ServerMessage,
@@ -381,6 +382,25 @@ describe('surviving a host restart', () => {
     expect(state['itemIndex']).toBe(2);
     expect(state).not.toHaveProperty('mode');
     expect(state).not.toHaveProperty('blockId');
+    revived.close();
+  });
+
+  it('migrates the retired Stage palette to the ordinary dark theme', () => {
+    const statePath = join(dir, 'session.json');
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
+        stageBy: { Back: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' } },
+        host: { theme: 'stage', language: 'en', chordColor: null },
+      }),
+      'utf8',
+    );
+
+    const revived = new SessionHub(server, { statePath });
+    expect(revived.getState().stage.theme).toBe('dark');
+    expect(revived.getState().stageBy['Back']?.theme).toBe('dark');
+    expect(revived.getState().host?.theme).toBe('dark');
     revived.close();
   });
 

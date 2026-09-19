@@ -148,7 +148,8 @@ const ro = {
   'edit.stay': 'Rămâi aici',
   'edit.editChord': 'Editează acordul',
   'edit.chordPlaceholder': 'Acord',
-  'edit.addChord': 'Click deasupra versului pentru a adăuga un acord (sau F9)',
+  'edit.addChord': 'Click deasupra versului pentru a adăuga un acord în poziția dorită',
+  'edit.invalidChord': 'Acesta nu este un acord valid.',
 
   // --- sets -----------------------------------------------------------------
   'sets.new': 'Program nou',
@@ -170,6 +171,7 @@ const ro = {
   'sets.plannedGaps': 'Pauze planificate: {minutes} min',
   'sets.missingSong': '(cântare lipsă)',
   'sets.key': 'ton',
+  'sets.intendedKey': 'tonul dorit - {key}',
   'sets.transpose': 'transpose',
   'sets.capo': 'capo',
   'sets.removeFromSet': 'Scoate din program',
@@ -233,8 +235,8 @@ const ro = {
   'band.following': 'Urmăresc',
   'band.onYourOwn': 'Independent',
   'band.hereNow': 'acum',
-  'band.asLeader': 'Ca liderul',
-  'band.key': 'Ton',
+  'band.asLeader': 'ca liderul',
+  'band.key': 'ton',
   'band.leaderNotOnSong': 'Liderul nu e pe o cântare.',
   'band.waiting': 'Așteptăm liderul',
   'band.yourName': 'Numele tău (ex. Pavel — chitară)',
@@ -341,9 +343,6 @@ const ro = {
   'settings.themeAuto': 'Ca sistemul',
   'settings.themeLight': 'Luminos',
   'settings.themeDark': 'Întunecat',
-  'settings.themeStage': 'Scenă',
-  'settings.themeStageHint':
-    'Negru aproape complet, cu text mare și cald. Pentru ecranul de pe scenă într-o sală întunecată.',
   'settings.display': 'Afișare',
   'settings.maxFont': 'Mărimea maximă a textului',
   'settings.maxFontHint':
@@ -602,7 +601,8 @@ const en: Record<TranslationKey, Entry> = {
   'edit.stay': 'Stay here',
   'edit.editChord': 'Edit this chord',
   'edit.chordPlaceholder': 'Chord',
-  'edit.addChord': 'Click above the lyric to add a chord (or press F9)',
+  'edit.addChord': 'Click above the lyric to add a chord in the desired position',
+  'edit.invalidChord': 'This is not a valid chord.',
 
   'sets.new': 'New set',
   'sets.noDate': 'no date',
@@ -623,6 +623,7 @@ const en: Record<TranslationKey, Entry> = {
   'sets.plannedGaps': 'Planned gaps: {minutes} min',
   'sets.missingSong': '(missing song)',
   'sets.key': 'key',
+  'sets.intendedKey': 'intended key - {key}',
   'sets.transpose': 'transpose',
   'sets.capo': 'capo',
   'sets.removeFromSet': 'Remove from the set',
@@ -679,8 +680,8 @@ const en: Record<TranslationKey, Entry> = {
   'band.following': 'Following',
   'band.onYourOwn': 'Independent',
   'band.hereNow': 'now',
-  'band.asLeader': 'As the Leader',
-  'band.key': 'Key',
+  'band.asLeader': 'as the leader',
+  'band.key': 'key',
   'band.leaderNotOnSong': 'The leader is not on a song.',
   'band.waiting': 'Waiting for the leader',
   'band.yourName': 'Your name (e.g. Paul — guitar)',
@@ -779,9 +780,6 @@ const en: Record<TranslationKey, Entry> = {
   'settings.themeAuto': 'Match the system',
   'settings.themeLight': 'Light',
   'settings.themeDark': 'Dark',
-  'settings.themeStage': 'Stage',
-  'settings.themeStageHint':
-    'Near-black with large warm text. For the display on stage in a dark room.',
   'settings.display': 'Display',
   'settings.maxFont': 'Largest text size',
   'settings.maxFontHint':

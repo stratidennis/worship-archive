@@ -29,6 +29,12 @@ interface Client {
   canLead: boolean;
 }
 
+/** Map the palette removed in 0.1 back to the ordinary dark theme on restored data. */
+function restoredTheme(theme: unknown): 'auto' | 'light' | 'dark' | null {
+  if (theme === 'stage') return 'dark';
+  return theme === 'auto' || theme === 'light' || theme === 'dark' ? theme : null;
+}
+
 export interface HubOptions {
   path?: string;
   /** Where to persist session state, so a host restart does not lose the service. */
@@ -103,7 +109,32 @@ export class SessionHub {
           .filter((key) => key in saved)
           .map((key) => [key, saved[key as keyof SessionState]]),
       ) as Partial<SessionState>;
-      this.state = { ...INITIAL_SESSION, ...known, rev: (saved.rev ?? 0) + 1 };
+      const restored = { ...INITIAL_SESSION, ...known, rev: (saved.rev ?? 0) + 1 };
+      this.state = {
+        ...restored,
+        stage: { ...restored.stage, theme: restoredTheme(restored.stage.theme) },
+        stageBy: Object.fromEntries(
+          Object.entries(restored.stageBy).map(([name, display]) => [
+            name,
+            { ...display, theme: restoredTheme(display.theme) },
+          ]),
+        ),
+        stageByDevice: Object.fromEntries(
+          Object.entries(restored.stageByDevice).map(([id, device]) => [
+            id,
+            {
+              ...device,
+              display: { ...device.display, theme: restoredTheme(device.display.theme) },
+            },
+          ]),
+        ),
+        host: restored.host
+          ? {
+              ...restored.host,
+              theme: restoredTheme(restored.host.theme) === 'light' ? 'light' : 'dark',
+            }
+          : null,
+      };
     } catch {
       // A corrupt file must not stop the host from starting. A fresh session is a far
       // better outcome than no server at all.

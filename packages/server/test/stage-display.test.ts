@@ -52,18 +52,32 @@ describe('the stage screens’ appearance', () => {
   });
 
   it('takes a setting and hands it back', async () => {
-    const response = await put({ theme: 'stage', maxFontPx: 48, showChords: false });
+    const response = await put({ theme: 'dark', maxFontPx: 48 });
     expect(response.statusCode).toBe(200);
-    expect(response.json().stage).toMatchObject({ theme: 'stage', maxFontPx: 48 });
-    expect(hub.getState().stage.theme).toBe('stage');
-    expect(resolveStageDisplay(hub.getState(), null).showChords).toBe(false);
+    expect(response.json().stage).toMatchObject({ theme: 'dark', maxFontPx: 48 });
+    expect(hub.getState().stage.theme).toBe('dark');
+  });
+
+  it('applies chord visibility to one named screen, never all screens', async () => {
+    await put({ showChords: false });
+    expect(hub.getState().stage.showChords).toBeNull();
+
+    await put({ screen: 'Back', showChords: false });
+    expect(resolveStageDisplay(hub.getState(), 'Back').showChords).toBe(false);
+    expect(resolveStageDisplay(hub.getState(), 'Drums').showChords).toBeNull();
+  });
+
+  it('rejects the retired Stage-only palette', async () => {
+    const response = await put({ theme: 'stage' });
+    expect(response.statusCode).toBe(400);
+    expect(hub.getState().stage.theme).toBeNull();
   });
 
   it('leaves alone what the request did not mention', async () => {
-    await put({ theme: 'stage', chordColor: '#ef4444' });
+    await put({ theme: 'dark', chordColor: '#ef4444' });
     await put({ maxFontPx: 40 });
     expect(hub.getState().stage).toEqual({
-      theme: 'stage',
+      theme: 'dark',
       language: null,
       maxFontPx: 40,
       chordColor: '#ef4444',
@@ -129,9 +143,9 @@ describe('one screen at a time', () => {
 
   it('keeps two screens apart', async () => {
     await put({ screen: 'Drums', theme: 'dark' });
-    await put({ screen: 'Back', theme: 'stage' });
+    await put({ screen: 'Back', theme: 'light' });
     expect(hub.getState().stageBy['Drums']?.theme).toBe('dark');
-    expect(hub.getState().stageBy['Back']?.theme).toBe('stage');
+    expect(hub.getState().stageBy['Back']?.theme).toBe('light');
   });
 
   it('leaves alone what a screen\u2019s patch did not mention', async () => {

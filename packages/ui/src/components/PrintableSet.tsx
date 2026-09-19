@@ -74,10 +74,10 @@ export function PrintableSet({
                 <span className="flex-1 border-b border-dotted border-black/30" />
                 <span className="shrink-0 font-mono text-sm">
                   {key ?? '—'}
+                  {item.capoOverride ? ` · ${t('sets.capo')} ${item.capoOverride}` : ''}
                   {item.transposeOverride
                     ? ` · ${t('sets.transpose')} ${item.transposeOverride > 0 ? '+' : ''}${item.transposeOverride}`
                     : ''}
-                  {item.capoOverride ? ` · ${t('sets.capo')} ${item.capoOverride}` : ''}
                   {song?.tempo ? ` · ${song.tempo}` : ''}
                 </span>
               </li>
@@ -124,10 +124,10 @@ export function PrintableSet({
               <p className="mb-2 text-sm">
                 {[
                   key ?? '',
+                  item.capoOverride ? `${t('sets.capo')} ${item.capoOverride}` : '',
                   item.transposeOverride
                     ? `${t('sets.transpose')} ${item.transposeOverride > 0 ? '+' : ''}${item.transposeOverride}`
                     : '',
-                  item.capoOverride ? `${t('sets.capo')} ${item.capoOverride}` : '',
                   song.tempo ? `${song.tempo} bpm` : '',
                   song.timeSignature ?? '',
                 ]

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalFilterKey, compareFilterKeys, filterKeyAliases } from '../src/key.js';
+import {
+  canonicalFilterKey,
+  compareFilterKeys,
+  DEFAULT_ACCIDENTAL_PREFERENCES,
+  filterKeyAliases,
+  preferredKeyName,
+} from '../src/key.js';
 
 describe('key filters', () => {
   it('merges enharmonic spellings into the customary chart name', () => {
@@ -26,5 +32,11 @@ describe('key filters', () => {
       'Ab',
     ]);
     expect(['Am', 'A', 'C#m', 'C'].sort(compareFilterKeys)).toEqual(['A', 'C', 'Am', 'C#m']);
+  });
+
+  it('renders canonical filter values using the chosen enharmonic spelling', () => {
+    const preferences = { ...DEFAULT_ACCIDENTAL_PREFERENCES, 8: 'sharp' as const };
+    expect(preferredKeyName(canonicalFilterKey('Ab'), preferences)).toBe('G#');
+    expect(preferredKeyName(canonicalFilterKey('Abm'), preferences)).toBe('G#m');
   });
 });
