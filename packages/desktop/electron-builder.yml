@@ -50,10 +50,15 @@ mac:
       arch: [arm64, x64]
     - target: zip
       arch: [arm64, x64]
-  # Unsigned: there is no Apple developer account behind this, and pretending otherwise
-  # would only produce a build that fails notarisation at the end. See README for how to
-  # open it the first time.
-  identity: null
+  # Fully ad-hoc sign the entire bundle. Skipping signing leaves Electron's main binary
+  # with its linker signature while the rest of the bundle is unsealed; Gatekeeper then
+  # reports the downloaded app as "damaged". `-` needs no Apple developer account and
+  # gives every nested framework and helper a consistent local signature. The app is
+  # still not Apple-notarised, so the first launch needs the macOS approval flow below.
+  identity: '-'
+  # Ad-hoc signatures have no Team ID. Electron's nested frameworks therefore cannot
+  # satisfy hardened runtime library validation, which is intended for Developer ID
+  # signed/notarised builds.
   hardenedRuntime: false
   gatekeeperAssess: false
 

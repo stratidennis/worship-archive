@@ -66,9 +66,12 @@ pnpm abi:electron
 pnpm --filter @worship/desktop dist
 ```
 
-The builds are **not code-signed** — there is no Apple developer account or Windows
-certificate behind this. Windows SmartScreen needs _More info → Run anyway_; macOS needs
-a right-click → _Open_ the first time rather than a double-click.
+The builds are not signed with a publisher certificate — there is no Apple developer
+account or Windows certificate behind this. The macOS bundle is fully ad-hoc signed so
+Gatekeeper can verify its integrity, but it is not Apple-notarised. Windows SmartScreen
+needs _More info → Run anyway_. On macOS, right-click the app and choose _Open_ the
+first time; if it is still blocked, try once and then use _System Settings → Privacy &
+Security → Open Anyway_.
 
 ## Read in this order
 
