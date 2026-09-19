@@ -20,6 +20,7 @@ import {
 import { extname, join } from 'node:path';
 import type { ServiceSet, SetItem } from '@worship/core';
 import { slug } from './library.js';
+import { resolveLibrarySubdirectory } from './data-directory.js';
 
 export const SETS_SCHEMA = `
 CREATE TABLE IF NOT EXISTS sets (
@@ -63,7 +64,7 @@ export class SetStore {
     dataDir: string,
     private readonly db: Database.Database,
   ) {
-    this.setsDir = join(dataDir, 'sets');
+    this.setsDir = resolveLibrarySubdirectory(dataDir, 'sets');
     mkdirSync(this.setsDir, { recursive: true });
     this.db.exec(SETS_SCHEMA);
   }

@@ -8,8 +8,9 @@
 
 import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { hasLibraryFolders } from '@worship/server';
 
 export interface DesktopSettings {
   /** Stable identity advertised even when the laptop receives a new network address. */
@@ -71,5 +72,5 @@ export function saveSettings(settings: DesktopSettings): void {
 
 /** True when the data folder has never held a library — drives the first-run screen. */
 export function isFirstRun(dataDir: string): boolean {
-  return !existsSync(join(dataDir, 'songs'));
+  return !hasLibraryFolders(dataDir);
 }

@@ -291,14 +291,20 @@ export function SettingsPage() {
 
           <Section title={t('settings.library')}>
             {state && (
-              <p className="text-sm">
+              <div className="grid gap-2 text-sm">
                 <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
                   {t('settings.dataDir')}
                 </span>
                 <code className="mt-0.5 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
                   {state.dataDir}
                 </code>
-              </p>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
+                  <dt className="text-(--color-muted)">{t('settings.songsDir')}</dt>
+                  <dd className="min-w-0 break-all font-mono">{state.songsDir}</dd>
+                  <dt className="text-(--color-muted)">{t('settings.setsDir')}</dt>
+                  <dd className="min-w-0 break-all font-mono">{state.setsDir}</dd>
+                </dl>
+              </div>
             )}
             {native && (
               <div className="mt-2 flex flex-wrap gap-2">

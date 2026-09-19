@@ -26,7 +26,17 @@ import {
 import { mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { startServer, type RunningServer } from '@worship/server';
+import {
+  copyLibraryDirectory,
+  inspectLibraryDirectory,
+  libraryDirectoriesOverlap,
+  libraryDirectoryIsEmpty,
+  prepareLibraryDirectory,
+  sameLibraryDirectory,
+  startServer,
+  type LibraryDirectory,
+  type RunningServer,
+} from '@worship/server';
 import { loadSettings, saveSettings, isFirstRun, type DesktopSettings } from './settings.js';
 
 // `__dirname` is the bundle's own folder: `resources/app/dist` when packaged.
@@ -192,12 +202,15 @@ function failurePage(error: Error | null): string {
   body{font:15px/1.6 system-ui,sans-serif;background:#16181a;color:#e8eaed;margin:0;
        display:grid;place-items:center;height:100vh;padding:24px;text-align:center}
   code{background:#26292c;padding:2px 6px;border-radius:4px;font-size:13px}
+  button{font:inherit;font-weight:650;padding:10px 14px;border:0;border-radius:7px;
+         background:#d9962f;color:#151515;cursor:pointer}
   h1{font-size:20px;margin:0 0 8px}
   p{max-width:46ch;color:#a9b0b6}
 </style>
 <h1>Worship Archive nu a putut porni</h1>
 <p>${message.replace(/[<&]/g, (c) => (c === '<' ? '&lt;' : '&amp;'))}</p>
-<p>Dosarul cu cântări: <code>${dataDir.replace(/[<&]/g, '')}</code></p>`;
+<p>Dosarul arhivei: <code>${dataDir.replace(/[<&]/g, '')}</code></p>
+<button onclick="window.worship.chooseDataDir()">Alege alt dosar…</button>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -244,9 +257,9 @@ function buildMenu(): void {
         { label: 'Setări', accelerator: 'CmdOrCtrl+,', click: go('/settings') },
         { type: 'separator' },
         {
-          label: 'Deschide dosarul cu cântări',
+          label: 'Deschide dosarul arhivei',
           click: (): void => {
-            void shell.openPath(join(settings.dataDir, 'songs'));
+            void shell.openPath(settings.dataDir);
           },
         },
         { type: 'separator' },
@@ -351,6 +364,8 @@ function registerIpc(): void {
     installationId: settings.installationId,
     deviceName: settings.deviceName,
     dataDir: settings.dataDir,
+    songsDir: server?.library.songsDir ?? inspectLibraryDirectory(settings.dataDir).songsDir,
+    setsDir: server?.sets.setsDir ?? inspectLibraryDirectory(settings.dataDir).setsDir,
     port: server?.port ?? settings.port,
     addresses: server?.addresses ?? [],
     hostname: server?.hostname ?? '',
@@ -366,24 +381,92 @@ function registerIpc(): void {
 
   ipcMain.handle('worship:choose-data-dir', async () => {
     const result = await dialog.showOpenDialog({
-      title: 'Alege dosarul pentru cântări',
+      title: 'Alege dosarul arhivei Worship Archive',
       properties: ['openDirectory', 'createDirectory'],
       defaultPath: settings.dataDir,
     });
     const chosen = result.filePaths[0];
     if (result.canceled || !chosen) return null;
 
-    settings.dataDir = chosen;
-    saveSettings(settings);
-    // The library is opened once at startup; pointing it somewhere else means starting
-    // over. Restarting is honest about that, and takes two seconds.
-    app.relaunch();
-    app.exit(0);
-    return chosen;
+    try {
+      if (sameLibraryDirectory(settings.dataDir, chosen)) return settings.dataDir;
+
+      const targetPreview = inspectLibraryDirectory(chosen);
+      let source: LibraryDirectory | null = null;
+      try {
+        source = server
+          ? {
+              root: settings.dataDir,
+              songsDir: server.library.songsDir,
+              setsDir: server.sets.setsDir,
+            }
+          : inspectLibraryDirectory(settings.dataDir);
+      } catch {
+        // A broken old path must not prevent choosing a healthy replacement.
+      }
+
+      if (source && libraryDirectoriesOverlap(source, targetPreview)) {
+        throw new Error(
+          'Alege un dosar separat, nu unul din interiorul subdosarelor Songs sau Sets actuale.',
+        );
+      }
+
+      const targetEmpty = libraryDirectoryIsEmpty(targetPreview);
+      const sourceHasFiles = source !== null && !libraryDirectoryIsEmpty(source);
+      let copyCurrent = false;
+
+      if (targetEmpty && sourceHasFiles) {
+        const answer = await dialog.showMessageBox({
+          type: 'question',
+          title: 'Schimbă dosarul arhivei',
+          message: 'Dosarul ales este gol.',
+          detail:
+            'Poți copia cântările și programele existente în noul dosar sau poți începe cu o arhivă goală. Dosarul vechi rămâne neschimbat ca rezervă.',
+          buttons: ['Copiază arhiva actuală', 'Folosește dosarul gol', 'Renunță'],
+          defaultId: 0,
+          cancelId: 2,
+          noLink: true,
+        });
+        if (answer.response === 2) return null;
+        copyCurrent = answer.response === 0;
+      } else if (!targetEmpty) {
+        const answer = await dialog.showMessageBox({
+          type: 'question',
+          title: 'Schimbă dosarul arhivei',
+          message: 'Folosești arhiva din dosarul ales?',
+          detail:
+            'Worship Archive va citi din subdosarele Songs și Sets existente și va reporni.',
+          buttons: ['Folosește acest dosar', 'Renunță'],
+          defaultId: 0,
+          cancelId: 1,
+          noLink: true,
+        });
+        if (answer.response === 1) return null;
+      }
+
+      const target = prepareLibraryDirectory(chosen);
+      if (copyCurrent && source) copyLibraryDirectory(source, target);
+
+      settings.dataDir = target.root;
+      saveSettings(settings);
+      // The library and its file watcher are opened once at startup. Give the IPC
+      // response a chance to reach the settings page, then restart onto the new root.
+      setTimeout(() => {
+        app.relaunch();
+        app.exit(0);
+      }, 100);
+      return target.root;
+    } catch (error) {
+      dialog.showErrorBox(
+        'Dosarul nu poate fi folosit',
+        error instanceof Error ? error.message : String(error),
+      );
+      return null;
+    }
   });
 
   ipcMain.handle('worship:reveal-data-dir', async () => {
-    await shell.openPath(join(settings.dataDir, 'songs'));
+    await shell.openPath(settings.dataDir);
   });
 
   /** A native picker for files to import. Returns their text, not their paths. */

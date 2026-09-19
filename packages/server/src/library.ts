@@ -20,6 +20,7 @@ import {
 } from 'node:fs';
 import { dirname, extname, join, relative, sep } from 'node:path';
 import { parseChordPro, serialiseChordPro, type Song } from '@worship/core';
+import { resolveLibrarySubdirectory } from './data-directory.js';
 
 export const ROOT_COLLECTION = 'Main';
 
@@ -141,7 +142,7 @@ export class Library {
   readonly db: Database.Database;
 
   constructor(readonly dataDir: string) {
-    this.songsDir = join(dataDir, 'songs');
+    this.songsDir = resolveLibrarySubdirectory(dataDir, 'songs');
     mkdirSync(this.songsDir, { recursive: true });
     this.db = new Database(join(dataDir, 'index.db'));
     this.db.pragma('journal_mode = WAL');

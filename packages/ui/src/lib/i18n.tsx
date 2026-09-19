@@ -360,10 +360,13 @@ const ro = {
   'settings.chordColorCustom': 'Alege altă culoare',
   'settings.chordColorSampleChords': 'G           Am          F',
   'settings.chordColorSample': 'Mare ești Tu, Doamne al meu',
-  'settings.dataDir': 'Dosarul cu cântări',
+  'settings.dataDir': 'Dosarul arhivei',
+  'settings.songsDir': 'Cântări',
+  'settings.setsDir': 'Programe',
   'settings.chooseDataDir': 'Schimbă dosarul…',
   'settings.revealDataDir': 'Deschide dosarul',
-  'settings.chooseDataDirHint': 'Aplicația repornește după ce alegi alt dosar.',
+  'settings.chooseDataDirHint':
+    'Conține subdosarele Songs și Sets. Dacă alegi un dosar gol, poți copia arhiva actuală în el. Aplicația repornește după schimbare.',
   'settings.backup': 'Copie de siguranță',
   'settings.backupHint':
     'Un singur fișier cu textul tuturor cântărilor și programelor. Se poate deschide în orice editor de text.',
@@ -763,10 +766,13 @@ const en: Record<TranslationKey, Entry> = {
   'settings.chordColorCustom': 'Pick another colour',
   'settings.chordColorSampleChords': 'G           Am          F',
   'settings.chordColorSample': 'How great You are, my Lord',
-  'settings.dataDir': 'Song folder',
+  'settings.dataDir': 'Library folder',
+  'settings.songsDir': 'Songs',
+  'settings.setsDir': 'Sets',
   'settings.chooseDataDir': 'Change folder…',
   'settings.revealDataDir': 'Open the folder',
-  'settings.chooseDataDirHint': 'The app restarts after you choose a different folder.',
+  'settings.chooseDataDirHint':
+    'Contains the Songs and Sets subfolders. When you choose an empty folder, you can copy the current library into it. The app restarts after changing it.',
   'settings.backup': 'Backup',
   'settings.backupHint':
     'One file holding the text of every song and set. It opens in any text editor.',

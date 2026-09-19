@@ -15,6 +15,8 @@ export interface DesktopState {
   installationId: string;
   deviceName: string;
   dataDir: string;
+  songsDir: string;
+  setsDir: string;
   port: number;
   addresses: string[];
   hostname: string;
