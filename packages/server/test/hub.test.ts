@@ -314,6 +314,26 @@ describe('driving the service', () => {
     leader.ws.close();
   });
 
+  it('only resets Band key choices for a newer musical instruction', async () => {
+    const leader = await connect();
+    identify(leader, 'leader', 'leader-performance');
+    send(leader, { t: 'patch', patch: { active: true, setId: 'sunday' } });
+    const started = await waitFor(leader, 'session', (m) => m.state.active);
+
+    send(leader, { t: 'patch', patch: { tempo: 92 } });
+    const tempo = await waitFor(leader, 'session', (m) => m.state.tempo === 92);
+    expect(tempo.state.leaderRevision).toBe(started.state.leaderRevision);
+
+    send(leader, {
+      t: 'patch',
+      patch: { performanceKey: 'D', transpose: 2, capo: 2 },
+    });
+    const musical = await waitFor(leader, 'session', (m) => m.state.performanceKey === 'D');
+    expect(musical.state).toMatchObject({ performanceKey: 'D', transpose: 2, capo: 2 });
+    expect(musical.state.leaderRevision).toBeGreaterThan(tempo.state.leaderRevision);
+    leader.ws.close();
+  });
+
   it('returns to waiting when the last Leader disconnects', async () => {
     const leader = await connect();
     const stage = await connect();

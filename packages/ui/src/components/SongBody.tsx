@@ -3,9 +3,11 @@ import {
   chordForCapo,
   formatChord,
   parseChord,
+  respellChord,
   semitonesBetween,
   transposeChord,
   type Block,
+  type AccidentalPreferences,
   type Line,
   type Song,
 } from '@worship/core';
@@ -20,6 +22,8 @@ export interface RenderOptions {
   capo: number;
   /** Extra semitones on top of the song's own written→performance shift. */
   transpose: number;
+  /** When present, every enharmonic chord is displayed in this device's notation. */
+  accidentalPreferences?: AccidentalPreferences;
 }
 
 /** The total shift applied to a song's chords, and the key that results. */
@@ -67,6 +71,9 @@ function chunksOf(
     let token = parseChord(raw);
     token = transposeChord(token, semitones, targetKey);
     token = chordForCapo(token, options.capo, targetKey);
+    if (options.accidentalPreferences) {
+      token = respellChord(token, options.accidentalPreferences, targetKey);
+    }
     return formatChord(token);
   };
 

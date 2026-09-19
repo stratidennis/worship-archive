@@ -121,7 +121,13 @@ describe('how a stage screen should look', () => {
         maxFontPx: 40,
       },
     );
-    expect(patched).toEqual({ theme: 'dark', language: null, maxFontPx: 40, chordColor: null });
+    expect(patched).toEqual({
+      theme: 'dark',
+      language: null,
+      maxFontPx: 40,
+      chordColor: null,
+      showChords: null,
+    });
   });
 
   it('clears a field the patch sets to null', () => {
@@ -141,7 +147,7 @@ describe('how a stage screen should look', () => {
     expect(resolveStageDisplay(state, 'Anything').maxFontPx).toBe(60);
   });
 
-  /* Screen size can differ by distance, while colour remains the Leader's. */
+  /* Every screen can differ, while unset values continue through the shared layers. */
   it('lets one screen differ without disturbing the rest', () => {
     const state = session({
       stage: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 60, chordColor: '#f59e0b' },
@@ -151,7 +157,8 @@ describe('how a stage screen should look', () => {
       theme: null,
       language: null,
       maxFontPx: 28,
-      chordColor: null,
+      chordColor: '#f59e0b',
+      showChords: null,
     });
     expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
   });
@@ -168,27 +175,28 @@ describe('how a stage screen should look', () => {
       language: 'en',
       chordColor: '#ef4444',
       maxFontPx: null,
+      showChords: null,
     });
   });
 
-  it('always uses the leader colour scheme over an old shared screen choice', () => {
+  it('allows a shared screen theme to differ from the leader', () => {
     const state = session({
       stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
       host: { theme: 'light', language: 'en', chordColor: null },
     });
     const resolved = resolveStageDisplay(state, null);
-    expect(resolved.theme).toBe('light');
+    expect(resolved.theme).toBe('stage');
     expect(resolved.language).toBe('en');
   });
 
-  it('always uses the leader colour scheme over an old per-screen choice', () => {
+  it('allows one screen theme to differ from both shared and leader themes', () => {
     const state = session({
       stage: { ...DEFAULT_STAGE_DISPLAY, theme: 'stage' },
       stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } },
       host: { theme: 'dark', language: 'ro', chordColor: null },
     });
-    expect(resolveStageDisplay(state, 'Drums').theme).toBe('dark');
-    expect(resolveStageDisplay(state, 'Back').theme).toBe('dark');
+    expect(resolveStageDisplay(state, 'Drums').theme).toBe('light');
+    expect(resolveStageDisplay(state, 'Back').theme).toBe('stage');
   });
 
   it('keeps a screen override when its editable name changes', () => {

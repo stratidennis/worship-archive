@@ -1,4 +1,9 @@
-import type { LanguageName, ThemeName } from '@worship/core';
+import {
+  ENHARMONIC_PAIRS,
+  type AccidentalPreferences,
+  type LanguageName,
+  type ThemeName,
+} from '@worship/core';
 import { useT } from '../lib/i18n.js';
 import { IconCheck } from './icons.js';
 import { Segment, Segmented } from './ui.js';
@@ -29,6 +34,43 @@ export const CHORD_COLOURS: { value: string; label: string }[] = [
   { value: '#06b6d4', label: 'Cyan' },
   { value: '#8b5cf6', label: 'Violet' },
 ];
+
+export function AccidentalChoice({
+  value,
+  onChange,
+}: {
+  value: AccidentalPreferences;
+  onChange: (value: AccidentalPreferences) => void;
+}) {
+  const { t } = useT();
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      {ENHARMONIC_PAIRS.map((pair) => (
+        <Field key={pair.pitch} label={`${pair.sharp} / ${pair.flat}`}>
+          <Segmented label={`${pair.sharp} / ${pair.flat}`} className="w-full">
+            <Segment
+              className="flex-1"
+              active={value[pair.pitch] === 'sharp'}
+              onClick={() => onChange({ ...value, [pair.pitch]: 'sharp' })}
+            >
+              {pair.sharp}
+            </Segment>
+            <Segment
+              className="flex-1"
+              active={value[pair.pitch] === 'flat'}
+              onClick={() => onChange({ ...value, [pair.pitch]: 'flat' })}
+            >
+              {pair.flat}
+            </Segment>
+          </Segmented>
+        </Field>
+      ))}
+      <p className="text-xs text-(--color-muted) sm:col-span-2 xl:col-span-5">
+        {t('settings.accidentalsHint')}
+      </p>
+    </div>
+  );
+}
 
 export function LanguageChoice<T extends LanguageName | null>({
   value,

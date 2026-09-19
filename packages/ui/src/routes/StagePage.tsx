@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { resolveStageDisplay, semitonesBetween } from '@worship/core';
+import { preferredKeyName, resolveStageDisplay, semitonesBetween } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
@@ -9,6 +9,7 @@ import { applyChordColor, applyTheme } from '../lib/theme.js';
 import { usePrefs } from '../lib/settings.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { SongBody } from '../components/SongBody.js';
+import { PerformanceInfo } from '../components/PerformanceInfo.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
@@ -36,7 +37,7 @@ export function StagePage() {
   const native = useMemo(() => clientDesktop(), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [clientState, setClientState] = useState<ClientDesktopState | null>(null);
-  const showChords = params.get('chords') !== '0';
+  const localShowChords = params.get('chords') !== '0';
   const showBass = params.get('bass') === '1';
   /*
     What this screen is called, if anything.
@@ -81,6 +82,9 @@ export function StagePage() {
     what this screen would have done on its own.
   */
   const stage = resolveStageDisplay(state, screen || null, deviceId);
+  const showChords = stage.showChords ?? clientState?.showChords ?? localShowChords;
+  const accidentalPreferences =
+    state.host?.accidentalPreferences ?? prefs.accidentalPreferences;
   useEffect(() => {
     applyTheme(stage.theme ?? prefs.theme);
     return () => applyTheme(prefs.theme);
@@ -105,12 +109,18 @@ export function StagePage() {
   // nothing left here that could show the room less than it is singing.
   const song = viewing?.song ?? null;
 
+  const intendedKey =
+    state.performanceKey ??
+    viewing?.item.keyOverride ??
+    viewing?.song.performanceKey ??
+    viewing?.song.writtenKey ??
+    null;
+  const capo = state.capo ?? viewing?.item.capoOverride ?? 0;
   const extraTranspose = useMemo(() => {
-    if (!viewing?.item.keyOverride) return state.transpose;
-    const native = viewing.song.performanceKey ?? viewing.song.writtenKey;
-    if (!native) return state.transpose;
-    return state.transpose + (semitonesBetween(native, viewing.item.keyOverride) ?? 0);
-  }, [viewing, state.transpose]);
+    const nativeKey = viewing?.song.performanceKey ?? viewing?.song.writtenKey;
+    if (!nativeKey || !intendedKey) return -state.transpose;
+    return (semitonesBetween(nativeKey, intendedKey) ?? 0) - state.transpose;
+  }, [viewing, intendedKey, state.transpose]);
 
   const fit = useFitToScreen(container, content, {
     // A stage display is read at a distance, so it is allowed to go much larger than a
@@ -118,7 +128,7 @@ export function StagePage() {
     // screen at once.
     maxFontPx: stage.maxFontPx ?? STAGE_DEFAULT_FONT,
     minFontPx: 14,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${stage.maxFontPx}`,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${capo}:${stage.maxFontPx}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.
@@ -161,13 +171,21 @@ export function StagePage() {
               visibility: fit.measuring ? 'hidden' : 'visible',
             }}
           >
+            {showChords && (
+              <PerformanceInfo
+                intendedKey={preferredKeyName(intendedKey, accidentalPreferences)}
+                transpose={state.transpose}
+                capo={capo}
+              />
+            )}
             <SongBody
               song={song}
               options={{
                 showChords,
                 showBass,
-                capo: viewing?.item.capoOverride ?? 0,
+                capo,
                 transpose: extraTranspose,
+                accidentalPreferences,
               }}
             />
           </div>
@@ -195,7 +213,7 @@ export function StagePage() {
           </span>
         )}
         {native && (
-          <span className="pointer-events-auto opacity-20 transition-opacity hover:opacity-100 focus-within:opacity-100">
+          <span className="pointer-events-auto opacity-10 transition-opacity hover:opacity-100 focus-within:opacity-100">
             <IconButton
               size="sm"
               variant="ghost"
@@ -257,8 +275,8 @@ export function StagePage() {
                 void native.updateSettings({ preventSleep }).then(setClientState);
               }}
             />
-            <div className="mt-2 border-t border-(--color-line) pt-4">
-              <Button variant="danger" onClick={() => void native.quit()}>
+            <div className="mt-3 px-1">
+              <Button className="w-full" variant="danger" onClick={() => void native.quit()}>
                 {t('settings.quitApp')}
               </Button>
             </div>

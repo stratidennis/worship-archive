@@ -25,6 +25,7 @@ import { repo } from '../lib/repo.js';
 import { useUndoable } from '../lib/useUndoable.js';
 import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
+import { usePrefs } from '../lib/settings.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
@@ -67,6 +68,7 @@ function contentOf(song: Song): string {
 
 export function EditPage() {
   const { t, blockName, singerName } = useT();
+  const [prefs] = usePrefs();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -519,7 +521,13 @@ export function EditPage() {
             <div style={{ fontSize: '16px' }}>
               <SongBody
                 song={current}
-                options={{ showChords: true, showBass: false, capo: 0, transpose: 0 }}
+                options={{
+                  showChords: true,
+                  showBass: false,
+                  capo: 0,
+                  transpose: 0,
+                  accidentalPreferences: prefs.accidentalPreferences,
+                }}
               />
             </div>
           </aside>

@@ -52,10 +52,11 @@ describe('the stage screens’ appearance', () => {
   });
 
   it('takes a setting and hands it back', async () => {
-    const response = await put({ theme: 'stage', maxFontPx: 48 });
+    const response = await put({ theme: 'stage', maxFontPx: 48, showChords: false });
     expect(response.statusCode).toBe(200);
     expect(response.json().stage).toMatchObject({ theme: 'stage', maxFontPx: 48 });
     expect(hub.getState().stage.theme).toBe('stage');
+    expect(resolveStageDisplay(hub.getState(), null).showChords).toBe(false);
   });
 
   it('leaves alone what the request did not mention', async () => {
@@ -66,6 +67,7 @@ describe('the stage screens’ appearance', () => {
       language: null,
       maxFontPx: 40,
       chordColor: '#ef4444',
+      showChords: null,
     });
   });
 
@@ -140,6 +142,7 @@ describe('one screen at a time', () => {
       language: null,
       maxFontPx: 30,
       chordColor: '#ef4444',
+      showChords: null,
     });
   });
 
@@ -185,7 +188,7 @@ describe('the leader\u2019s own appearance', () => {
   it('is what the screens fall back to', async () => {
     await putHost({ theme: 'dark', language: 'en', chordColor: '#ef4444' });
     const state = hub.getState();
-    expect(state.host).toEqual({ theme: 'dark', language: 'en', chordColor: '#ef4444' });
+    expect(state.host).toMatchObject({ theme: 'dark', language: 'en', chordColor: '#ef4444' });
     expect(resolveStageDisplay(state, null)).toMatchObject({ theme: 'dark', language: 'en' });
   });
 

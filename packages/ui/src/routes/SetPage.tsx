@@ -3,6 +3,9 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   canonicalFilterKey,
   compareFilterKeys,
+  isMinorKey,
+  preferredKeyName,
+  preferredKeyNames,
   semitonesBetween,
   type ServiceSet,
   type SessionPatch,
@@ -73,8 +76,6 @@ import { PrintableSet } from '../components/PrintableSet.js';
  * Now the same list you built the set with is the list you drive it from — turning the
  * switch off puts the controls away and leaves the screens exactly where they were.
  */
-
-const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -220,6 +221,25 @@ export function SetPage() {
     };
   }, [filters.collection]);
 
+  /** The complete musical instruction for one row, sent atomically to every screen. */
+  const livePatchFor = useCallback(
+    (index: number): SessionPatch => {
+      const item = set?.items[index];
+      if (!item || item.kind !== 'song') {
+        return { itemIndex: index, performanceKey: null, transpose: 0, capo: 0 };
+      }
+      const song = songs[item.songId];
+      const nativeKey = song?.performanceKey ?? song?.writtenKey ?? null;
+      return {
+        itemIndex: index,
+        performanceKey: item.keyOverride ?? nativeKey,
+        transpose: item.transposeOverride ?? 0,
+        capo: item.capoOverride ?? 0,
+      };
+    },
+    [set, songs],
+  );
+
   const facets = useMemo(() => {
     const keys = new Map<string, number>();
     for (const song of hits) {
@@ -312,8 +332,28 @@ export function SetPage() {
   */
   useEffect(() => {
     if (!leading || !synced) return;
-    if (state.setId !== id) patch({ setId: id, itemIndex: 0 });
-  }, [leading, synced, state.setId, id, patch]);
+    if (state.setId !== id) patch({ setId: id, ...livePatchFor(0) });
+  }, [leading, synced, state.setId, id, patch, livePatchFor]);
+
+  /*
+    Key, transpose and capo travel together.
+
+    Saving the set triggers a library refresh, but that alone cannot reset a Band
+    member's local key: it does not say whether the Leader changed the musical setup or
+    merely renamed a note. Publishing this compact live instruction does both, and the
+    Leader revision makes every Band device give the newer choice priority.
+  */
+  useEffect(() => {
+    if (!leading || !synced || state.setId !== id || !set) return;
+    const expected = livePatchFor(state.itemIndex);
+    if (
+      state.performanceKey !== expected.performanceKey ||
+      state.transpose !== expected.transpose ||
+      state.capo !== expected.capo
+    ) {
+      patch(expected);
+    }
+  }, [leading, synced, state, id, set, livePatchFor, patch]);
 
   // In Auto, the preview is simply what the room is seeing.
   useEffect(() => {
@@ -357,9 +397,9 @@ export function SetPage() {
   const selectItem = useCallback(
     (index: number) => {
       setSelection({ kind: 'item', index });
-      if (leading && auto) patch({ itemIndex: index });
+      if (leading && auto) patch(livePatchFor(index));
     },
-    [leading, auto, patch],
+    [leading, auto, patch, livePatchFor],
   );
 
   const songIndices = useMemo(
@@ -383,8 +423,8 @@ export function SetPage() {
   );
 
   const sendLive = useCallback(() => {
-    if (cursorIndex !== null) patch({ itemIndex: cursorIndex });
-  }, [cursorIndex, patch]);
+    if (cursorIndex !== null) patch(livePatchFor(cursorIndex));
+  }, [cursorIndex, patch, livePatchFor]);
 
   // Only while leading: a leader's hands are on an instrument, but someone merely
   // editing a set should get the letter b when they press b.
@@ -424,6 +464,7 @@ export function SetPage() {
           kind: 'song',
           songId,
           keyOverride: null,
+          transposeOverride: null,
           capoOverride: null,
           arrangementOverride: null,
         },
@@ -541,7 +582,13 @@ export function SetPage() {
 
   return (
     <>
-      <PrintableSet set={set} songs={songs} t={t} formatDate={formatDate} />
+      <PrintableSet
+        set={set}
+        songs={songs}
+        t={t}
+        formatDate={formatDate}
+        accidentalPreferences={prefs.accidentalPreferences}
+      />
 
       <HeaderTitle>
         {/*
@@ -722,10 +769,13 @@ export function SetPage() {
                       </span>
                       {item.kind === 'song' && (
                         <span className="shrink-0 font-mono text-xs text-(--color-muted)">
-                          {item.keyOverride ??
-                            songs[item.songId]?.performanceKey ??
-                            songs[item.songId]?.writtenKey ??
-                            ''}
+                          {preferredKeyName(
+                            item.keyOverride ??
+                              songs[item.songId]?.performanceKey ??
+                              songs[item.songId]?.writtenKey ??
+                              null,
+                            prefs.accidentalPreferences,
+                          ) ?? ''}
                         </span>
                       )}
                     </button>
@@ -781,7 +831,10 @@ export function SetPage() {
                           {song.title || t('app.untitled')}
                         </span>
                         <span className="shrink-0 font-mono text-xs text-(--color-muted)">
-                          {song.performanceKey ?? song.writtenKey ?? ''}
+                          {preferredKeyName(
+                            song.performanceKey ?? song.writtenKey,
+                            prefs.accidentalPreferences,
+                          ) ?? ''}
                         </span>
                       </button>
                       {/*
@@ -852,6 +905,7 @@ export function SetPage() {
               blockName={blockName}
               returnTo={`${location.pathname}${location.search}`}
               transposeTo={selectedItem.keyOverride}
+              keyboardTranspose={selectedItem.transposeOverride ?? null}
               capo={selectedItem.capoOverride}
             >
               <SongControls
@@ -1295,6 +1349,7 @@ function Preview({
   songId,
   onLoaded,
   transposeTo,
+  keyboardTranspose,
   capo,
   blockName,
   returnTo,
@@ -1304,6 +1359,7 @@ function Preview({
   songId: string;
   onLoaded: (song: Song) => void;
   transposeTo?: string | null;
+  keyboardTranspose?: number | null;
   capo?: number | null;
   blockName: Translator['blockName'];
   returnTo: string;
@@ -1328,14 +1384,16 @@ function Preview({
   }, [songId, missing]);
 
   const native = song?.performanceKey ?? song?.writtenKey ?? null;
-  const shift = transposeTo && native ? (semitonesBetween(native, transposeTo) ?? 0) : 0;
+  const shift =
+    (transposeTo && native ? (semitonesBetween(native, transposeTo) ?? 0) : 0) -
+    (keyboardTranspose ?? 0);
 
   // `song?.id` belongs in the key: on the first render the song is still loading, so the
   // refs are null and there is nothing to measure. Without it the fit would never re-run
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}`,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
@@ -1351,6 +1409,11 @@ function Preview({
           <p className="truncate text-xs text-(--color-muted)">
             {[
               transposeTo ?? native ?? '',
+              keyboardTranspose
+                ? t('song.transposed', {
+                    amount: keyboardTranspose > 0 ? `+${keyboardTranspose}` : keyboardTranspose,
+                  })
+                : '',
               capo ? t('song.capo', { fret: capo }) : '',
               song.tempo ? `${song.tempo} bpm` : '',
               song.blocks.length > 0 ? blockName(song.blocks[0]!.type) : '',
@@ -1394,6 +1457,7 @@ function Preview({
               showBass: false,
               capo: capo ?? 0,
               transpose: shift,
+              accidentalPreferences: prefs.accidentalPreferences,
             }}
           />
         </div>
@@ -1408,11 +1472,11 @@ function Preview({
 }
 
 /**
- * Key and capo for this set only — changing Sunday's key must not edit the library.
+ * Intended key, keyboard transpose and capo for this set only — changing Sunday's
+ * setup must not edit the library.
  *
- * Both are the shared controls now. They were a bare `<select>` and a bare number box
- * with hand-written borders, sitting beside buttons that had none of the same
- * proportions; a capo of 3 could also be typed as 300.
+ * All three use the same compact selector treatment, so the row stays legible even on
+ * a laptop while still spelling out the complete musical instruction.
  */
 function SongControls({
   item,
@@ -1424,7 +1488,11 @@ function SongControls({
   onPatch: (patch: Partial<Extract<SetItem, { kind: 'song' }>>) => void;
 }) {
   const { t } = useT();
+  const [prefs] = usePrefs();
   const nativeKey = song?.performanceKey ?? song?.writtenKey ?? null;
+  const keys = preferredKeyNames(prefs.accidentalPreferences).map(
+    (key) => `${key}${nativeKey && isMinorKey(nativeKey) ? 'm' : ''}`,
+  );
 
   return (
     <span className="flex flex-wrap items-center gap-2 text-xs">
@@ -1435,12 +1503,30 @@ function SongControls({
           onChange={(e) => onPatch({ keyOverride: e.target.value || null })}
           aria-label={t('sets.key')}
           tight
-          className="w-24"
+          className="w-20"
         >
-          <option value="">{nativeKey ?? '—'}</option>
-          {KEYS.map((k) => (
+          <option value="">
+            {preferredKeyName(nativeKey, prefs.accidentalPreferences) ?? '—'}
+          </option>
+          {keys.map((k) => (
             <option key={k} value={k}>
               {k}
+            </option>
+          ))}
+        </Select>
+      </label>
+      <label className="flex items-center gap-1.5">
+        <span className="text-(--color-muted)">{t('sets.transpose')}</span>
+        <Select
+          value={String(item.transposeOverride ?? 0)}
+          onChange={(e) => onPatch({ transposeOverride: Number(e.target.value) })}
+          aria-label={t('sets.transpose')}
+          tight
+          className="w-20"
+        >
+          {Array.from({ length: 23 }, (_, index) => index - 11).map((amount) => (
+            <option key={amount} value={amount}>
+              {amount > 0 ? `+${amount}` : amount}
             </option>
           ))}
         </Select>

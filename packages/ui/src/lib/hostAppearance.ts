@@ -59,6 +59,7 @@ export function useHostAppearance(): void {
   const theme = prefs.theme === 'auto' ? (systemDark ? 'dark' : 'light') : prefs.theme;
   const language = prefs.language;
   const chordColor = prefs.chordColor;
+  const accidentalPreferences = prefs.accidentalPreferences;
 
   useEffect(() => {
     if (!isHost(leading)) return;
@@ -66,7 +67,12 @@ export function useHostAppearance(): void {
     void fetch('/api/session/host', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ theme, language, chordColor } satisfies HostDisplay),
+      body: JSON.stringify({
+        theme,
+        language,
+        chordColor,
+        accidentalPreferences,
+      } satisfies HostDisplay),
       signal: controller.signal,
     }).catch(() => {
       // No host to tell, or it went away mid-request. The screens keep what they have,
@@ -74,5 +80,5 @@ export function useHostAppearance(): void {
       // did not land.
     });
     return () => controller.abort();
-  }, [leading, theme, language, chordColor]);
+  }, [leading, theme, language, chordColor, accidentalPreferences]);
 }

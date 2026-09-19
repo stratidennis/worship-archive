@@ -159,6 +159,8 @@ export type SetItem =
       songId: Uuid;
       /** Overrides live on the set — changing Sunday's key must not edit the library. */
       keyOverride: string | null;
+      /** Keyboard transpose: played shapes are shifted this far to sound in the key. */
+      transposeOverride?: number | null;
       capoOverride: number | null;
       arrangementOverride: string[] | null;
     }

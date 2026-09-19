@@ -1,7 +1,7 @@
 import { usePrefs } from '../lib/settings.js';
 import { useT } from '../lib/i18n.js';
 import { IconMoon, IconSun } from './icons.js';
-import { IconButton } from './ui.js';
+import { IconButton, type Size } from './ui.js';
 
 /**
  * One button: light or dark, right now.
@@ -12,7 +12,13 @@ import { IconButton } from './ui.js';
  * leaves `auto` behind, which is the honest behaviour: the button would otherwise
  * appear to do nothing when the system disagreed with it.
  */
-export function ThemeToggle({ className = '' }: { className?: string }) {
+export function ThemeToggle({
+  className = '',
+  size = 'md',
+}: {
+  className?: string;
+  size?: Size;
+}) {
   const { t } = useT();
   const [prefs, setPrefs] = usePrefs();
 
@@ -25,6 +31,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   return (
     <IconButton
       variant="ghost"
+      size={size}
       label={label}
       onClick={() => setPrefs({ theme: dark ? 'light' : 'dark' })}
       className={className}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import type { Song } from '@worship/core';
+import { preferredKeyName, type Song } from '@worship/core';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
@@ -64,7 +64,7 @@ export function SongPage() {
   // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.transpose}:${prefs.capo}`,
+    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.transpose}:${prefs.capo}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (error) {
@@ -80,7 +80,7 @@ export function SongPage() {
   if (!song) return <div className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</div>;
 
   const { key } = resolveKey(song, prefs.transpose);
-  const soundingKey = key ?? '—';
+  const soundingKey = preferredKeyName(key, prefs.accidentalPreferences) ?? '—';
 
   return (
     /*
@@ -94,8 +94,12 @@ export function SongPage() {
           <p className="truncate text-xs text-(--color-muted)">
             {song.writtenKey && song.performanceKey && song.writtenKey !== song.performanceKey
               ? t('song.writtenPlayed', {
-                  written: song.writtenKey,
-                  performance: song.performanceKey,
+                  written:
+                    preferredKeyName(song.writtenKey, prefs.accidentalPreferences) ??
+                    song.writtenKey,
+                  performance:
+                    preferredKeyName(song.performanceKey, prefs.accidentalPreferences) ??
+                    song.performanceKey,
                 })
               : t('song.key', { key: soundingKey })}
             {prefs.transpose !== 0 &&
@@ -189,6 +193,7 @@ export function SongPage() {
               showBass: false,
               capo: prefs.capo,
               transpose: prefs.transpose,
+              accidentalPreferences: prefs.accidentalPreferences,
             }}
           />
         </div>

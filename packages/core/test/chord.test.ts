@@ -4,8 +4,10 @@ import {
   formatChord,
   normalise,
   parseChord,
+  respellChord,
   transposeChord,
 } from '../src/chord.js';
+import { DEFAULT_ACCIDENTAL_PREFERENCES } from '../src/key.js';
 import { EXPECTED_UNPARSED, REAL_CHORDS } from './real-chords.js';
 
 /** Convenience: parse, transpose, format. */
@@ -280,5 +282,20 @@ describe('robustness', () => {
     for (const s of ['ad lib', 'forte', 'de cate ori', 'end']) {
       expect(parseChord(s).kind).toBe('unparsed');
     }
+  });
+});
+
+describe('preferred enharmonic spelling', () => {
+  it('re-spells at zero transposition without changing the source pitch', () => {
+    const preferences = { ...DEFAULT_ACCIDENTAL_PREFERENCES, 3: 'sharp' as const };
+    expect(formatChord(respellChord(parseChord('Eb/Bb'), preferences, 'Eb'))).toBe('D#/Bb');
+  });
+
+  it('can mix common sharp and flat choices independently', () => {
+    expect(
+      formatChord(
+        respellChord(parseChord('Db Eb Gb Ab Bb'), DEFAULT_ACCIDENTAL_PREFERENCES, null),
+      ),
+    ).toBe('C# Eb F# Ab Bb');
   });
 });

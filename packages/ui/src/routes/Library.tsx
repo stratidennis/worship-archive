@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { canonicalFilterKey, compareFilterKeys } from '@worship/core';
+import { canonicalFilterKey, compareFilterKeys, preferredKeyName } from '@worship/core';
 import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
@@ -9,6 +9,7 @@ import { HeaderActions, useHeader } from '../components/header-slots.js';
 import { IconPlus, IconSearch } from '../components/icons.js';
 import { Button, ButtonLink, Input } from '../components/ui.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
+import { usePrefs } from '../lib/settings.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
 function Snippet({ text }: { text: string }) {
@@ -30,7 +31,11 @@ function Snippet({ text }: { text: string }) {
 
 function KeyBadge({ song }: { song: SongSummary }) {
   const { t } = useT();
-  const key = song.performanceKey ?? song.writtenKey;
+  const [prefs] = usePrefs();
+  const key = preferredKeyName(
+    song.performanceKey ?? song.writtenKey,
+    prefs.accidentalPreferences,
+  );
   if (!key) return null;
   const transposed =
     song.performanceKey && song.writtenKey && song.performanceKey !== song.writtenKey;
@@ -41,14 +46,19 @@ function KeyBadge({ song }: { song: SongSummary }) {
       title={
         transposed
           ? t('library.writtenPlayed', {
-              written: song.writtenKey ?? '',
-              performance: song.performanceKey ?? '',
+              written: preferredKeyName(song.writtenKey, prefs.accidentalPreferences) ?? '',
+              performance:
+                preferredKeyName(song.performanceKey, prefs.accidentalPreferences) ?? '',
             })
           : undefined
       }
     >
       {key}
-      {transposed && <span className="ml-1 text-(--color-muted)">← {song.writtenKey}</span>}
+      {transposed && (
+        <span className="ml-1 text-(--color-muted)">
+          ← {preferredKeyName(song.writtenKey, prefs.accidentalPreferences)}
+        </span>
+      )}
     </span>
   );
 }

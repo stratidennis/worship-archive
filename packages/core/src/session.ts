@@ -6,6 +6,7 @@
  * whole is what makes reconnection trivial: a client that missed messages gets the
  * truth in the next frame rather than having to replay a log.
  */
+import type { AccidentalPreferences } from './key.js';
 
 /**
  * What the screens are showing.
@@ -48,9 +49,8 @@ export const LAN_DISCOVERY_REQUEST = `worship-archive-discover:${SESSION_PROTOCO
  * `null` means "whatever that screen would do on its own", which is what an
  * untouched installation should be: one setting to change, not four to keep in step.
  *
- * Whether chords are shown is deliberately *not* here. That one is genuinely per
- * screen — the monitor facing the band wants them and the one facing the room does
- * not — so it stays a query parameter on the address you set that screen up with.
+ * Whether chords are shown is per screen too: the monitor facing the band may want
+ * them while the one facing the room does not.
  */
 export interface StageDisplay {
   theme: ThemeName | null;
@@ -59,6 +59,8 @@ export interface StageDisplay {
   maxFontPx: number | null;
   /** Any CSS colour, or null for the theme's own accent. */
   chordColor: string | null;
+  /** Null follows the Stage installation's own choice. */
+  showChords: boolean | null;
 }
 
 /**
@@ -85,6 +87,8 @@ export interface HostDisplay {
   theme: Exclude<ThemeName, 'auto'>;
   language: LanguageName;
   chordColor: string | null;
+  /** Optional on the wire so clients remain compatible with an older Leader build. */
+  accidentalPreferences?: AccidentalPreferences;
 }
 
 /** A remembered Stage device. The id is the map key; the name is only its editable label. */
@@ -98,6 +102,7 @@ export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   language: null,
   maxFontPx: null,
   chordColor: null,
+  showChords: null,
 };
 
 /** True when a screen's settings say nothing at all, and can be forgotten entirely. */
@@ -106,7 +111,8 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
     display.theme === null &&
     display.language === null &&
     display.maxFontPx === null &&
-    display.chordColor === null
+    display.chordColor === null &&
+    display.showChords == null
   );
 }
 
@@ -126,6 +132,7 @@ export function patchStageDisplay(
     language: patch.language !== undefined ? patch.language : current.language,
     maxFontPx: patch.maxFontPx !== undefined ? patch.maxFontPx : current.maxFontPx,
     chordColor: patch.chordColor !== undefined ? patch.chordColor : current.chordColor,
+    showChords: patch.showChords !== undefined ? patch.showChords : current.showChords,
   };
 }
 
@@ -136,8 +143,8 @@ export function patchStageDisplay(
  * its settings. `screen` remains as compatibility for browser links and installations
  * configured before stable ids existed.
  *
- * Language and font size may be configured per screen. Theme and chord colour always
- * come from the Leader, so every view in the room uses one colour scheme.
+ * Every visual choice may be configured per screen. An unset value falls through to
+ * the shared Stage choice and finally to the Leader device.
  */
 export function resolveStageDisplay(
   state: SessionState,
@@ -150,12 +157,10 @@ export function resolveStageDisplay(
     null;
   const host = state.host;
   return {
-    // Colour belongs to the Leader. A separate Stage or Band palette makes the room
-    // disagree with the screen it is being led from, so old per-screen colour values
-    // remain readable for compatibility but deliberately no longer take effect.
-    theme: host?.theme ?? null,
+    theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,
     language: own?.language ?? state.stage.language ?? host?.language ?? null,
-    chordColor: host?.chordColor ?? null,
+    chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
+    showChords: own?.showChords ?? state.stage.showChords ?? null,
     // Not the leader's. See {@link HostDisplay}.
     maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
   };
@@ -174,11 +179,11 @@ export interface SessionState {
   /** New for every false -> true transition, so a new service is unambiguous. */
   sessionEpoch: string | null;
   /**
-   * Increases on every change made by the Leader console.
+   * Increases whenever the Leader changes the live song, key, transpose or capo.
    *
-   * Band devices use this to know when a newer Leader choice supersedes a local key or
-   * capo override. `rev` also changes for administrative settings, so it cannot serve
-   * that narrower purpose.
+   * Band devices use this to know when a newer musical choice supersedes a local key
+   * override. `rev` also changes for tempo, appearance and administrative settings, so
+   * it cannot serve that narrower purpose.
    */
   leaderRevision: number;
 
@@ -230,6 +235,9 @@ export interface SessionState {
 
   /** Applied on top of each song's own written→performance shift. */
   transpose: number;
+  /** Intended sounding key and capo for the item currently sent by the Leader. */
+  performanceKey: string | null;
+  capo: number;
   /** Monotonic; lets a client ignore a frame that arrives out of order. */
   rev: number;
 }
@@ -250,6 +258,8 @@ export const INITIAL_SESSION: SessionState = {
   beatsPerBar: 4,
   beatEpoch: null,
   transpose: 0,
+  performanceKey: null,
+  capo: 0,
   rev: 0,
 };
 

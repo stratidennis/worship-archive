@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importAny, type ImportFormat } from '@worship/importers';
-import type { Song } from '@worship/core';
+import { preferredKeyName, type Song } from '@worship/core';
 import { adminApi } from '../lib/api.js';
 import { pickTextFiles } from '../lib/desktop.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
@@ -9,6 +9,7 @@ import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
 import { Button, IconButton, Textarea } from '../components/ui.js';
 import { IconClose } from '../components/icons.js';
+import { usePrefs } from '../lib/settings.js';
 
 /**
  * Bringing songs in.
@@ -48,6 +49,7 @@ function countChords(song: Song): number {
 
 export function ImportPage() {
   const { t } = useT();
+  const [prefs] = usePrefs();
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [paste, setPaste] = useState('');
@@ -216,7 +218,12 @@ export function ImportPage() {
                       ) : (
                         t('import.chords', { count: candidate.chords })
                       )}
-                      {candidate.song.writtenKey ? ` · ${candidate.song.writtenKey}` : ''}
+                      {candidate.song.writtenKey
+                        ? ` · ${preferredKeyName(
+                            candidate.song.writtenKey,
+                            prefs.accidentalPreferences,
+                          )}`
+                        : ''}
                     </span>
                   </span>
                   <IconButton

@@ -362,6 +362,10 @@ function openClient(): void {
   if (!win) return;
   loadCurrentUi(win, clientRoute());
   if (ROLE === 'stage') win.setKiosk(settings.fullscreen);
+  if (ROLE === 'band') {
+    win.setFullScreen(settings.fullscreen);
+    if (!settings.fullscreen) win.maximize();
+  }
 }
 
 function setPreventSleep(on: boolean): void {
@@ -408,6 +412,10 @@ function updateClientSettings(patch: EditableClientSettings): ClientSettings {
   if (ROLE === 'stage' && previous.fullscreen !== settings.fullscreen) {
     win?.setKiosk(settings.fullscreen);
   }
+  if (ROLE === 'band' && previous.fullscreen !== settings.fullscreen) {
+    win?.setFullScreen(settings.fullscreen);
+    if (!settings.fullscreen) win?.maximize();
+  }
   if (previous.name !== settings.name || previous.showChords !== settings.showChords) {
     // Let the IPC reply reach the settings panel before navigation destroys its frame.
     setTimeout(openClient, 0);
@@ -433,7 +441,10 @@ function createWindow(): void {
       sandbox: false,
     },
   });
-  win.once('ready-to-show', () => win?.show());
+  win.once('ready-to-show', () => {
+    if (ROLE === 'band' && !settings.fullscreen) win?.maximize();
+    win?.show();
+  });
   win.on('closed', () => {
     win = null;
   });
@@ -443,6 +454,7 @@ function createWindow(): void {
   });
   loadCurrentUi(win, settings.setupComplete ? clientRoute() : '/device-setup');
   if (ROLE === 'stage' && settings.setupComplete) win.setKiosk(settings.fullscreen);
+  if (ROLE === 'band' && settings.setupComplete && settings.fullscreen) win.setFullScreen(true);
 }
 
 function registerIpc(): void {

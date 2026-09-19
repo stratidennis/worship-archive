@@ -1,4 +1,10 @@
-import { semitonesBetween, type ServiceSet, type Song } from '@worship/core';
+import {
+  semitonesBetween,
+  preferredKeyName,
+  type AccidentalPreferences,
+  type ServiceSet,
+  type Song,
+} from '@worship/core';
 import type { Translator } from '../lib/i18n.js';
 import { setName } from '../lib/setName.js';
 import { SongBody } from './SongBody.js';
@@ -28,11 +34,13 @@ export function PrintableSet({
   songs,
   t,
   formatDate,
+  accidentalPreferences,
 }: {
   set: ServiceSet;
   songs: Record<string, Song>;
   t: Translator['t'];
   formatDate: Translator['date'];
+  accidentalPreferences: AccidentalPreferences;
 }) {
   const date = set.date
     ? formatDate(set.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -55,7 +63,10 @@ export function PrintableSet({
         {set.items.map((item, index) => {
           if (item.kind === 'song') {
             const song = songs[item.songId];
-            const key = item.keyOverride ?? song?.performanceKey ?? song?.writtenKey ?? null;
+            const key = preferredKeyName(
+              item.keyOverride ?? song?.performanceKey ?? song?.writtenKey ?? null,
+              accidentalPreferences,
+            );
             return (
               <li key={index} className="flex items-baseline gap-2 break-inside-avoid">
                 <span className="w-5 shrink-0 text-right tabular-nums">{index + 1}.</span>
@@ -63,6 +74,9 @@ export function PrintableSet({
                 <span className="flex-1 border-b border-dotted border-black/30" />
                 <span className="shrink-0 font-mono text-sm">
                   {key ?? '—'}
+                  {item.transposeOverride
+                    ? ` · ${t('sets.transpose')} ${item.transposeOverride > 0 ? '+' : ''}${item.transposeOverride}`
+                    : ''}
                   {item.capoOverride ? ` · ${t('sets.capo')} ${item.capoOverride}` : ''}
                   {song?.tempo ? ` · ${song.tempo}` : ''}
                 </span>
@@ -98,8 +112,10 @@ export function PrintableSet({
           const native = song.performanceKey ?? song.writtenKey ?? null;
           // The key this service plays it in, not the key it is filed under.
           const shift =
-            item.keyOverride && native ? (semitonesBetween(native, item.keyOverride) ?? 0) : 0;
-          const key = item.keyOverride ?? native;
+            (item.keyOverride && native
+              ? (semitonesBetween(native, item.keyOverride) ?? 0)
+              : 0) - (item.transposeOverride ?? 0);
+          const key = preferredKeyName(item.keyOverride ?? native, accidentalPreferences);
           return (
             <section key={index} className="break-before-page pt-2">
               <h2 className="text-lg font-bold">
@@ -108,6 +124,9 @@ export function PrintableSet({
               <p className="mb-2 text-sm">
                 {[
                   key ?? '',
+                  item.transposeOverride
+                    ? `${t('sets.transpose')} ${item.transposeOverride > 0 ? '+' : ''}${item.transposeOverride}`
+                    : '',
                   item.capoOverride ? `${t('sets.capo')} ${item.capoOverride}` : '',
                   song.tempo ? `${song.tempo} bpm` : '',
                   song.timeSignature ?? '',
@@ -122,6 +141,7 @@ export function PrintableSet({
                   showBass: false,
                   capo: item.capoOverride ?? 0,
                   transpose: shift,
+                  accidentalPreferences,
                 }}
               />
             </section>

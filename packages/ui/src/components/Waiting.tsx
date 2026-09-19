@@ -1,5 +1,4 @@
 import { useT } from '../lib/i18n.js';
-import { Wordmark } from './Logo.js';
 
 /**
  * A screen with nothing on it yet.
@@ -9,47 +8,52 @@ import { Wordmark } from './Logo.js';
  * then matters: an empty screen looks like a screen that has failed, and somebody goes
  * looking for the HDMI cable.
  *
- * So: the mark, the sentence, and three dots that move. The movement is the whole
- * point. It is the difference between "this is broken" and "this is on, and waiting for
- * someone", which is a question a person standing in a hall answers from ten metres
- * away without asking anybody.
+ * So: the gradient mark, the name, the sentence, and a quiet spinner. The movement is
+ * the whole point. It is the difference between "this is broken" and "this is on, and
+ * waiting for someone", which is a question a person standing in a hall answers from
+ * ten metres away without asking anybody.
  */
 export function WaitingForLeader({ compact = false }: { compact?: boolean }) {
   const { t } = useT();
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className={`flex flex-col items-center text-center ${compact ? 'gap-4' : 'gap-6'}`}>
       {/* Sized against the viewport rather than in points: the big variant is read
           from the back of a hall on a television nobody can walk up to. */}
-      <Wordmark
-        className={`max-w-[86vw] text-(--color-chord) ${compact ? 'h-9' : 'h-[min(13vh,7rem)]'}`}
-        label={t('app.name')}
-      />
+      <div className="flex flex-col items-center gap-2" role="img" aria-label={t('app.name')}>
+        <img
+          src="/icon-512.png"
+          alt=""
+          className={`h-auto ${compact ? 'w-20' : 'w-[min(18vh,9rem)]'}`}
+        />
+        <span
+          className={`font-bold tracking-tight ${compact ? 'text-2xl' : 'text-[clamp(2rem,5vh,4rem)]'}`}
+        >
+          {t('app.name')}
+        </span>
+      </div>
       <p
-        className={`flex items-end gap-[0.4em] text-(--color-muted) ${
-          compact ? 'text-sm' : 'text-[clamp(1.25rem,4vh,3rem)]'
+        className={`flex items-center gap-[0.65em] text-(--color-muted) ${
+          compact ? 'text-lg' : 'text-[clamp(1.25rem,3vh,2.25rem)]'
         }`}
       >
         <span>{t('band.waiting')}</span>
-        <Dots />
+        <Spinner compact={compact} />
       </p>
     </div>
   );
 }
 
 /**
- * Sized in `em`, so the same three dots work under a 14px line on a phone and a 24px
- * one across a hall without a second set of numbers.
+ * Sized in `em`, so the same spinner works under a compact Band message and across a
+ * hall without a second visual treatment.
  */
-function Dots() {
+function Spinner({ compact }: { compact: boolean }) {
   return (
-    <span aria-hidden className="mb-[0.22em] flex items-end gap-[0.28em]">
-      {[0, 180, 360].map((delay) => (
-        <span
-          key={delay}
-          className="waiting-dot h-[0.15em] w-[0.15em] rounded-full bg-current"
-          style={{ animationDelay: `${delay}ms` }}
-        />
-      ))}
-    </span>
+    <span
+      aria-hidden
+      className={`waiting-spinner inline-block shrink-0 rounded-full border-current border-r-transparent ${
+        compact ? 'h-5 w-5 border-2' : 'h-[0.9em] w-[0.9em] border-[0.09em]'
+      }`}
+    />
   );
 }

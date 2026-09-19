@@ -9,6 +9,7 @@ import { useHeader } from '../components/header-slots.js';
 import {
   ChordColour,
   ChordSample,
+  AccidentalChoice,
   FontSize,
   LanguageChoice,
   ThemeChoice,
@@ -142,7 +143,7 @@ export function SettingsPage() {
             the Display card changed height, which made the page rearrange itself as a
             setting was selected. Grid order is stable and its two wider columns leave
             enough room for paths, screen names, and segmented controls. */}
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <Section title={t('settings.language')}>
             <LanguageChoice value={lang} onChange={setLang} />
           </Section>
@@ -258,6 +259,12 @@ export function SettingsPage() {
                   onChange={(language) => setStage({ language })}
                   inherit={inherit}
                 />
+                <ThemeChoice
+                  label={t('settings.theme')}
+                  value={stage.theme}
+                  onChange={(theme) => setStage({ theme })}
+                  inherit={inherit}
+                />
                 {/* Size is the one thing the screens do not take from here: a ceiling
                     for a laptop on a music stand is not a ceiling for a television
                     across a hall. Cleared, it is the screens' own generous default. */}
@@ -268,11 +275,26 @@ export function SettingsPage() {
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.maxFontPx : null) ?? 72}
                 />
-                <p className="mt-3 text-xs text-(--color-muted)">
-                  {t('settings.screensUseLeaderColours')}
-                </p>
+                <StageChordChoice
+                  value={stage.showChords}
+                  inherit={inherit}
+                  onChange={(showChords) => setStage({ showChords })}
+                />
+                <ChordColour
+                  value={stage.chordColor}
+                  onChange={(chordColor) => setStage({ chordColor })}
+                  defaultLabel={inherit}
+                />
+                <ChordSample colour={stage.chordColor} />
               </>
             )}
+          </Section>
+
+          <Section title={t('settings.accidentals')} className="lg:col-span-2">
+            <AccidentalChoice
+              value={prefs.accidentalPreferences}
+              onChange={(accidentalPreferences) => setPrefs({ accidentalPreferences })}
+            />
           </Section>
 
           <Section title={t('settings.library')}>
@@ -406,12 +428,42 @@ function Section({
   className?: string;
 }) {
   return (
-    <section className={`rounded-xl border border-(--color-line) p-5 ${className}`}>
+    <section className={`h-full rounded-xl border border-(--color-line) p-5 ${className}`}>
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-(--color-muted)">
         {title}
       </h2>
       {children}
     </section>
+  );
+}
+
+function StageChordChoice({
+  value,
+  inherit,
+  onChange,
+}: {
+  value: boolean | null;
+  inherit: string;
+  onChange: (value: boolean | null) => void;
+}) {
+  const { t } = useT();
+  return (
+    <div className="mt-3">
+      <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-wide text-(--color-muted)">
+        {t('song.chords')}
+      </span>
+      <Segmented label={t('song.chords')} className="max-w-full flex-wrap">
+        <Segment active={value === null} onClick={() => onChange(null)}>
+          {inherit}
+        </Segment>
+        <Segment active={value === true} onClick={() => onChange(true)}>
+          {t('settings.chordsShown')}
+        </Segment>
+        <Segment active={value === false} onClick={() => onChange(false)}>
+          {t('settings.chordsHidden')}
+        </Segment>
+      </Segmented>
+    </div>
   );
 }
 

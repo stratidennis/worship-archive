@@ -38,6 +38,31 @@ export const FLAT_NAMES = [
 
 export type Spelling = 'sharp' | 'flat';
 
+/**
+ * How each black-key pitch should be written.
+ *
+ * This is deliberately per pitch rather than one global "sharps or flats" switch:
+ * ordinary notation commonly mixes the two (C#, Eb, F#, Ab, Bb), and a musician may
+ * personally prefer only one of those pairs the other way around.
+ */
+export type AccidentalPreferences = Record<1 | 3 | 6 | 8 | 10, Spelling>;
+
+export const DEFAULT_ACCIDENTAL_PREFERENCES: AccidentalPreferences = {
+  1: 'sharp',
+  3: 'flat',
+  6: 'sharp',
+  8: 'flat',
+  10: 'flat',
+};
+
+export const ENHARMONIC_PAIRS = [
+  { pitch: 1, sharp: 'C#', flat: 'Db' },
+  { pitch: 3, sharp: 'D#', flat: 'Eb' },
+  { pitch: 6, sharp: 'F#', flat: 'Gb' },
+  { pitch: 8, sharp: 'G#', flat: 'Ab' },
+  { pitch: 10, sharp: 'A#', flat: 'Bb' },
+] as const;
+
 const NATURAL_PC: Record<string, number> = {
   C: 0,
   D: 2,
@@ -98,6 +123,43 @@ export function noteToPitchClass(name: string): number | null {
 export function pitchClassToNote(pc: number, spelling: Spelling): string {
   const i = ((pc % 12) + 12) % 12;
   return spelling === 'flat' ? FLAT_NAMES[i]! : SHARP_NAMES[i]!;
+}
+
+/** Spell one pitch using the chosen pair, falling back to the target key's convention. */
+export function pitchClassToPreferredNote(
+  pc: number,
+  preferences: AccidentalPreferences,
+  fallback: Spelling = 'sharp',
+): string {
+  const pitch = (((pc % 12) + 12) % 12) as number;
+  const choice = preferences[pitch as keyof AccidentalPreferences] ?? fallback;
+  return pitchClassToNote(pitch, choice);
+}
+
+/** Twelve selectable key names using the device's preferred enharmonic spellings. */
+export function preferredKeyNames(preferences: AccidentalPreferences): string[] {
+  return SHARP_NAMES.map((_, pitch) => pitchClassToPreferredNote(pitch, preferences, 'sharp'));
+}
+
+/** Re-spell a key name while preserving whether it is minor. */
+export function preferredKeyName(
+  key: string | null,
+  preferences: AccidentalPreferences,
+): string | null {
+  if (!key) return null;
+  const cleaned = cleanKeyName(key);
+  if (!cleaned) return key;
+  const minor = isMinorKey(cleaned);
+  const pitch = noteToPitchClass(minor ? cleaned.slice(0, -1) : cleaned);
+  if (pitch === null) return key;
+  return `${pitchClassToPreferredNote(pitch, preferences)}${minor ? 'm' : ''}`;
+}
+
+/** Signed keyboard transpose from displayed shapes to the intended sounding key. */
+export function signedSemitonesBetween(from: string, to: string): number | null {
+  const distance = semitonesBetween(from, to);
+  if (distance === null) return null;
+  return distance > 6 ? distance - 12 : distance;
 }
 
 /**

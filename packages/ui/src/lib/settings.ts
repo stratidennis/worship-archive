@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
+import { DEFAULT_ACCIDENTAL_PREFERENCES, type AccidentalPreferences } from '@worship/core';
 
 /**
  * Per-device preferences.
@@ -29,6 +30,10 @@ export interface Prefs {
    * is bright is not asking for an orange interface.
    */
   chordColor: string | null;
+  /** The spelling selected for each enharmonic black-key pair. */
+  accidentalPreferences: AccidentalPreferences;
+  /** Band installations follow the Leader until the musician explicitly opts out. */
+  bandFollowsLeaderAccidentals: boolean;
   language: 'ro' | 'en';
   /**
    * `auto` follows the operating system. `stage` is not a darker dark — it is a
@@ -54,6 +59,8 @@ export const DEFAULT_PREFS: Prefs = {
   transpose: 0,
   maxFontPx: 26,
   chordColor: null,
+  accidentalPreferences: DEFAULT_ACCIDENTAL_PREFERENCES,
+  bandFollowsLeaderAccidentals: true,
   language: 'en',
   theme: 'auto',
   setHeaderExpanded: true,
@@ -66,7 +73,15 @@ function read(): Prefs {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_PREFS;
-    return { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<Prefs>) };
+    const saved = JSON.parse(raw) as Partial<Prefs>;
+    return {
+      ...DEFAULT_PREFS,
+      ...saved,
+      accidentalPreferences: {
+        ...DEFAULT_ACCIDENTAL_PREFERENCES,
+        ...(saved.accidentalPreferences ?? {}),
+      },
+    };
   } catch {
     return DEFAULT_PREFS;
   }

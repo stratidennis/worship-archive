@@ -202,7 +202,7 @@ export function JoinPage() {
         <div className="mt-7 grid items-start gap-6 lg:grid-cols-2">
           <div className="grid gap-6">
             <section className="rounded-xl border border-(--color-line) bg-(--color-surface) p-5">
-              <Segmented label={t('join.title')} className="w-full flex-wrap">
+              <Segmented label={t('join.title')} className="w-full">
                 {(
                   [
                     ['/band', t('app.band')],
@@ -211,6 +211,7 @@ export function JoinPage() {
                   ] as const
                 ).map(([value, label]) => (
                   <Segment
+                    className="min-w-0 flex-1"
                     key={value}
                     active={path === value}
                     aria-pressed={path === value}

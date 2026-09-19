@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { semitonesBetween } from '@worship/core';
+import {
+  isMinorKey,
+  noteToPitchClass,
+  pitchClassToPreferredNote,
+  preferredKeyName,
+  preferredKeyNames,
+  semitonesBetween,
+  signedSemitonesBetween,
+} from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
-import { applyChordColor, applyTheme } from '../lib/theme.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
@@ -13,12 +20,14 @@ import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
-import { Button, Checkbox, IconButton, Input, Stepper } from '../components/ui.js';
+import { Button, Checkbox, IconButton, Input, Select } from '../components/ui.js';
 import { Sheet } from '../components/Sheet.js';
-import { FontSize, LanguageChoice } from '../components/DisplaySettings.js';
+import { AccidentalChoice, FontSize, LanguageChoice } from '../components/DisplaySettings.js';
 import { IconMusic, IconSets, IconSettings } from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
+import { PerformanceInfo } from '../components/PerformanceInfo.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -62,17 +71,6 @@ export function BandPage() {
   const live = useLiveSet(state.active ? state.setId : null, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
-  // Band and Stage are part of one room, so their palette is the Leader's palette.
-  // Local preferences remain a fallback only while no Leader state has arrived yet.
-  useEffect(() => {
-    applyTheme(state.host?.theme ?? prefs.theme);
-    applyChordColor(state.host?.chordColor ?? prefs.chordColor);
-    return () => {
-      applyTheme(prefs.theme);
-      applyChordColor(prefs.chordColor);
-    };
-  }, [state.host?.theme, state.host?.chordColor, prefs.theme, prefs.chordColor]);
-
   const [local, setLocal] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -115,26 +113,71 @@ export function BandPage() {
     why. Held in component state rather than in prefs for the same reason — this is an
     opinion about one song in one service, not a setting.
   */
-  const leaderTranspose = useMemo(() => {
-    if (!viewing?.item.keyOverride) return state.transpose;
-    const native = viewing.song.performanceKey ?? viewing.song.writtenKey;
-    if (!native) return state.transpose;
-    return state.transpose + (semitonesBetween(native, viewing.item.keyOverride) ?? 0);
-  }, [viewing, state.transpose]);
-  const leaderCapo = viewing?.item.capoOverride ?? 0;
+  const accidentalPreferences = prefs.bandFollowsLeaderAccidentals
+    ? (state.host?.accidentalPreferences ?? prefs.accidentalPreferences)
+    : prefs.accidentalPreferences;
+  const nativeKey = viewing?.song.performanceKey ?? viewing?.song.writtenKey ?? null;
+  const usingLiveInstruction = following && itemIndex === state.itemIndex;
+  const intendedKey = usingLiveInstruction
+    ? (state.performanceKey ??
+      viewing?.item.keyOverride ??
+      viewing?.song.performanceKey ??
+      viewing?.song.writtenKey ??
+      null)
+    : (viewing?.item.keyOverride ??
+      viewing?.song.performanceKey ??
+      viewing?.song.writtenKey ??
+      null);
+  const leaderTranspose = usingLiveInstruction
+    ? (state.transpose ?? viewing?.item.transposeOverride ?? 0)
+    : (viewing?.item.transposeOverride ?? 0);
+  const leaderCapo = usingLiveInstruction
+    ? (state.capo ?? viewing?.item.capoOverride ?? 0)
+    : (viewing?.item.capoOverride ?? 0);
+
+  const keyAt = (key: string | null, shift: number): string | null => {
+    if (!key) return null;
+    const pitch = noteToPitchClass(key.replace(/m$/, ''));
+    if (pitch === null) return null;
+    return `${pitchClassToPreferredNote(pitch + shift, accidentalPreferences)}${isMinorKey(key) ? 'm' : ''}`;
+  };
+  const leaderDisplayedKey = keyAt(intendedKey, -leaderTranspose - leaderCapo);
 
   const leaderSays = `${state.leaderRevision}:${itemIndex}`;
   const [heard, setHeard] = useState(leaderSays);
-  const [shift, setShift] = useState(0);
-  const [capo, setCapo] = useState<number | null>(null);
+  const [displayedKeyOverride, setDisplayedKeyOverride] = useState<string | null>(null);
   if (heard !== leaderSays) {
     setHeard(leaderSays);
-    setShift(0);
-    setCapo(null);
+    setDisplayedKeyOverride(null);
   }
 
-  const transpose = leaderTranspose + shift;
-  const capoFret = capo ?? leaderCapo;
+  const displayedKey = displayedKeyOverride ?? leaderDisplayedKey;
+  const localOverride = displayedKeyOverride !== null;
+  const transpose = localOverride
+    ? nativeKey && displayedKey
+      ? (semitonesBetween(nativeKey, displayedKey) ?? 0)
+      : 0
+    : nativeKey && intendedKey
+      ? (semitonesBetween(nativeKey, intendedKey) ?? 0) - leaderTranspose
+      : -leaderTranspose;
+  const capoFret = localOverride ? 0 : leaderCapo;
+  const instrumentTranspose =
+    localOverride && displayedKey && intendedKey
+      ? signedSemitonesBetween(displayedKey, intendedKey)
+      : null;
+  const instrumentCapo =
+    localOverride && displayedKey && intendedKey
+      ? semitonesBetween(displayedKey, intendedKey)
+      : null;
+  const selectableKeys = preferredKeyNames(accidentalPreferences).map(
+    (key) => `${key}${intendedKey && isMinorKey(intendedKey) ? 'm' : ''}`,
+  );
+
+  const shiftDisplayedKey = (delta: number): void => {
+    const base = displayedKey ?? intendedKey;
+    const next = keyAt(base, delta);
+    if (next) setDisplayedKeyOverride(next);
+  };
 
   /**
    * Stop following, right where you are.
@@ -160,13 +203,12 @@ export function BandPage() {
     // during a service the first is the one people press without thinking.
     Escape: () => (help ? setHelp(false) : setLocal(null)),
     c: () => setPrefs({ showChords: !prefs.showChords }),
-    '+': () => setShift((value) => Math.min(11, value + 1)),
-    '=': () => setShift((value) => Math.min(11, value + 1)),
-    '-': () => setShift((value) => Math.max(-11, value - 1)),
+    '+': () => shiftDisplayedKey(1),
+    '=': () => shiftDisplayedKey(1),
+    '-': () => shiftDisplayedKey(-1),
     // Back to the leader, both of them, which is what "0" means on this screen.
     '0': () => {
-      setShift(0);
-      setCapo(null);
+      setDisplayedKeyOverride(null);
     },
     '?': () => setHelp((open) => !open),
   });
@@ -194,7 +236,7 @@ export function BandPage() {
 
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}:${displayedKey}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (
@@ -214,6 +256,7 @@ export function BandPage() {
         </span>
         <BeatLed state={state} clockOffset={clockOffset} size="sm" />
         <StatusDot status={status} />
+        <ThemeToggle size="sm" />
         <IconButton
           size="sm"
           label={t('band.songList')}
@@ -247,37 +290,35 @@ export function BandPage() {
           know is which song everyone is on.
         */}
         <div className="order-last flex w-full flex-wrap items-center gap-1.5 sm:order-none sm:w-auto">
-          {/* Both read zero — "as the leader has it" — until this device says
-              otherwise, and the middle button puts them back there. */}
-          <Stepper
-            size="sm"
-            caption={t('song.pitch')}
-            value={shift}
-            display={shift > 0 ? `+${shift}` : String(shift)}
-            onChange={setShift}
-            min={-11}
-            max={11}
-            resetTo={0}
-            labels={{
-              down: t('song.transposeDown'),
-              up: t('song.transposeUp'),
-              reset: t('band.asLeader'),
-            }}
-          />
-          <Stepper
-            size="sm"
-            caption={t('sets.capo')}
-            value={capoFret}
-            onChange={(value) => setCapo(value === leaderCapo ? null : value)}
-            min={0}
-            max={11}
-            resetTo={leaderCapo}
-            labels={{
-              down: t('song.capoDown'),
-              up: t('song.capoUp'),
-              reset: t('band.asLeader'),
-            }}
-          />
+          <label className="flex items-center gap-1.5 text-xs">
+            <span className="text-(--color-muted)">{t('performance.yourKey')}</span>
+            <Select
+              tight
+              className="w-24"
+              value={displayedKeyOverride ?? ''}
+              onChange={(event) => setDisplayedKeyOverride(event.target.value || null)}
+              aria-label={t('performance.yourKey')}
+            >
+              <option value="">
+                {t('band.asLeader')}
+                {leaderDisplayedKey ? ` (${leaderDisplayedKey})` : ''}
+              </option>
+              {selectableKeys.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </Select>
+          </label>
+          {localOverride && instrumentTranspose !== null && instrumentCapo !== null && (
+            <span className="rounded-md bg-(--color-line) px-2 py-1 text-[0.68rem] leading-tight text-(--color-muted)">
+              {t('performance.shortSetup', {
+                transpose:
+                  instrumentTranspose > 0 ? `+${instrumentTranspose}` : instrumentTranspose,
+                capo: instrumentCapo,
+              })}
+            </span>
+          )}
           <IconButton
             size="sm"
             label={t('song.chords')}
@@ -394,6 +435,20 @@ export function BandPage() {
                 visibility: fit.measuring ? 'hidden' : 'visible',
               }}
             >
+              {prefs.showChords && (
+                <PerformanceInfo
+                  intendedKey={preferredKeyName(intendedKey, accidentalPreferences)}
+                  transpose={leaderTranspose}
+                  capo={leaderCapo}
+                  {...(localOverride
+                    ? {
+                        displayedKey,
+                        instrumentTranspose,
+                        instrumentCapo,
+                      }
+                    : {})}
+                />
+              )}
               <SongBody
                 song={viewing.song}
                 options={{
@@ -401,6 +456,7 @@ export function BandPage() {
                   showBass: false,
                   capo: capoFret,
                   transpose,
+                  accidentalPreferences,
                 }}
               />
             </div>
@@ -482,10 +538,42 @@ export function BandPage() {
                 />
                 <span className="min-w-0">{t('settings.autoStart')}</span>
               </label>
+              <label className="flex items-start gap-2 text-sm">
+                <Checkbox
+                  className="mt-0.5"
+                  checked={clientState.fullscreen}
+                  onChange={(event) => {
+                    void clientDesktop()
+                      ?.updateSettings({ fullscreen: event.target.checked })
+                      .then(setClientState);
+                  }}
+                />
+                <span className="min-w-0">{t('settings.fullscreen')}</span>
+              </label>
             </div>
           )}
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
           <FontSize value={prefs.maxFontPx} onChange={(maxFontPx) => setPrefs({ maxFontPx })} />
+          <div className="mt-5 border-t border-(--color-line) pt-4">
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                className="mt-0.5"
+                checked={prefs.bandFollowsLeaderAccidentals}
+                onChange={(event) =>
+                  setPrefs({ bandFollowsLeaderAccidentals: event.target.checked })
+                }
+              />
+              <span>{t('settings.followLeaderNotation')}</span>
+            </label>
+            {!prefs.bandFollowsLeaderAccidentals && (
+              <div className="mt-4">
+                <AccidentalChoice
+                  value={prefs.accidentalPreferences}
+                  onChange={(accidentalPreferences) => setPrefs({ accidentalPreferences })}
+                />
+              </div>
+            )}
+          </div>
         </Sheet>
       )}
 

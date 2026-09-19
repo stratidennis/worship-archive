@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import {
   DEFAULT_STAGE_DISPLAY,
+  DEFAULT_ACCIDENTAL_PREFERENCES,
   SESSION_PROTOCOL_VERSION,
   type HostDisplay,
   isStageDisplayEmpty,
@@ -461,6 +462,10 @@ export function createServer(options: ApiOptions): FastifyInstance {
       theme,
       language,
       chordColor: typeof body.chordColor === 'string' ? body.chordColor : null,
+      accidentalPreferences: {
+        ...DEFAULT_ACCIDENTAL_PREFERENCES,
+        ...(body.accidentalPreferences ?? {}),
+      },
     };
     options.hub.patch({ host });
     return { host };

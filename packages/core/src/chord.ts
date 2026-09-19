@@ -12,7 +12,14 @@
  *     malformed ones included.
  */
 
-import { noteToPitchClass, pitchClassToNote, spellingForKey, type Spelling } from './key.js';
+import {
+  noteToPitchClass,
+  pitchClassToNote,
+  pitchClassToPreferredNote,
+  spellingForKey,
+  type AccidentalPreferences,
+  type Spelling,
+} from './key.js';
 
 export interface Chord {
   /** Pitch class of the root, 0–11. Semantic: `Cm#` gives 1 (C#), not 0. */
@@ -200,6 +207,19 @@ function canonicalText(c: Chord, spelling: Spelling): string {
   return out;
 }
 
+function preferredText(
+  c: Chord,
+  preferences: AccidentalPreferences,
+  fallback: Spelling,
+): string {
+  let out = pitchClassToPreferredNote(c.rootPc, preferences, fallback) + c.quality;
+  if (c.alternates.length > 0) {
+    out += `(${c.alternates.map((a) => preferredText(a, preferences, fallback)).join(',')})`;
+  }
+  if (c.bass !== null) out += c.bassSep + preferredText(c.bass, preferences, fallback);
+  return out;
+}
+
 function shiftChord(c: Chord, semitones: number, spelling: Spelling): Chord {
   const shifted: Chord = {
     rootPc: (((c.rootPc + semitones) % 12) + 12) % 12,
@@ -244,6 +264,29 @@ export function chordForCapo(
 ): ChordToken {
   if (capo === 0) return token;
   return transposeChord(token, -capo, targetKey);
+}
+
+/**
+ * Re-spell a chord without changing its pitch.
+ *
+ * Unlike transposition this intentionally also acts at zero semitones, so a stored Eb
+ * can be displayed as D# when that is the musician's chosen notation. The source file
+ * remains untouched.
+ */
+export function respellChord(
+  token: ChordToken,
+  preferences: AccidentalPreferences,
+  targetKey: string | null,
+): ChordToken {
+  if (token.kind === 'unparsed') return token;
+  const fallback = spellingForKey(targetKey);
+  return {
+    kind: 'chords',
+    chords: token.chords.map((chord) => ({
+      ...chord,
+      raw: preferredText(chord, preferences, fallback),
+    })),
+  };
 }
 
 export interface Normalisation {

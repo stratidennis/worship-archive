@@ -161,11 +161,18 @@ export class SessionHub {
       ...safe
     } = patch as Partial<SessionState>;
     const activates = safe.active === true && !this.state.active;
+    const changesPerformance =
+      activates ||
+      safe.setId !== undefined ||
+      safe.itemIndex !== undefined ||
+      safe.performanceKey !== undefined ||
+      safe.transpose !== undefined ||
+      safe.capo !== undefined;
     this.state = {
       ...this.state,
       ...safe,
       sessionEpoch: activates ? randomUUID() : this.state.sessionEpoch,
-      leaderRevision: this.state.leaderRevision + 1,
+      leaderRevision: this.state.leaderRevision + (changesPerformance ? 1 : 0),
       rev: this.state.rev + 1,
     };
     this.broadcast({ t: 'session', state: this.state });
