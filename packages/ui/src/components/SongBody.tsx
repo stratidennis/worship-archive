@@ -205,7 +205,7 @@ function BlockView({
         isCue
           ? 'rounded-md border-l-2 border-(--color-cue) bg-(--color-cue-bg) py-[0.3em] pl-[0.6em]'
           : isIndented
-            ? 'ml-[0.65em]'
+            ? 'ml-[1.3em]'
             : ''
       }`}
       // Never let a block be split down the middle by a column break.

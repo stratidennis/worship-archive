@@ -143,8 +143,10 @@ export const store = {
       (titleMatches ? titleHits : lyricHits).push({ song, snippet });
     }
 
-    return (titleHits.length > 0 ? titleHits : lyricHits)
-      .sort((a, b) => a.song.title.localeCompare(b.song.title))
+    return [
+      ...titleHits.sort((a, b) => a.song.title.localeCompare(b.song.title)),
+      ...lyricHits.sort((a, b) => a.song.title.localeCompare(b.song.title)),
+    ]
       .slice(0, limit)
       .map(({ song, snippet }) => ({ song, snippet }));
   },

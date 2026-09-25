@@ -357,11 +357,15 @@ export class Library {
         )
         .all(scopedQuery, limit) as Record<string, unknown>[];
 
-    // A title hit is the song the musician most likely asked for. Only fall back to
-    // lyrics when no title contains the whole query; otherwise a popular lyric phrase
-    // can bury the exact song title in a long result list.
+    // A title hit is the song the musician most likely asked for, so those results come
+    // first. Lyric matches still follow them so searching for a remembered line remains
+    // useful even when another song happens to contain the query in its title.
     const titleRows = run(`title : (${fts})`);
-    const rows = titleRows.length > 0 ? titleRows : run(`lyrics : (${fts})`);
+    const titleIds = new Set(titleRows.map((row) => row['id'] as string));
+    const lyricRows = run(`lyrics : (${fts})`).filter(
+      (row) => !titleIds.has(row['id'] as string),
+    );
+    const rows = [...titleRows, ...lyricRows].slice(0, limit);
     return rows.map((r) => ({
       ...this.toSummary(r),
       snippet: (r['snip'] as string) ?? '',
