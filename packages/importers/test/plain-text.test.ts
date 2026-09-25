@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  analysePlainText,
   anchorsFromChordLine,
   importPlainText,
+  looksLikeStructuredSongText,
   looksLikeChordLine,
 } from '../src/plain-text.js';
 import { serialiseChordPro } from '@worship/core';
@@ -124,5 +126,166 @@ How sweet the sound
     for (const bad of ['', '\n\n\n', '....', '[[[]]]']) {
       expect(() => importPlainText(bad)).not.toThrow();
     }
+  });
+});
+
+describe('Romanian website paste', () => {
+  const numbered = `1. Mi-e dor, mi-e dor de casa mea
+S-ajung acolo eu aş vrea
+Mi-e dor, mi-e dor de Tatăl meu
+Aş vrea să-l vad pe Fiul Său.
+
+R: /:Eu nu sunt de pe pământ,
+Eu nu sunt de-aici de jos
+Ţara mea e-acolo sus
+Eu mă duc după Isus. :/
+
+2. Aş vrea, aş vrea s-ajung degrab\`
+Să mă aplec, la piept să-I cad
+Să-I spun atunci c-am biruit
+Să-I mulţumesc că m-a iubit.
+
+3. Să plec, să plec de-aici de jos
+S-ajung în ţara lui Hristos
+Că eu aici am suspinat
+Acolo voi fi mângâiat.
+
+4. Eu simt, eu simt pe cineva
+E Domnul în inima mea
+Îi simt susurul Lui cel bland
+Îi simt fiorul Lui cel Sfânt.
+
+5. Mai ai puţin, mai ai puţin
+Şi după tine, Eu vin
+Mai rabdă până s-amplini
+Cuvântul Sfânt din prorocii.
+
+6. Nu sunt, nu sunt de pe pământ
+Eu sunt din oastea celui Sfânt
+Am ochii aţintiţi spre cer
+Şi de necazuri nu mă tem.`;
+
+  const withChords = ` C
+ Mi-e dor, mi-e dor de casa mea
+                     Dm
+ S-ajung acolo eu as vrea
+                C
+ Mi-e dor, mi-e dor de Tatal meu
+    F         G           C
+ As vrea sa-L vad pe fiul Sau
+
+ C                   F
+ %Eu nu sunt de pe pamant
+                        C
+ Eu nu sunt de-aici de jos
+                  G
+ Tara mea-i acolo sus
+                 C
+ Eu ma duc dupa Isus % x2
+
+ As vrea, as vrea s-ajung degrab'
+ Sa ma aplec la piept sa-I cad
+ Sa-i spun atunci cam-biruit
+ Sa-I multumesc ca m-a iubit
+
+ Sa plec, sa plec de-aici de jos
+ S-ajung in tara lui Cristos
+ Ca eu aici am suspinat
+ Acolo voi fi mangaiat.
+
+ Eu nu ma tem de cineva
+ E Domnul in inima mea
+ Ii simt susurul lui cel sfant
+ Ii simt fiorul celui bland.
+
+ Mai ai putin, mai ai putin
+ Si dupa tine eu vin
+ Mai rabda pana sa-mplini
+ Cuvintele din proroci.
+
+ Nu sunt, nu sunt de pe pamant
+ Eu sunt din oastea celui sfant,
+ Acolo lacrimi nu-s pe veci
+ Si de ne cazuri nu ma tem.`;
+
+  it('turns numbered paragraphs and an inline refrain into typed blocks', () => {
+    const { song, warnings } = analysePlainText(numbered, { title: 'Mi-e dor' });
+    expect(warnings).toEqual([]);
+    expect(song.blocks.map((block) => [block.id, block.type, block.repeat])).toEqual([
+      ['V1', 'Verse', null],
+      ['C1', 'Chorus', 2],
+      ['V2', 'Verse', null],
+      ['V3', 'Verse', null],
+      ['V4', 'Verse', null],
+      ['V5', 'Verse', null],
+      ['V6', 'Verse', null],
+    ]);
+    expect(song.blocks[0]!.lines[0]!.text).toBe('Mi-e dor, mi-e dor de casa mea');
+    expect(song.blocks[1]!.lines.map((line) => line.text)).toEqual([
+      'Eu nu sunt de pe pământ,',
+      'Eu nu sunt de-aici de jos',
+      'Ţara mea e-acolo sus',
+      'Eu mă duc după Isus.',
+    ]);
+    expect(song.blocks[2]!.lines[0]!.text).toBe('Aş vrea, aş vrea s-ajung degrab`');
+    expect(
+      song.blocks.flatMap((block) => block.lines).every((line) => line.chords.length === 0),
+    ).toBe(true);
+  });
+
+  it('suggests the first lyric as a pasted song title without removing that lyric', () => {
+    const song = importPlainText(numbered);
+    expect(song.title).toBe('Mi-e dor, mi-e dor de casa mea');
+    expect(song.blocks[0]!.lines[0]!.text).toBe(song.title);
+  });
+
+  it('reads single and multiple chord rows without making them lyrics or a title', () => {
+    const { song, warnings } = analysePlainText(withChords, { title: 'Mi-e dor' });
+    expect(warnings).toEqual([]);
+    expect(song.title).toBe('Mi-e dor');
+    expect(song.blocks).toHaveLength(7);
+    expect(song.blocks.map((block) => block.type)).toEqual([
+      'Verse',
+      'Chorus',
+      'Verse',
+      'Verse',
+      'Verse',
+      'Verse',
+      'Verse',
+    ]);
+    expect(song.blocks[1]!.repeat).toBe(2);
+    expect(song.blocks[0]!.lines.map((line) => line.chords.map((chord) => chord.raw))).toEqual([
+      ['C'],
+      ['Dm'],
+      ['C'],
+      ['F', 'G', 'C'],
+    ]);
+    expect(song.blocks[0]!.lines[1]!.chords[0]).toEqual({ at: 20, raw: 'Dm' });
+    expect(song.blocks[0]!.lines[3]!.chords).toEqual([
+      { at: 3, raw: 'F' },
+      { at: 13, raw: 'G' },
+      { at: 25, raw: 'C' },
+    ]);
+    expect(song.blocks[1]!.lines[0]!.text).toBe('Eu nu sunt de pe pamant');
+    expect(song.blocks[1]!.lines[3]!.text).toBe('Eu ma duc dupa Isus');
+    expect(song.blocks.flatMap((block) => block.lines).map((line) => line.text)).not.toContain(
+      'C',
+    );
+  });
+
+  it('recognises both examples as document-level pastes', () => {
+    expect(looksLikeStructuredSongText(numbered)).toBe(true);
+    expect(looksLikeStructuredSongText(withChords)).toBe(true);
+    expect(looksLikeStructuredSongText('one line\ntwo lines')).toBe(false);
+  });
+
+  it('keeps an ambiguous one-letter lyric instead of deleting it', () => {
+    const result = analysePlainText('Titlu\n\nA\nThis remains a lyric\n', {
+      title: 'Existing title',
+    });
+    expect(result.song.blocks.flatMap((block) => block.lines.map((line) => line.text))).toEqual(
+      ['Titlu', 'A', 'This remains a lyric'],
+    );
+    expect(result.warnings).toEqual([{ kind: 'ambiguous-chord-line', line: 3, text: 'A' }]);
   });
 });

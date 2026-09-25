@@ -30,6 +30,7 @@ interface Candidate {
   song: Song;
   format: ImportFormat;
   chords: number;
+  warnings: number;
 }
 
 const FORMAT_LABEL: Record<ImportFormat, TranslationKey> = {
@@ -72,6 +73,7 @@ export function ImportPage() {
           song: imported.song,
           format: imported.format,
           chords: countChords(imported.song),
+          warnings: imported.warnings.length,
         };
       });
     setCandidates((current) => [...current, ...parsed]);
@@ -225,6 +227,14 @@ export function ImportPage() {
                           )}`
                         : ''}
                     </span>
+                    {candidate.song.blocks.length > 0 && (
+                      <span className="mt-0.5 block truncate font-mono text-[0.7rem] text-(--color-muted)">
+                        {candidate.song.blocks.map((block) => block.id).join(' · ')}
+                        {candidate.warnings > 0
+                          ? ` · ${t('import.warnings', { count: candidate.warnings })}`
+                          : ''}
+                      </span>
+                    )}
                   </span>
                   <IconButton
                     size="sm"

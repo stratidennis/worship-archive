@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { importPlainText, looksLikeStructuredSongText } from '@worship/importers';
 import {
   BLOCK_TYPES,
   SINGERS,
@@ -11,6 +12,7 @@ import {
   removeBlock,
   removeLine,
   replaceLine,
+  replaceBlockWithBlocks,
   setChord,
   setLineText,
   splitBlock,
@@ -416,6 +418,12 @@ export function EditPage() {
                         );
                       })
                     }
+                    onStructuredPaste={(text) => {
+                      if (!looksLikeStructuredSongText(text)) return false;
+                      const parsed = importPlainText(text, { title: current.title });
+                      edit((song) => replaceBlockWithBlocks(song, block.id, parsed.blocks));
+                      return true;
+                    }}
                     onEnter={() => edit((s) => insertLine(s, block.id, lineIndex))}
                     onBackspaceEmpty={() =>
                       edit((s) =>

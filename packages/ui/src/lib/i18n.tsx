@@ -323,6 +323,7 @@ const ro = {
   'import.pasteLabel': 'Sau lipește textul aici',
   'import.pastePlaceholder': 'Lipește o cântare cu acorduri…',
   'import.pasteButton': 'Citește textul lipit',
+  'import.warnings': '{count} rânduri de verificat',
   'import.readyCount': {
     one: '{count} cântare gata de import',
     few: '{count} cântări gata de import',
@@ -787,6 +788,7 @@ const en: Record<TranslationKey, Entry> = {
   'import.pasteLabel': 'Or paste the text here',
   'import.pastePlaceholder': 'Paste a song with chords…',
   'import.pasteButton': 'Read the pasted text',
+  'import.warnings': '{count} lines to check',
   'import.readyCount': {
     one: '{count} song ready to import',
     few: '{count} songs ready to import',

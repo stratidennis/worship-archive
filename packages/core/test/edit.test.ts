@@ -6,17 +6,25 @@ import {
   pasteIntoLine,
   removeBlock,
   replaceLine,
+  replaceBlockWithBlocks,
   setChord,
   setLineText,
   shiftAnchors,
   splitBlock,
   updateLine,
 } from '../src/edit.js';
-import { emptyBlock, emptyLine, type Anchor, type Line, type Song } from '../src/types.js';
+import {
+  emptyBlock,
+  emptyLine,
+  type Anchor,
+  type BlockType,
+  type Line,
+  type Song,
+} from '../src/types.js';
 
 const A = (at: number, raw = 'G'): Anchor => ({ at, raw });
 
-function songWith(...blocks: { id: string; lines: string[] }[]): Song {
+function songWith(...blocks: { id: string; type?: BlockType; lines: string[] }[]): Song {
   return {
     id: 's',
     legacyUuid: null,
@@ -31,7 +39,7 @@ function songWith(...blocks: { id: string; lines: string[] }[]): Song {
     tags: [],
     collectionIds: [],
     blocks: blocks.map((b) => {
-      const block = emptyBlock(b.id, 'Verse');
+      const block = emptyBlock(b.id, b.type ?? 'Verse');
       block.lines = b.lines.map((t) => emptyLine(t));
       return block;
     }),
@@ -282,5 +290,46 @@ describe('replacing one line with several', () => {
     const result = replaceLine(withChord, 'V1', 0, pasteIntoLine(line, 3, 'X\nY'));
     expect(result.blocks[0]!.lines.map((l) => l.text)).toEqual(['abcX', 'Ydef']);
     expect(result.blocks[0]!.lines[1]!.chords).toEqual([{ at: 2, raw: 'G' }]);
+  });
+});
+
+describe('structured paste', () => {
+  it('replaces only the target block without changing song metadata', () => {
+    const original = {
+      ...songWith({ id: 'V1', lines: ['old'] }, { id: 'V2', lines: ['kept'] }),
+      title: 'Kept title',
+      writtenKey: 'G',
+      authors: ['Paul'],
+      tags: ['worship'],
+      arrangement: ['V1'],
+    };
+    const chorus = emptyBlock('C1', 'Chorus');
+    chorus.lines = [emptyLine('new')];
+    const result = replaceBlockWithBlocks(original, 'V1', [chorus]);
+    expect(result.blocks).toEqual([chorus, original.blocks[1]]);
+    expect(result.arrangement).toBeNull();
+    expect(result).toMatchObject({
+      title: 'Kept title',
+      writtenKey: 'G',
+      authors: ['Paul'],
+      tags: ['worship'],
+    });
+  });
+
+  it('renames pasted block ids that are already used elsewhere in the song', () => {
+    const original = songWith(
+      { id: 'V1', lines: ['target'] },
+      { id: 'C1', type: 'Chorus', lines: ['existing chorus'] },
+    );
+    const verse = emptyBlock('V1', 'Verse');
+    const chorus = emptyBlock('C1', 'Chorus');
+    const result = replaceBlockWithBlocks(original, 'V1', [verse, chorus]);
+    expect(result.blocks.map((block) => block.id)).toEqual(['V1', 'C2', 'C1']);
+  });
+
+  it('does nothing when the target is missing or parsing produced no blocks', () => {
+    const original = songWith({ id: 'V1', lines: ['text'] });
+    expect(replaceBlockWithBlocks(original, 'missing', [])).toBe(original);
+    expect(replaceBlockWithBlocks(original, 'V1', [])).toBe(original);
   });
 });

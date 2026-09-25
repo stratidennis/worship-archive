@@ -316,3 +316,38 @@ export function replaceLine(
     ),
   };
 }
+
+/**
+ * Replace one editor block with parsed blocks from a structured paste.
+ *
+ * The blocks before and after the paste target are left alone. Imported ids are kept
+ * when possible and made unique when the song already has (for example) a `C1`.
+ * Changing the section structure invalidates an authored arrangement, so it is cleared
+ * rather than leaving references to blocks that no longer exist.
+ */
+export function replaceBlockWithBlocks(song: Song, blockId: string, incoming: Block[]): Song {
+  const index = song.blocks.findIndex((block) => block.id === blockId);
+  if (index === -1 || incoming.length === 0) return song;
+
+  const used = new Set(
+    song.blocks.filter((block) => block.id !== blockId).map((block) => block.id),
+  );
+  const blocks = incoming.map((block) => {
+    if (!used.has(block.id)) {
+      used.add(block.id);
+      return block;
+    }
+    const prefix = BLOCK_ID_PREFIX[block.type];
+    let number = 1;
+    while (used.has(`${prefix}${number}`)) number++;
+    const id = `${prefix}${number}`;
+    used.add(id);
+    return { ...block, id };
+  });
+
+  return {
+    ...song,
+    blocks: [...song.blocks.slice(0, index), ...blocks, ...song.blocks.slice(index + 1)],
+    arrangement: null,
+  };
+}

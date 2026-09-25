@@ -1,18 +1,10 @@
 /**
- * Importing chords-over-lyrics text.
+ * Import the loose text format used by lyrics websites and shared documents.
  *
- * This is the format the internet is written in: a line of chords, then the line of
- * words it sits above, aligned by spaces in a monospace font. It is not a format so
- * much as a convention, so this importer is built to **fail visibly rather than guess**.
- * A line becomes a chord line only if *every* token on it parses as a chord; one
- * unparseable token and the line is treated as lyrics, which is the recoverable
- * mistake. The other direction — swallowing a lyric line as chords — deletes words.
- *
- * ```
- * Verse 1
- * G          C        G
- * Amazing grace how sweet the sound
- * ```
+ * The parser is deliberately contextual. A row containing `C` could be a chord row,
+ * but it could also be a lyric. Multiple chords, indentation, neighbouring chord rows,
+ * section markers and the following lyric provide enough evidence to make that choice
+ * without silently eating ordinary words.
  */
 
 import {
@@ -30,13 +22,50 @@ import {
 export interface TextImportOptions {
   /** Used for the title when the text carries none. */
   filename?: string | undefined;
-  /** Overrides any title found in the text. */
+  /** Overrides any title found in the text. An empty string is still an override. */
   title?: string | undefined;
   id?: string | undefined;
   now?: string | undefined;
 }
 
-/** `Verse 1`, `Chorus:`, `[Bridge]`, `Pre-Chorus 2`, `Refren`, `Strofa 1`. */
+export interface TextImportWarning {
+  kind: 'ambiguous-chord-line' | 'unpaired-repeat-marker';
+  line: number;
+  text: string;
+}
+
+export interface TextImportAnalysis {
+  song: Song;
+  warnings: TextImportWarning[];
+}
+
+interface SourceLine {
+  text: string;
+  line: number;
+}
+
+interface Section {
+  type: BlockType;
+  number: number | null;
+}
+
+interface Group {
+  section: Section | null;
+  rows: SourceLine[];
+}
+
+interface ChordToken {
+  at: number;
+  raw: string;
+}
+
+interface ParsedLine {
+  source: SourceLine;
+  chordLine: SourceLine | null;
+  tokens: ChordToken[];
+}
+
+/** `Verse 1`, `Chorus:`, `[Bridge]`, `Refren`, `Strofa 1`. */
 const SECTION_RE =
   /^\s*\[?\s*(verse|chorus|refrain|bridge|pre[\s-]?chorus|intro|outro|ending|tag|instrumental|interlude|solo|coda|vamp|strofa|strofă|refren|pod|final|introducere)\s*([0-9]*)\s*\]?\s*:?\s*$/i;
 
@@ -65,50 +94,94 @@ const SECTION_TYPES: Record<string, BlockType> = {
   solo: 'Solo',
 };
 
+const NUMBERED_VERSE_RE = /^\s*(\d{1,2})\s*[-.):]\s*(\S[\s\S]*)$/;
+const INLINE_CHORUS_RE = /^\s*(?:r|ref|refren|refrain|chorus)\s*[-:.)]\s*/i;
+const STRUCTURAL_TOKEN_RE = /^(?:[|/]+|\/:|:\/|%|[x×]\s*\d+)$/i;
+
+function expandTabs(value: string, size = 4): string {
+  let column = 0;
+  let out = '';
+  for (const character of value) {
+    if (character === '\t') {
+      const spaces = size - (column % size);
+      out += ' '.repeat(spaces);
+      column += spaces;
+    } else {
+      out += character;
+      column++;
+    }
+  }
+  return out;
+}
+
+function normaliseLines(source: string): SourceLine[] {
+  const lines = source
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((text, index) => ({ text: expandTabs(text).replace(/\s+$/, ''), line: index + 1 }));
+  while (lines[0]?.text.trim() === '') lines.shift();
+  while (lines.at(-1)?.text.trim() === '') lines.pop();
+  const indents = lines
+    .filter((line) => line.text.trim() !== '')
+    .map((line) => /^ */.exec(line.text)?.[0].length ?? 0);
+  const commonIndent = indents.length > 0 ? Math.min(...indents) : 0;
+  return commonIndent > 0
+    ? lines.map((line) => ({ ...line, text: line.text.slice(commonIndent) }))
+    : lines;
+}
+
+function cleanChordToken(token: string): string | null {
+  if (STRUCTURAL_TOKEN_RE.test(token)) return null;
+  const cleaned = token.replace(/^[([{]+/, '').replace(/[\])},;]+$/, '');
+  return cleaned && parseChord(cleaned).kind !== 'unparsed' ? cleaned : null;
+}
+
+function chordTokens(line: string): ChordToken[] | null {
+  const matches = [...line.matchAll(/\S+/g)];
+  if (matches.length === 0) return null;
+  const tokens: ChordToken[] = [];
+  for (const match of matches) {
+    const token = match[0];
+    if (STRUCTURAL_TOKEN_RE.test(token)) continue;
+    const raw = cleanChordToken(token);
+    if (!raw) return null;
+    tokens.push({ at: match.index, raw });
+  }
+  return tokens.length > 0 ? tokens : null;
+}
+
 /**
- * Is this line chords rather than words?
- *
- * Every token must parse, and there must be at least one. `parseChord` returning
- * `unparsed` for a single token is enough to reject the whole line — see the module
- * comment for why that asymmetry is deliberate.
+ * Conservative standalone chord-row test retained for callers that do not have the
+ * surrounding document. The full importer can recognise ambiguous single chords from
+ * context as well.
  */
 export function looksLikeChordLine(line: string): boolean {
-  const tokens = line.trim().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return false;
-  // Words happen to be chords surprisingly often ("A", "Am", "Do", "Be"), so a single
-  // short token on its own is not enough to call a line chords.
-  if (tokens.length === 1 && line.trim().length <= 2 && !/[#b/]/.test(line)) return false;
-  return tokens.every((token) => {
-    // A trailing repeat marker is common and is not part of the chord.
-    const cleaned = token.replace(/^\(|\)$/g, '').replace(/^x\d+$/i, '');
-    if (cleaned === '' || /^x\d+$/i.test(token) || /^[|/]+$/.test(token)) return true;
-    return parseChord(cleaned).kind !== 'unparsed';
-  });
+  const tokens = chordTokens(line);
+  if (!tokens) return false;
+  if (tokens.length > 1) return true;
+  const raw = tokens[0]!.raw;
+  return line.length > line.trimStart().length || !/^[A-G]$/i.test(raw);
 }
 
-/**
- * Attach a chord line to the lyric line below it.
- *
- * Column position is the whole meaning here: the chord lands at the character index it
- * was drawn over. When the lyric line is shorter than the chord line — the usual case
- * for a trailing chord — the anchor is clamped to the end rather than dropped.
- */
+/** Attach already validated chord tokens to their source columns. */
 export function anchorsFromChordLine(chordLine: string, lyric: string): Anchor[] {
-  const anchors: Anchor[] = [];
-  for (const match of chordLine.matchAll(/\S+/g)) {
-    const raw = match[0];
-    if (/^[|/]+$/.test(raw)) continue;
-    anchors.push({ at: Math.min(match.index, lyric.length), raw });
-  }
-  return anchors;
+  return (chordTokens(chordLine) ?? []).map((token) => ({
+    at: Math.min(token.at, lyric.length),
+    raw: token.raw,
+  }));
 }
 
-function sectionOf(line: string): { type: BlockType; label: string | null } | null {
+function sectionOf(line: string): Section | null {
   const match = SECTION_RE.exec(line);
   if (!match) return null;
   const name = (match[1] ?? '').toLowerCase().replace(/\s+/g, ' ');
   const type = SECTION_TYPES[name] ?? SECTION_TYPES[name.replace(/\s/g, '-')] ?? 'Verse';
-  return { type, label: null };
+  const number = match[2] ? Number(match[2]) : null;
+  return { type, number };
+}
+
+function beginsInlineSection(line: string): boolean {
+  return NUMBERED_VERSE_RE.test(line) || INLINE_CHORUS_RE.test(line);
 }
 
 /** `{title: X}` / `Title: X` at the top, before any lyrics. */
@@ -119,20 +192,303 @@ function headerValue(line: string, keys: string[]): string | null {
   return keys.includes(key) ? (match[2] ?? '').trim() : null;
 }
 
-export function importPlainText(source: string, options: TextImportOptions = {}): Song {
+function sourceHasStrongChordRows(lines: SourceLine[]): boolean {
+  return lines.some((line) => (chordTokens(line.text)?.length ?? 0) > 1);
+}
+
+function singleChordPairCount(lines: SourceLine[]): number {
+  let count = 0;
+  for (let i = 0; i < lines.length - 1; i++) {
+    const tokens = chordTokens(lines[i]!.text);
+    const next = lines[i + 1]!;
+    if (
+      tokens?.length === 1 &&
+      next.text.trim() !== '' &&
+      !chordTokens(next.text) &&
+      !sectionOf(next.text)
+    ) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function isChordRow(
+  lines: SourceLine[],
+  index: number,
+  strongDocument: boolean,
+  repeatedSingles: boolean,
+  section: Section | null,
+): boolean {
+  const row = lines[index];
+  const tokens = row ? chordTokens(row.text) : null;
+  if (!row || !tokens) return false;
+  if (tokens.length > 1) return true;
+  const next = lines[index + 1];
+  const hasFollowingLyric =
+    Boolean(next?.text.trim()) && !chordTokens(next!.text) && !sectionOf(next!.text);
+  if (!hasFollowingLyric) return section !== null && section.type !== 'Verse';
+  const raw = tokens[0]!.raw;
+  return (
+    strongDocument ||
+    repeatedSingles ||
+    row.text.length > row.text.trimStart().length ||
+    !/^[A-G]$/i.test(raw)
+  );
+}
+
+function groupsFrom(lines: SourceLine[]): Group[] {
+  const groups: Group[] = [];
+  let rows: SourceLine[] = [];
+  let section: Section | null = null;
+  let pendingSection: Section | null = null;
+
+  const flush = (): void => {
+    if (rows.length > 0) groups.push({ section, rows });
+    rows = [];
+    section = null;
+  };
+
+  for (const row of lines) {
+    const heading = sectionOf(row.text);
+    if (heading) {
+      flush();
+      pendingSection = heading;
+      continue;
+    }
+    if (row.text.trim() === '') {
+      flush();
+      continue;
+    }
+    if (rows.length > 0 && beginsInlineSection(row.text)) flush();
+    if (rows.length === 0) {
+      section = pendingSection;
+      pendingSection = null;
+    }
+    rows.push(row);
+  }
+  flush();
+  return groups;
+}
+
+function parsedLines(
+  group: Group,
+  strongDocument: boolean,
+  repeatedSingles: boolean,
+  warnings: TextImportWarning[],
+): ParsedLine[] {
+  const lines: ParsedLine[] = [];
+  for (let i = 0; i < group.rows.length; i++) {
+    const row = group.rows[i]!;
+    const tokens = chordTokens(row.text);
+    if (tokens && isChordRow(group.rows, i, strongDocument, repeatedSingles, group.section)) {
+      const next = group.rows[i + 1];
+      const nextIsChord = next
+        ? isChordRow(group.rows, i + 1, strongDocument, repeatedSingles, group.section)
+        : false;
+      if (next && next.text.trim() !== '' && !nextIsChord && !sectionOf(next.text)) {
+        lines.push({ source: next, chordLine: row, tokens });
+        i++;
+      } else {
+        lines.push({ source: { text: '', line: row.line }, chordLine: row, tokens });
+      }
+      continue;
+    }
+    if (tokens?.length === 1 && group.rows[i + 1]?.text.trim()) {
+      warnings.push({ kind: 'ambiguous-chord-line', line: row.line, text: row.text.trim() });
+    }
+    lines.push({ source: row, chordLine: null, tokens: [] });
+  }
+  return lines;
+}
+
+function removePrefix(
+  value: string,
+  expression: RegExp,
+): { text: string; removed: number; matched: boolean; match: RegExpExecArray | null } {
+  const match = expression.exec(value);
+  if (!match) return { text: value, removed: 0, matched: false, match: null };
+  return {
+    text: value.slice(match[0].length),
+    removed: match[0].length,
+    matched: true,
+    match,
+  };
+}
+
+function nextBlockId(
+  type: BlockType,
+  wanted: number | null,
+  counters: Map<BlockType, number>,
+  used: Set<string>,
+): string {
+  const prefix = BLOCK_ID_PREFIX[type];
+  if (wanted && wanted > 0) {
+    const preferred = `${prefix}${wanted}`;
+    if (!used.has(preferred)) {
+      used.add(preferred);
+      counters.set(type, Math.max(counters.get(type) ?? 0, wanted));
+      return preferred;
+    }
+  }
+  let number = (counters.get(type) ?? 0) + 1;
+  while (used.has(`${prefix}${number}`)) number++;
+  counters.set(type, number);
+  const id = `${prefix}${number}`;
+  used.add(id);
+  return id;
+}
+
+function blockFromGroup(
+  group: Group,
+  strongDocument: boolean,
+  repeatedSingles: boolean,
+  counters: Map<BlockType, number>,
+  used: Set<string>,
+  warnings: TextImportWarning[],
+): Block | null {
+  const parsed = parsedLines(group, strongDocument, repeatedSingles, warnings);
+  const lyricIndices = parsed
+    .map((line, index) => (line.source.text.trim() !== '' ? index : -1))
+    .filter((index) => index >= 0);
+  const firstIndex = lyricIndices[0] ?? -1;
+  const lastIndex = lyricIndices.at(-1) ?? -1;
+
+  let type = group.section?.type ?? 'Verse';
+  let wantedNumber = group.section?.number ?? null;
+  let repeat: number | null = null;
+  let slashStart = false;
+  let slashEnd = false;
+  let percentStart = false;
+  let percentEnd = false;
+
+  const lines: Line[] = parsed.map((parsedLine, index) => {
+    let text = parsedLine.source.text;
+    let removed = 0;
+    const whitespace = removePrefix(text, /^\s+/);
+    text = whitespace.text;
+    removed += whitespace.removed;
+
+    if (index === firstIndex) {
+      const numbered = removePrefix(text, /^(\d{1,2})\s*[-.):]\s*/);
+      if (numbered.matched) {
+        type = 'Verse';
+        wantedNumber = Number(numbered.match?.[1] ?? 0) || wantedNumber;
+        text = numbered.text;
+        removed += numbered.removed;
+      } else {
+        const chorus = removePrefix(text, INLINE_CHORUS_RE);
+        if (chorus.matched) {
+          type = 'Chorus';
+          text = chorus.text;
+          removed += chorus.removed;
+        }
+      }
+
+      const slash = removePrefix(text, /^\/:\s*/);
+      if (slash.matched) {
+        slashStart = true;
+        text = slash.text;
+        removed += slash.removed;
+      }
+      const percent = removePrefix(text, /^%\s*/);
+      if (percent.matched) {
+        percentStart = true;
+        type = 'Chorus';
+        text = percent.text;
+        removed += percent.removed;
+      }
+    }
+
+    if (index === lastIndex) {
+      let match = /\s*:\/\s*(?:[x×]\s*(\d+))?\s*$/i.exec(text);
+      if (match) {
+        slashEnd = true;
+        repeat = Number(match[1] ?? 2);
+        text = text.slice(0, match.index).replace(/\s+$/, '');
+      }
+      match = /\s*%\s*(?:[x×]\s*(\d+))?\s*$/i.exec(text);
+      if (match) {
+        percentEnd = true;
+        type = 'Chorus';
+        repeat = Number(match[1] ?? 2);
+        text = text.slice(0, match.index).replace(/\s+$/, '');
+      } else {
+        match = /\s+[x×]\s*(\d+)\s*$/i.exec(text);
+        if (match) {
+          repeat = Number(match[1]);
+          text = text.slice(0, match.index).replace(/\s+$/, '');
+        }
+      }
+    }
+
+    const line = emptyLine(text);
+    line.chords = parsedLine.tokens.map((token) => ({
+      at: Math.max(0, Math.min(token.at - removed, text.length)),
+      raw: token.raw,
+    }));
+    return line;
+  });
+
+  if (slashStart !== slashEnd) {
+    const source = parsed[firstIndex]?.source ?? group.rows[0]!;
+    warnings.push({
+      kind: 'unpaired-repeat-marker',
+      line: source.line,
+      text: source.text.trim(),
+    });
+  } else if (slashStart && slashEnd && repeat === null) {
+    repeat = 2;
+  }
+  if (percentStart !== percentEnd) {
+    const source = parsed[firstIndex]?.source ?? group.rows[0]!;
+    warnings.push({
+      kind: 'unpaired-repeat-marker',
+      line: source.line,
+      text: source.text.trim(),
+    });
+  } else if (percentStart && percentEnd && repeat === null) {
+    repeat = 2;
+  }
+
+  const usable = lines.filter((line) => line.text !== '' || line.chords.length > 0);
+  if (usable.length === 0) return null;
+  const block = emptyBlock(nextBlockId(type, wantedNumber, counters, used), type);
+  block.repeat = repeat;
+  block.lines = usable;
+  return block;
+}
+
+/** True when a multiline paste contains document-level structure worth formatting. */
+export function looksLikeStructuredSongText(source: string): boolean {
+  const lines = normaliseLines(source);
+  const blankSeparators = lines.filter((line) => line.text.trim() === '').length;
+  return (
+    blankSeparators > 0 ||
+    lines.some((line) => sectionOf(line.text) !== null || beginsInlineSection(line.text)) ||
+    sourceHasStrongChordRows(lines)
+  );
+}
+
+export function analysePlainText(
+  source: string,
+  options: TextImportOptions = {},
+): TextImportAnalysis {
   const now = options.now ?? new Date().toISOString();
-  const rawLines = source.replace(/\r\n?/g, '\n').split('\n');
+  const rawLines = normaliseLines(source);
+  const strongDocument = sourceHasStrongChordRows(rawLines);
+  const repeatedSingles = singleChordPairCount(rawLines) >= 2;
 
   let title = options.title ?? null;
   let key: string | null = null;
   let tempo: number | null = null;
   let authors: string[] = [];
-
-  // Headers only count before any content — "Key: G" halfway down is a lyric.
   let cursor = 0;
   let seenContent = false;
+
   for (; cursor < rawLines.length && !seenContent; cursor++) {
-    const line = rawLines[cursor] ?? '';
+    const row = rawLines[cursor]!;
+    const line = row.text;
     if (line.trim() === '') continue;
     const titleValue = headerValue(line, ['title', 'titlu', 'song']);
     const keyValue = headerValue(line, ['key', 'gama', 'tonalitate']);
@@ -147,71 +503,37 @@ export function importPlainText(source: string, options: TextImportOptions = {})
       continue;
     }
     if (tempoValue !== null) {
-      const n = Number(tempoValue);
-      if (Number.isFinite(n)) tempo = n;
+      const number = Number(tempoValue);
+      if (Number.isFinite(number)) tempo = number;
       continue;
     }
     if (authorValue !== null) {
       authors = authorValue.split(/\s*[,;/]\s*/).filter(Boolean);
       continue;
     }
-    // The first non-header line: a bare first line is conventionally the title, but only
-    // if it is not already a section heading or a chord line.
-    if (title === null && !sectionOf(line) && !looksLikeChordLine(line)) {
+    const contextualChord = isChordRow(rawLines, cursor, strongDocument, repeatedSingles, null);
+    if (title === null && !sectionOf(line) && !beginsInlineSection(line) && !contextualChord) {
       title = line.trim();
       continue;
     }
-    // `break` skips the loop's own increment, so `cursor` already points at this line.
     seenContent = true;
     break;
   }
 
-  const blocks: Block[] = [];
+  const warnings: TextImportWarning[] = [];
   const counters = new Map<BlockType, number>();
-  let current: Block | null = null;
-
-  const startBlock = (type: BlockType, label: string | null): Block => {
-    const n = (counters.get(type) ?? 0) + 1;
-    counters.set(type, n);
-    const block = emptyBlock(`${BLOCK_ID_PREFIX[type]}${n}`, type);
-    block.label = label;
-    blocks.push(block);
-    return block;
-  };
-
-  const push = (line: Line): void => {
-    current ??= startBlock('Verse', null);
-    current.lines.push(line);
-  };
-
-  for (let i = Math.max(cursor, 0); i < rawLines.length; i++) {
-    const line = rawLines[i] ?? '';
-
-    if (line.trim() === '') {
-      // A blank line ends the block, so the next one starts fresh rather than running on.
-      if (current && current.lines.length > 0) current = null;
-      continue;
-    }
-
-    const section = sectionOf(line);
-    if (section) {
-      current = startBlock(section.type, section.label);
-      continue;
-    }
-
-    if (looksLikeChordLine(line)) {
-      const next = rawLines[i + 1] ?? '';
-      // Chords above words: consume both. Chords alone (an intro riff, a turnaround):
-      // keep them on an empty lyric line so they still render.
-      const hasLyric = next.trim() !== '' && !looksLikeChordLine(next) && !sectionOf(next);
-      const lyric = hasLyric ? next.replace(/\s+$/, '') : '';
-      push({ ...emptyLine(lyric), chords: anchorsFromChordLine(line, lyric) });
-      if (hasLyric) i++;
-      continue;
-    }
-
-    push(emptyLine(line.replace(/\s+$/, '')));
-  }
+  const used = new Set<string>();
+  const blocks = groupsFrom(rawLines.slice(Math.max(cursor, 0))).flatMap((group) => {
+    const block = blockFromGroup(
+      group,
+      strongDocument,
+      repeatedSingles,
+      counters,
+      used,
+      warnings,
+    );
+    return block ? [block] : [];
+  });
 
   const fallbackTitle = options.filename
     ? options.filename
@@ -219,25 +541,38 @@ export function importPlainText(source: string, options: TextImportOptions = {})
         .replace(/[_-]+/g, ' ')
         .trim()
     : '';
+  const firstLyric = blocks
+    .flatMap((block) => block.lines)
+    .map((line) => line.text.trim())
+    .find(Boolean);
 
   return {
-    id: options.id ?? crypto.randomUUID(),
-    legacyUuid: null,
-    title: (title ?? '').trim() || fallbackTitle || 'Fără titlu',
-    writtenKey: key,
-    performanceKey: null,
-    tempo,
-    timeSignature: null,
-    authors,
-    copyright: null,
-    ccli: null,
-    tags: [],
-    collectionIds: [],
-    blocks: blocks.filter((b) => b.lines.length > 0),
-    arrangement: null,
-    lang: null,
-    createdAt: now,
-    updatedAt: now,
-    rev: 0,
+    song: {
+      id: options.id ?? crypto.randomUUID(),
+      legacyUuid: null,
+      // When the source starts directly with a numbered verse or a chord row, use the
+      // first lyric as a title suggestion without consuming it from the song.
+      title: (title ?? '').trim() || fallbackTitle || firstLyric || 'Fără titlu',
+      writtenKey: key,
+      performanceKey: null,
+      tempo,
+      timeSignature: null,
+      authors,
+      copyright: null,
+      ccli: null,
+      tags: [],
+      collectionIds: [],
+      blocks,
+      arrangement: null,
+      lang: null,
+      createdAt: now,
+      updatedAt: now,
+      rev: 0,
+    },
+    warnings,
   };
+}
+
+export function importPlainText(source: string, options: TextImportOptions = {}): Song {
+  return analysePlainText(source, options).song;
 }

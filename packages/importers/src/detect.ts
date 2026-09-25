@@ -13,7 +13,7 @@
 import { parseChordPro, type Song } from '@worship/core';
 import { importSongXml, type ImportNote } from './song-xml.js';
 import { importOpenSong, looksLikeOpenSong } from './opensong.js';
-import { importPlainText } from './plain-text.js';
+import { analysePlainText, type TextImportWarning } from './plain-text.js';
 
 export type ImportFormat = 'chordpro' | 'opensong' | 'legacy-song' | 'plain-text';
 
@@ -21,6 +21,7 @@ export interface DetectedImport {
   song: Song;
   format: ImportFormat;
   notes: ImportNote[];
+  warnings: TextImportWarning[];
 }
 
 /** SwiftTec's own XML — the format this whole project is replacing. */
@@ -76,10 +77,10 @@ export function importAny(
         ...(options.now ? { now: options.now } : {}),
         ...(options.id ? { makeId: (): string => options.id! } : {}),
       });
-      return { song: result.song, format, notes: result.notes };
+      return { song: result.song, format, notes: result.notes, warnings: [] };
     }
     case 'opensong':
-      return { song: importOpenSong(source, options), format, notes: [] };
+      return { song: importOpenSong(source, options), format, notes: [], warnings: [] };
     case 'chordpro': {
       const song = parseChordPro(source, {
         ...(options.now ? { now: options.now } : {}),
@@ -94,9 +95,12 @@ export function importAny(
           titled === song
             ? []
             : [{ kind: 'title-from-filename', detail: `title taken from "${filename}"` }],
+        warnings: [],
       };
     }
-    case 'plain-text':
-      return { song: importPlainText(source, options), format, notes: [] };
+    case 'plain-text': {
+      const result = analysePlainText(source, options);
+      return { song: result.song, format, notes: [], warnings: result.warnings };
+    }
   }
 }

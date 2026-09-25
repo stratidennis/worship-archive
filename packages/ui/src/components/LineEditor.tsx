@@ -21,6 +21,8 @@ export interface LineEditorProps {
   onBackspaceEmpty: () => void;
   /** Multi-line paste: the text arrives already split on its own line breaks. */
   onPasteLines: (at: number, text: string) => void;
+  /** Let the document editor directly format a paste that contains song sections. */
+  onStructuredPaste?: (text: string) => boolean;
   autoFocus?: boolean;
 }
 
@@ -67,6 +69,7 @@ export function LineEditor({
   onEnter,
   onBackspaceEmpty,
   onPasteLines,
+  onStructuredPaste,
   autoFocus,
 }: LineEditorProps) {
   const { t } = useT();
@@ -261,6 +264,7 @@ export function LineEditor({
             const target = event.currentTarget;
             const start = target.selectionStart ?? target.value.length;
             const end = target.selectionEnd ?? start;
+            if (onStructuredPaste?.(pasted)) return;
             // A selection is replaced, as paste always does: drop it first, then insert.
             const withoutSelection =
               start === end ? line.text : line.text.slice(0, start) + line.text.slice(end);
