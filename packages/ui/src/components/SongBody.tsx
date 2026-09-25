@@ -15,6 +15,7 @@ import { useT } from '../lib/i18n.js';
 
 /** Block types that are cues rather than lyrics — rendered differently. */
 const CUE_TYPES = new Set(['Intro', 'Instrumental', 'Solo', 'Note']);
+const INDENTED_TYPES = new Set(['Chorus', 'PreChorus', 'Bridge', 'Ending']);
 
 export interface RenderOptions {
   showChords: boolean;
@@ -188,6 +189,7 @@ function BlockView({
   // an English "CHORUS" over it reads as someone else's software.
   const { blockName, singerName } = useT();
   const isCue = CUE_TYPES.has(block.type);
+  const isIndented = INDENTED_TYPES.has(block.type);
   const label = [
     blockName(block.type),
     block.label ? `— ${block.label}` : null,
@@ -199,7 +201,13 @@ function BlockView({
 
   return (
     <section
-      className={`mb-[0.9em] ${isCue ? 'rounded-md border-l-2 border-(--color-cue) bg-(--color-cue-bg) py-[0.3em] pl-[0.6em]' : ''}`}
+      className={`mb-[0.9em] ${
+        isCue
+          ? 'rounded-md border-l-2 border-(--color-cue) bg-(--color-cue-bg) py-[0.3em] pl-[0.6em]'
+          : isIndented
+            ? 'ml-[0.65em]'
+            : ''
+      }`}
       // Never let a block be split down the middle by a column break.
       style={{ breakInside: 'avoid' }}
     >

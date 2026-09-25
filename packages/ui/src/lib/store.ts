@@ -119,31 +119,32 @@ export const store = {
     if (terms.length === 0) return [];
 
     const songs = await db.songs.toArray();
-    const hits: { song: Song; snippet: string; score: number }[] = [];
+    const titleHits: { song: Song; snippet: string }[] = [];
+    const lyricHits: { song: Song; snippet: string }[] = [];
 
     for (const song of songs) {
       const title = fold(song.title);
       const lyrics = fold(song.blocks.flatMap((b) => b.lines.map((l) => l.text)).join('\n'));
-      const haystack = `${title}\n${lyrics}`;
+      const matches = (value: string): boolean =>
+        terms.every((term, i) =>
+          i === terms.length - 1
+            ? value.includes(term)
+            : new RegExp(`\\b${escape(term)}`).test(value),
+        );
+      const titleMatches = matches(title);
+      const lyricsMatch = matches(lyrics);
+      if (!titleMatches && !lyricsMatch) continue;
 
-      const matchesAll = terms.every((term, i) =>
-        i === terms.length - 1
-          ? haystack.includes(term)
-          : new RegExp(`\\b${escape(term)}`).test(haystack),
-      );
-      if (!matchesAll) continue;
-
-      const inTitle = terms.some((t) => title.includes(t));
       const at = lyrics.indexOf(terms[terms.length - 1]!);
       const raw = song.blocks.flatMap((b) => b.lines.map((l) => l.text)).join('\n');
       const snippet =
         at === -1 ? (raw.slice(0, 80) ?? '') : `…${raw.slice(Math.max(0, at - 30), at + 50)}…`;
 
-      hits.push({ song, snippet, score: inTitle ? 0 : 1 });
+      (titleMatches ? titleHits : lyricHits).push({ song, snippet });
     }
 
-    return hits
-      .sort((a, b) => a.score - b.score || a.song.title.localeCompare(b.song.title))
+    return (titleHits.length > 0 ? titleHits : lyricHits)
+      .sort((a, b) => a.song.title.localeCompare(b.song.title))
       .slice(0, limit)
       .map(({ song, snippet }) => ({ song, snippet }));
   },

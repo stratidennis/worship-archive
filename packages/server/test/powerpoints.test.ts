@@ -16,6 +16,8 @@ import {
   firstAudienceLine,
   generatedPowerPointName,
   lyricFontSize,
+  lyricLineSpacing,
+  slideGroups,
 } from '../src/powerpoints.js';
 
 let dir: string;
@@ -98,6 +100,45 @@ describe('PowerPoint generation', () => {
   it('uses smaller text only when rows need it', () => {
     expect(lyricFontSize(['Short line'])).toBe(52);
     expect(lyricFontSize(['A line '.repeat(14)])).toBeLessThan(30);
+  });
+
+  it('balances a seven-line block instead of leaving one line alone', () => {
+    const lines = [
+      'In Tine ma incred',
+      'Prin harul Tau traiesc',
+      'Renunt la ce sunt eu',
+      'Ma supun a ce voiesti',
+      'A vieti ancora',
+      'Tata Tu esti neschimbat',
+      'Te ador, Te iubesc',
+    ];
+    expect(slideGroups(lines).map((page) => page.length)).toEqual([4, 3]);
+    expect(slideGroups(lines).flat()).toEqual(lines);
+  });
+
+  it('turns the slide at an authored repeat ending when a long block is split', () => {
+    const lines = [
+      '/:De-i lupta-ncrâncenată',
+      'Și vin săgeți arzând',
+      'Nu tremur nu mi-e teamă',
+      'Știu lângă cine lupt :/ x3',
+      'De-i lupta-ncrâncenată',
+      'Şi vin săgeţi arzând',
+      'Nu tremur nu mi-e teamă',
+    ];
+    expect(slideGroups(lines)).toEqual([lines.slice(0, 4), lines.slice(4)]);
+  });
+
+  it('adds breathing room when four long rows require smaller text', () => {
+    const lines = [
+      'Mantuitorul, Prieten constant esti aici',
+      'Tata din ceruri, Tu m-ai primit esti aici',
+      'Esti pacea-n furtuni,un glas ce ma cheama',
+      'Sa inaintez, stiind ca sustii lumea mea',
+    ];
+    const fontSize = lyricFontSize(lines);
+    expect(fontSize).toBeLessThan(44);
+    expect(lyricLineSpacing(lines, fontSize)).toBe(1.35);
   });
 
   it('refuses to make an empty audience presentation', async () => {

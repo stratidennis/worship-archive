@@ -28,6 +28,7 @@ import { useUndoable } from '../lib/useUndoable.js';
 import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
 import { usePrefs } from '../lib/settings.js';
+import { newSongDraft } from '../lib/newSong.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
@@ -75,9 +76,13 @@ export function EditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo ?? '/archive';
+  const isNew = id === 'new';
   const song = useUndoable<Song | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [preview, setPreview] = useState(false);
+  const titleInput = useRef<HTMLInputElement>(null);
+  const titleFocusedFor = useRef<string | null>(null);
+  const savingNew = useRef(false);
 
   useHeader({ back: true });
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +90,13 @@ export function EditPage() {
 
   const { reset } = song;
   useEffect(() => {
+    if (isNew) {
+      const draft = newSongDraft();
+      savedRef.current = contentOf(draft);
+      reset(draft);
+      return;
+    }
+    savingNew.current = false;
     repo
       .song(id)
       .then((loaded) => {
@@ -96,9 +108,17 @@ export function EditPage() {
         reset(loaded);
       })
       .catch((e: unknown) => setError(String(e)));
-  }, [id, reset, t]);
+  }, [id, isNew, reset, t]);
 
   const current = song.value;
+  const hasTitle = Boolean(current?.title.trim());
+
+  useEffect(() => {
+    if (current && !current.title.trim() && titleFocusedFor.current !== current.id) {
+      titleFocusedFor.current = current.id;
+      titleInput.current?.focus();
+    }
+  }, [current]);
 
   /*
     Saving is explicit.
@@ -120,20 +140,35 @@ export function EditPage() {
 
   const save = useCallback(async (): Promise<boolean> => {
     if (!current) return true;
+    if (!current.title.trim()) {
+      titleInput.current?.focus();
+      return false;
+    }
     setSaveState('saving');
     try {
-      await repo.saveSong(id, current);
+      const stored = isNew
+        ? await adminApi.createSong(current)
+        : await repo.saveSong(id, current);
       // What was sent is now what is stored; the server's own `rev` and `updatedAt`
       // are deliberately not part of the comparison — see `contentOf`.
-      savedRef.current = contentOf(current);
+      savedRef.current = contentOf(stored);
+      if (isNew) {
+        savingNew.current = true;
+        reset(stored);
+        navigate(`/edit/${encodeURIComponent(stored.id)}`, {
+          replace: true,
+          state: { returnTo },
+        });
+      }
       setSaveState('saved');
       return true;
     } catch (e: unknown) {
+      savingNew.current = false;
       setError(String(e));
       setSaveState('error');
       return false;
     }
-  }, [current, id]);
+  }, [current, id, isNew, navigate, reset, returnTo]);
 
   // Closing the tab or reloading is the browser's to warn about, not ours.
   useEffect(() => {
@@ -147,7 +182,7 @@ export function EditPage() {
   // question is asked, then either lets it through or cancels it.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      dirty && currentLocation.pathname !== nextLocation.pathname,
+      !savingNew.current && dirty && currentLocation.pathname !== nextLocation.pathname,
   );
 
   const edit = useCallback(
@@ -187,15 +222,21 @@ export function EditPage() {
     <>
       <HeaderTitle>
         <input
+          ref={titleInput}
           value={current.title}
           onChange={(e) => edit((s) => ({ ...s, title: e.target.value }), 'title')}
-          placeholder={t('edit.title')}
+          placeholder={t('edit.titlePlaceholder')}
           aria-label={t('edit.title')}
+          aria-invalid={!hasTitle}
           /* Not the boxed `Input`: this is the document's title, and a form field in
                the header would read as one control among many rather than as the name
                of the thing. It still takes the same height and focus colour, so it
                lines up with everything beside it. */
-          className="h-9 w-full min-w-40 rounded-lg border border-transparent bg-transparent px-2 text-base font-bold outline-none transition-colors placeholder:font-normal placeholder:text-(--color-muted) hover:border-(--color-line) focus:border-(--color-chord) sm:w-64"
+          className={`h-9 w-full min-w-52 rounded-lg border px-2 text-base font-bold outline-none transition-colors placeholder:font-normal sm:w-72 ${
+            hasTitle
+              ? 'border-transparent bg-transparent placeholder:text-(--color-muted) hover:border-(--color-line) focus:border-(--color-chord)'
+              : 'border-(--color-chord) bg-(--color-chord)/5 placeholder:text-(--color-chord)'
+          }`}
         />
       </HeaderTitle>
 
@@ -214,8 +255,8 @@ export function EditPage() {
           <Button
             variant="primary"
             onClick={() => void save()}
-            disabled={!dirty || saveState === 'saving'}
-            title={t('edit.saveShortcut')}
+            disabled={!dirty || saveState === 'saving' || !hasTitle}
+            title={hasTitle ? t('edit.saveShortcut') : t('edit.titleRequired')}
           >
             <IconSave size={16} />
             {t('edit.save')}
@@ -474,27 +515,29 @@ export function EditPage() {
               ))}
             </div>
 
-            <div className="mt-8 border-t border-(--color-line) pt-4">
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => {
-                  void confirmAction({
-                    message: t('edit.deleteConfirm', { title: current.title }),
-                    confirmLabel: t('app.delete'),
-                    danger: true,
-                  }).then((ok) => {
-                    if (ok)
-                      void adminApi
-                        .deleteSong(id)
-                        .then(() => navigate(returnTo, { replace: true }));
-                  });
-                }}
-              >
-                <IconTrash size={14} />
-                {t('edit.deleteSong')}
-              </Button>
-            </div>
+            {!isNew && (
+              <div className="mt-8 border-t border-(--color-line) pt-4">
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    void confirmAction({
+                      message: t('edit.deleteConfirm', { title: current.title }),
+                      confirmLabel: t('app.delete'),
+                      danger: true,
+                    }).then((ok) => {
+                      if (ok)
+                        void adminApi
+                          .deleteSong(id)
+                          .then(() => navigate(returnTo, { replace: true }));
+                    });
+                  }}
+                >
+                  <IconTrash size={14} />
+                  {t('edit.deleteSong')}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

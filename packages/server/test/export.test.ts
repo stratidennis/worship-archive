@@ -154,6 +154,40 @@ describe('exporting the library', () => {
   });
 });
 
+describe('creating and saving songs', () => {
+  it('starts a new song with one blank verse ready for typing or pasting', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/songs',
+      payload: { title: 'New song' },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      title: 'New song',
+      blocks: [{ id: 'V1', type: 'Verse', lines: [{ text: '' }] }],
+    });
+  });
+
+  it('refuses to save edits without a title', async () => {
+    const empty = await app.inject({ method: 'POST', url: '/api/songs', payload: {} });
+    expect(empty.statusCode).toBe(400);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/songs',
+      payload: { title: 'New song' },
+    });
+    const song = created.json();
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/songs/${encodeURIComponent(song.id)}`,
+      payload: { ...song, title: '   ' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: 'song title is required' });
+  });
+});
+
 describe('deleting', () => {
   /*
     The UI used to send `content-type: application/json` on every request, body or not.

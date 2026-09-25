@@ -176,17 +176,51 @@ export function generatedPowerPointName(song: Song): string {
   return `${firstLine.slice(0, 70)} — ${title.slice(0, 70)}.pptx`;
 }
 
-function slideGroups(lines: string[]): string[][] {
+const MAX_SLIDE_LINES = 6;
+
+/** A repeat ending is a natural place to turn the slide when the block must split. */
+function isAuthoredBreak(line: string): boolean {
+  return /(?::\/|%)\s*(?:[x×]\s*\d+)?\s*$/i.test(line);
+}
+
+/**
+ * Keep short blocks intact and divide long ones into balanced, readable slides.
+ *
+ * A hard six-line chunk made seven-line blocks look like `6 + 1`. The same content is
+ * far easier to follow as `4 + 3`, and an authored repeat ending such as `:/ x3` is an
+ * even better boundary when it falls near the balanced split.
+ */
+export function slideGroups(lines: string[]): string[][] {
+  if (lines.length <= MAX_SLIDE_LINES) return lines.length > 0 ? [lines] : [];
+
+  const pageCount = Math.ceil(lines.length / MAX_SLIDE_LINES);
   const groups: string[][] = [];
-  let current: string[] = [];
-  for (const line of lines) {
-    if (current.length >= 6) {
-      groups.push(current);
-      current = [];
+  let start = 0;
+
+  for (let page = 0; page < pageCount; page++) {
+    const pagesLeft = pageCount - page;
+    if (pagesLeft === 1) {
+      groups.push(lines.slice(start));
+      break;
     }
-    current.push(line);
+
+    const remaining = lines.length - start;
+    const idealEnd = start + Math.ceil(remaining / pagesLeft);
+    const latestEnd = Math.min(start + MAX_SLIDE_LINES, lines.length - (pagesLeft - 1));
+    const earliestEnd = Math.max(start + 1, lines.length - MAX_SLIDE_LINES * (pagesLeft - 1));
+    const semantic = Array.from(
+      { length: latestEnd - earliestEnd + 1 },
+      (_, offset) => earliestEnd + offset,
+    )
+      .filter((end) => isAuthoredBreak(lines[end - 1] ?? ''))
+      .sort((left, right) => Math.abs(left - idealEnd) - Math.abs(right - idealEnd))[0];
+    // Do not create a visibly uneven page merely to honour a distant marker.
+    const end =
+      semantic !== undefined && Math.abs(semantic - idealEnd) <= 2 ? semantic : idealEnd;
+    groups.push(lines.slice(start, end));
+    start = end;
   }
-  if (current.length > 0) groups.push(current);
+
   return groups;
 }
 
@@ -196,6 +230,11 @@ export function lyricFontSize(lines: string[]): number {
   const horizontal = Math.floor(850 / (longest * 0.52));
   const vertical = Math.floor(455 / (Math.max(lines.length, 1) * 1.22));
   return Math.max(22, Math.min(52, horizontal, vertical));
+}
+
+/** Give short blocks with long rows more breathing room after their font is reduced. */
+export function lyricLineSpacing(lines: string[], fontSize = lyricFontSize(lines)): number {
+  return lines.length <= 4 && fontSize < 44 ? 1.35 : 1.1;
 }
 
 export async function createPowerPoint(root: string, song: Song): Promise<PowerPointFile> {
@@ -230,6 +269,7 @@ export async function createPowerPoint(root: string, song: Song): Promise<PowerP
     const slide = pptx.addSlide();
     slide.background = { color: '000000' };
     const fontSize = lyricFontSize(lines);
+    const lineSpacingMultiple = lyricLineSpacing(lines, fontSize);
     slide.addText(lines.join('\n'), {
       x: 0.58,
       y: 0.45,
@@ -244,8 +284,11 @@ export async function createPowerPoint(root: string, song: Song): Promise<PowerP
       margin: 0,
       align: 'center',
       valign: 'middle',
-      lineSpacingMultiple: 1.1,
-      paraSpaceAfter: Math.max(4, Math.round(fontSize * 0.16)),
+      lineSpacingMultiple,
+      paraSpaceAfter: Math.max(
+        4,
+        Math.round(fontSize * (lineSpacingMultiple > 1.1 ? 0.3 : 0.16)),
+      ),
     });
   }
 

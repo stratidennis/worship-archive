@@ -1,7 +1,7 @@
 {
   "name": "@worship/desktop",
   "productName": "Worship Archive",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Electron host: one double-click starts the server, the window and the WiFi discovery.",

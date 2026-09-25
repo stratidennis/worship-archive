@@ -62,6 +62,9 @@ const ro = {
   'powerpoint.summary': '{found} găsite · {missing} lipsă',
   'powerpoint.createMissing': 'Creează prezentările lipsă',
   'powerpoint.creating': 'Se creează…',
+  'powerpoint.createOne': 'Creează PowerPoint',
+  'powerpoint.open': 'Deschide',
+  'powerpoint.download': 'Descarcă',
   'powerpoint.openAll': 'Deschide toate',
   'powerpoint.downloadAll': 'Descarcă toate',
   'powerpoint.noSongs': 'Programul nu conține cântări.',
@@ -127,6 +130,8 @@ const ro = {
 
   // --- editor ---------------------------------------------------------------
   'edit.title': 'Titlul cântării',
+  'edit.titlePlaceholder': 'Scrie titlul aici (obligatoriu)',
+  'edit.titleRequired': 'Adaugă un titlu înainte de salvare',
   'edit.undo': 'Anulează (Cmd+Z)',
   'edit.redo': 'Refă (Cmd+Shift+Z)',
   'edit.preview': 'Previzualizare',
@@ -317,13 +322,9 @@ const ro = {
   // --- import ---------------------------------------------------------------
   'import.title': 'Importă cântări',
   'import.subtitle':
-    'ChordPro, OpenSong, fișiere .song din programul vechi, sau text cu acorduri copiat de oriunde. Formatul e recunoscut automat.',
+    'Importă fișiere ChordPro, OpenSong, .song/XML sau fișiere text. Formatul e recunoscut automat.',
   'import.pickFiles': 'Alege fișiere…',
   'import.dropHere': 'Trage fișierele aici',
-  'import.pasteLabel': 'Sau lipește textul aici',
-  'import.pastePlaceholder': 'Lipește o cântare cu acorduri…',
-  'import.pasteButton': 'Citește textul lipit',
-  'import.warnings': '{count} rânduri de verificat',
   'import.readyCount': {
     one: '{count} cântare gata de import',
     few: '{count} cântări gata de import',
@@ -545,6 +546,9 @@ const en: Record<TranslationKey, Entry> = {
   'powerpoint.summary': '{found} found · {missing} missing',
   'powerpoint.createMissing': 'Create missing PowerPoints',
   'powerpoint.creating': 'Creating…',
+  'powerpoint.createOne': 'Create PowerPoint',
+  'powerpoint.open': 'Open',
+  'powerpoint.download': 'Download',
   'powerpoint.openAll': 'Open all',
   'powerpoint.downloadAll': 'Download all',
   'powerpoint.noSongs': 'This set has no songs.',
@@ -603,6 +607,8 @@ const en: Record<TranslationKey, Entry> = {
   'song.capoUp': 'Capo up',
 
   'edit.title': 'Song title',
+  'edit.titlePlaceholder': 'Insert your title here (required)',
+  'edit.titleRequired': 'Add a title before saving',
   'edit.undo': 'Undo (Cmd+Z)',
   'edit.redo': 'Redo (Cmd+Shift+Z)',
   'edit.preview': 'Preview',
@@ -782,13 +788,9 @@ const en: Record<TranslationKey, Entry> = {
 
   'import.title': 'Import songs',
   'import.subtitle':
-    'ChordPro, OpenSong, .song files from the old program, or chords-over-lyrics text copied from anywhere. The format is detected for you.',
+    'Import ChordPro, OpenSong, .song/XML, or plain-text song files. The format is detected for you.',
   'import.pickFiles': 'Choose files…',
   'import.dropHere': 'Drop files here',
-  'import.pasteLabel': 'Or paste the text here',
-  'import.pastePlaceholder': 'Paste a song with chords…',
-  'import.pasteButton': 'Read the pasted text',
-  'import.warnings': '{count} lines to check',
   'import.readyCount': {
     one: '{count} song ready to import',
     few: '{count} songs ready to import',

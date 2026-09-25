@@ -28,7 +28,7 @@ import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { setLeading, useLeading } from '../lib/leading.js';
-import { useT, type TranslationKey, type Translator } from '../lib/i18n.js';
+import { useT, type TranslationKey } from '../lib/i18n.js';
 import { nextSunday } from '../lib/setName.js';
 import { SongBody } from '../components/SongBody.js';
 import { Scroll } from '../components/Scroll.js';
@@ -111,7 +111,7 @@ type Selection =
   | null;
 
 export function SetPage() {
-  const { t, date: formatDate, blockName } = useT();
+  const { t, date: formatDate } = useT();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -916,7 +916,6 @@ export function SetPage() {
               song={songs[selection.songId]}
               songId={selection.songId}
               onLoaded={(song) => setSongs((s) => ({ ...s, [song.id]: song }))}
-              blockName={blockName}
               returnTo={`${location.pathname}${location.search}`}
             >
               <Button
@@ -932,7 +931,6 @@ export function SetPage() {
               song={songs[selectedItem.songId]}
               songId={selectedItem.songId}
               onLoaded={(song) => setSongs((s) => ({ ...s, [song.id]: song }))}
-              blockName={blockName}
               returnTo={`${location.pathname}${location.search}`}
               transposeTo={selectedItem.keyOverride}
               keyboardTranspose={selectedItem.transposeOverride ?? null}
@@ -1392,7 +1390,6 @@ function Preview({
   transposeTo,
   keyboardTranspose,
   capo,
-  blockName,
   returnTo,
   children,
 }: {
@@ -1402,7 +1399,6 @@ function Preview({
   transposeTo?: string | null;
   keyboardTranspose?: number | null;
   capo?: number | null;
-  blockName: Translator['blockName'];
   returnTo: string;
   children?: React.ReactNode;
 }) {
@@ -1457,7 +1453,6 @@ function Preview({
                   })
                 : '',
               song.tempo ? `${song.tempo} bpm` : '',
-              song.blocks.length > 0 ? blockName(song.blocks[0]!.type) : '',
             ]
               .filter(Boolean)
               .join(' · ')}

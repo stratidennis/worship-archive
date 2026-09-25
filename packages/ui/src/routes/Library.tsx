@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { canonicalFilterKey, compareFilterKeys, preferredKeyName } from '@worship/core';
-import { adminApi, api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
+import { api, type Facets, type SearchHit, type SongSummary } from '../lib/api.js';
 import { repo, onReachabilityChange, type Reachability } from '../lib/repo.js';
 import { useT } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
@@ -144,15 +144,12 @@ export function Library() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const createSong = (): Promise<void> =>
-    adminApi
-      .createSong({ title: '' })
-      .then((created) =>
-        navigate(`/edit/${encodeURIComponent(created.id)}`, {
-          state: { returnTo: `${location.pathname}${location.search}` },
-        }),
-      )
-      .catch((e: unknown) => setError(String(e)));
+  const createSong = (): void => {
+    // EditPage owns the local draft. No empty file is written until Save succeeds.
+    navigate('/edit/new', {
+      state: { returnTo: `${location.pathname}${location.search}` },
+    });
+  };
 
   const setParam = (name: string, value: string): void => {
     const next = new URLSearchParams(params);
@@ -177,7 +174,7 @@ export function Library() {
     <>
       <HeaderActions>
         <ButtonLink to="/import">{t('app.import')}</ButtonLink>
-        <Button variant="primary" onClick={() => void createSong()}>
+        <Button variant="primary" onClick={createSong}>
           <IconPlus size={16} />
           <span className="hidden sm:inline">{t('library.new')}</span>
         </Button>

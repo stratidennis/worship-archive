@@ -345,16 +345,23 @@ export class Library {
   search(query: string, limit = 50): SearchHit[] {
     const fts = toFtsQuery(query);
     if (!fts) return [];
-    const rows = this.db
-      .prepare(
-        `SELECT s.*, snippet(songs_fts, 2, '«', '»', '…', 12) AS snip, bm25(songs_fts, 10.0, 1.0) AS rank
-         FROM songs_fts
-         JOIN songs s ON s.id = songs_fts.id
-         WHERE songs_fts MATCH ?
-         ORDER BY rank
-         LIMIT ?`,
-      )
-      .all(fts, limit) as Record<string, unknown>[];
+    const run = (scopedQuery: string): Record<string, unknown>[] =>
+      this.db
+        .prepare(
+          `SELECT s.*, snippet(songs_fts, 2, '«', '»', '…', 12) AS snip, bm25(songs_fts, 10.0, 1.0) AS rank
+           FROM songs_fts
+           JOIN songs s ON s.id = songs_fts.id
+           WHERE songs_fts MATCH ?
+           ORDER BY rank
+           LIMIT ?`,
+        )
+        .all(scopedQuery, limit) as Record<string, unknown>[];
+
+    // A title hit is the song the musician most likely asked for. Only fall back to
+    // lyrics when no title contains the whole query; otherwise a popular lyric phrase
+    // can bury the exact song title in a long result list.
+    const titleRows = run(`title : (${fts})`);
+    const rows = titleRows.length > 0 ? titleRows : run(`lyrics : (${fts})`);
     return rows.map((r) => ({
       ...this.toSummary(r),
       snippet: (r['snip'] as string) ?? '',

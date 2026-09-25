@@ -65,10 +65,30 @@ export function PowerPointDialog({
     }
   };
 
-  const openAll = async (): Promise<void> => {
+  const createOne = async (songId: string): Promise<void> => {
+    const selected = songs.find((song) => song.id === songId);
+    if (!selected) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (band) {
+        await band.createPowerPoints([selected]);
+        setReport(await band.findPowerPoints(songs));
+      } else {
+        await api.createPowerPoints([songId]);
+        setReport(await api.findPowerPoints(ids));
+      }
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const open = async (selected: typeof found): Promise<void> => {
     const files = [
       ...new Map(
-        found.flatMap((result) =>
+        selected.flatMap((result) =>
           result.file ? [[result.file.relativePath, result.file] as const] : [],
         ),
       ).values(),
@@ -170,9 +190,25 @@ export function PowerPointDialog({
                       {result.file?.relativePath ?? t('powerpoint.missing')}
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs font-medium text-(--color-muted)">
-                    {t(result.status === 'found' ? 'powerpoint.found' : 'powerpoint.missing')}
-                  </span>
+                  {result.status === 'found' ? (
+                    <Button
+                      size="sm"
+                      className="shrink-0"
+                      disabled={busy}
+                      onClick={() => void open([result])}
+                    >
+                      {desktop() || band ? t('powerpoint.open') : t('powerpoint.download')}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="shrink-0"
+                      disabled={busy}
+                      onClick={() => void createOne(result.songId)}
+                    >
+                      {t('powerpoint.createOne')}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -192,18 +228,20 @@ export function PowerPointDialog({
           )}
         </div>
 
-        <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-(--color-line) bg-(--color-raised) px-5 py-4">
+        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-(--color-line) bg-(--color-raised) px-5 py-4">
           <Button onClick={onDismiss}>{t('app.close')}</Button>
-          {missing.length > 0 && (
-            <Button disabled={busy} onClick={() => void createMissing()}>
-              {busy ? t('powerpoint.creating') : t('powerpoint.createMissing')}
-            </Button>
-          )}
-          {found.length > 0 && (
-            <Button variant="primary" disabled={busy} onClick={() => void openAll()}>
-              {desktop() || band ? t('powerpoint.openAll') : t('powerpoint.downloadAll')}
-            </Button>
-          )}
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            {missing.length > 0 && (
+              <Button disabled={busy} onClick={() => void createMissing()}>
+                {busy ? t('powerpoint.creating') : t('powerpoint.createMissing')}
+              </Button>
+            )}
+            {found.length > 0 && (
+              <Button variant="primary" disabled={busy} onClick={() => void open(found)}>
+                {desktop() || band ? t('powerpoint.openAll') : t('powerpoint.downloadAll')}
+              </Button>
+            )}
+          </div>
         </footer>
       </div>
     </div>

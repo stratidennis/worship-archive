@@ -7,7 +7,7 @@ import { pickTextFiles } from '../lib/desktop.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
-import { Button, IconButton, Textarea } from '../components/ui.js';
+import { Button, IconButton } from '../components/ui.js';
 import { IconClose } from '../components/icons.js';
 import { usePrefs } from '../lib/settings.js';
 
@@ -30,7 +30,6 @@ interface Candidate {
   song: Song;
   format: ImportFormat;
   chords: number;
-  warnings: number;
 }
 
 const FORMAT_LABEL: Record<ImportFormat, TranslationKey> = {
@@ -53,7 +52,6 @@ export function ImportPage() {
   const [prefs] = usePrefs();
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ done: number; failed: number; ids: string[] } | null>(
     null,
@@ -73,7 +71,6 @@ export function ImportPage() {
           song: imported.song,
           format: imported.format,
           chords: countChords(imported.song),
-          warnings: imported.warnings.length,
         };
       });
     setCandidates((current) => [...current, ...parsed]);
@@ -110,63 +107,36 @@ export function ImportPage() {
           </p>
         </header>
 
-        <div className="grid items-stretch gap-5 lg:grid-cols-2">
-          <div
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              const files = [...event.dataTransfer.files];
-              void Promise.all(
-                files.map(async (f) => ({ name: f.name, text: await f.text() })),
-              ).then(add);
-            }}
-            className={`grid min-h-56 place-content-center rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-              dragging ? 'border-(--color-chord) bg-(--color-chord)/5' : 'border-(--color-line)'
-            }`}
-          >
-            <div>
-              <p className="text-sm text-(--color-muted)">{t('import.dropHere')}</p>
-              <Button
-                variant="primary"
-                className="mt-3"
-                onClick={() => {
-                  void pickTextFiles('.chopro,.cho,.chordpro,.pro,.song,.xml,.txt,text/*').then(
-                    add,
-                  );
-                }}
-              >
-                {t('import.pickFiles')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-(--color-line) bg-(--color-surface) p-5">
-            <label className="block text-sm font-medium" htmlFor="paste">
-              {t('import.pasteLabel')}
-            </label>
-            <Textarea
-              id="paste"
-              value={paste}
-              onChange={(event) => setPaste(event.target.value)}
-              placeholder={t('import.pastePlaceholder')}
-              rows={7}
-              spellCheck={false}
-              className="mt-1 font-mono text-xs"
-            />
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            const files = [...event.dataTransfer.files];
+            void Promise.all(
+              files.map(async (f) => ({ name: f.name, text: await f.text() })),
+            ).then(add);
+          }}
+          className={`grid min-h-72 place-content-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+            dragging ? 'border-(--color-chord) bg-(--color-chord)/5' : 'border-(--color-line)'
+          }`}
+        >
+          <div>
+            <p className="text-sm text-(--color-muted)">{t('import.dropHere')}</p>
             <Button
-              className="mt-2"
-              disabled={paste.trim() === ''}
+              variant="primary"
+              className="mt-3"
               onClick={() => {
-                add([{ name: '', text: paste }]);
-                setPaste('');
+                void pickTextFiles('.chopro,.cho,.chordpro,.pro,.song,.xml,.txt,text/*').then(
+                  add,
+                );
               }}
             >
-              {t('import.pasteButton')}
+              {t('import.pickFiles')}
             </Button>
           </div>
         </div>
@@ -227,14 +197,6 @@ export function ImportPage() {
                           )}`
                         : ''}
                     </span>
-                    {candidate.song.blocks.length > 0 && (
-                      <span className="mt-0.5 block truncate font-mono text-[0.7rem] text-(--color-muted)">
-                        {candidate.song.blocks.map((block) => block.id).join(' · ')}
-                        {candidate.warnings > 0
-                          ? ` · ${t('import.warnings', { count: candidate.warnings })}`
-                          : ''}
-                      </span>
-                    )}
                   </span>
                   <IconButton
                     size="sm"

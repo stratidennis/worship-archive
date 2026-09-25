@@ -106,9 +106,15 @@ describe('offline search matches the server closely enough to be trusted', () =>
     expect(await store.search('bunat')).toHaveLength(1);
   });
 
-  it('ranks a title match above a lyric-only match', async () => {
+  it('returns title matches without mixing in lyric-only matches', async () => {
+    await store.putSong(song('d', 'Alt titlu', 'crucea apare doar aici'));
     const hits = await store.search('crucea');
-    expect(hits[0]!.song.title).toBe('Crucea');
+    expect(hits.map((hit) => hit.song.title)).toEqual(['Crucea', 'La crucea Ta']);
+  });
+
+  it('falls back to song content when no title matches', async () => {
+    const hits = await store.search('gandesc');
+    expect(hits.map((hit) => hit.song.title)).toEqual(['La crucea Ta']);
   });
 
   it('returns a snippet around the match', async () => {

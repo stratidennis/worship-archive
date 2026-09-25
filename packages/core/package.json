@@ -1,6 +1,6 @@
 {
   "name": "@worship/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Domain model, chord engine and ChordPro codec. Zero dependencies, zero DOM, zero Node.",

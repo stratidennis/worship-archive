@@ -1,6 +1,6 @@
 {
   "name": "worship-archive",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Offline-first worship song manager for bands \u2014 browser + Electron, LAN-hosted",
   "license": "MIT",

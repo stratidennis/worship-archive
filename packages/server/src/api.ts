@@ -16,6 +16,8 @@ import {
   DEFAULT_STAGE_DISPLAY,
   DEFAULT_ACCIDENTAL_PREFERENCES,
   SESSION_PROTOCOL_VERSION,
+  emptyBlock,
+  emptyLine,
   type HostDisplay,
   isStageDisplayEmpty,
   patchStageDisplay,
@@ -160,6 +162,9 @@ export function createServer(options: ApiOptions): FastifyInstance {
     if (!incoming || typeof incoming !== 'object') {
       return reply.code(400).send({ error: 'expected a song document' });
     }
+    if (!incoming.title?.trim()) {
+      return reply.code(400).send({ error: 'song title is required' });
+    }
     // `rev`, `createdAt` and `updatedAt` are the library's to set, not the client's.
     const saved = library.save({ ...incoming, id });
     /*
@@ -177,7 +182,12 @@ export function createServer(options: ApiOptions): FastifyInstance {
 
   app.post('/api/songs', async (request, reply) => {
     const incoming = (request.body ?? {}) as Partial<Song>;
+    if (!incoming.title?.trim()) {
+      return reply.code(400).send({ error: 'song title is required' });
+    }
     const now = new Date().toISOString();
+    const firstVerse = emptyBlock('V1', 'Verse');
+    firstVerse.lines = [emptyLine('')];
     const song: Song = {
       id: randomUUID(),
       legacyUuid: null,
@@ -191,7 +201,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
       ccli: incoming.ccli ?? null,
       tags: incoming.tags ?? [],
       collectionIds: incoming.collectionIds ?? [],
-      blocks: incoming.blocks ?? [],
+      blocks: incoming.blocks ?? [firstVerse],
       arrangement: incoming.arrangement ?? null,
       lang: incoming.lang ?? null,
       createdAt: now,
