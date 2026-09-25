@@ -718,5 +718,10 @@ app.on('will-quit', (event) => {
   event.preventDefault();
   const stopping = server;
   server = null;
-  void stopping.stop().finally(() => app.quit());
+  // `app.quit()` from inside a prevented `will-quit` can leave Electron in its
+  // already-quitting state. On macOS that made the first Dock > Quit stop the server,
+  // while a second Quit was needed to terminate the process. The graceful service
+  // shutdown is already complete here, so exit directly instead of starting a second
+  // quit lifecycle. This also keeps tray/Dock quitting single-action on Windows/Linux.
+  void stopping.stop().finally(() => app.exit(0));
 });
