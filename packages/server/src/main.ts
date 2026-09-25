@@ -11,7 +11,9 @@ import { startServer } from './start.js';
 
 const running = await startServer({
   dataDir: resolve(process.env['WORSHIP_DATA'] ?? './data'),
+  powerpointsDir: resolve(process.env['WORSHIP_POWERPOINTS'] ?? './data/PowerPoints'),
   port: Number(process.env['PORT'] ?? 7374),
+  host: process.env['HOST'] ?? '0.0.0.0',
   uiDir: process.env['WORSHIP_UI'],
 });
 

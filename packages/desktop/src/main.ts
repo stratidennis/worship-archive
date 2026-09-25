@@ -32,12 +32,14 @@ import {
   libraryDirectoriesOverlap,
   libraryDirectoryIsEmpty,
   prepareLibraryDirectory,
+  resolvePowerPointFile,
   sameLibraryDirectory,
   startServer,
   type LibraryDirectory,
   type RunningServer,
 } from '@worship/server';
 import { loadSettings, saveSettings, isFirstRun, type DesktopSettings } from './settings.js';
+import { openInMicrosoftPowerPoint } from './powerpoint.js';
 
 // `__dirname` is the bundle's own folder: `resources/app/dist` when packaged.
 const RESOURCES = __dirname;
@@ -432,6 +434,7 @@ function registerIpc(): void {
     dataDir: settings.dataDir,
     songsDir: server?.library.songsDir ?? inspectLibraryDirectory(settings.dataDir).songsDir,
     setsDir: server?.sets.setsDir ?? inspectLibraryDirectory(settings.dataDir).setsDir,
+    powerpointsDir: settings.powerpointsDir,
     port: server?.port ?? settings.port,
     addresses: server?.addresses ?? [],
     hostname: server?.hostname ?? '',
@@ -535,6 +538,54 @@ function registerIpc(): void {
     await shell.openPath(settings.dataDir);
   });
 
+  ipcMain.handle('worship:choose-powerpoints-dir', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Choose the PowerPoints folder',
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: settings.powerpointsDir,
+    });
+    const chosen = result.filePaths[0];
+    if (result.canceled || !chosen) return null;
+    mkdirSync(chosen, { recursive: true });
+    settings.powerpointsDir = chosen;
+    saveSettings(settings);
+    // The HTTP service owns the folder path for this launch. Restart onto the new
+    // folder so browser and Band requests see the same setting immediately.
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 100);
+    return chosen;
+  });
+
+  ipcMain.handle('worship:reveal-powerpoints-dir', async () => {
+    mkdirSync(settings.powerpointsDir, { recursive: true });
+    await shell.openPath(settings.powerpointsDir);
+  });
+
+  ipcMain.handle('worship:open-powerpoints', async (_event, paths: unknown) => {
+    if (!Array.isArray(paths)) return [];
+    const files: Array<{ relativePath: string; fullPath: string }> = [];
+    for (const candidate of paths) {
+      if (typeof candidate !== 'string') continue;
+      const full = resolvePowerPointFile(settings.powerpointsDir, candidate);
+      if (!full) throw new Error(`PowerPoint file was not found: ${candidate}`);
+      files.push({ relativePath: candidate, fullPath: full });
+    }
+    try {
+      await openInMicrosoftPowerPoint(files.map((file) => file.fullPath));
+      return [];
+    } catch {
+      // PowerPoint is preferred, but another registered presentation app is valid.
+      const failed: string[] = [];
+      for (const file of files) {
+        const error = await shell.openPath(file.fullPath);
+        if (error) failed.push(file.relativePath);
+      }
+      return failed;
+    }
+  });
+
   /** A native picker for files to import. Returns their text, not their paths. */
   ipcMain.handle('worship:pick-files', async () => {
     const result = await dialog.showOpenDialog({
@@ -600,6 +651,7 @@ async function startLeaderServer(): Promise<boolean> {
     try {
       server = await startServer({
         dataDir: settings.dataDir,
+        powerpointsDir: settings.powerpointsDir,
         port: settings.port,
         uiDir: join(RESOURCES, 'ui'),
         leaderId: settings.installationId,

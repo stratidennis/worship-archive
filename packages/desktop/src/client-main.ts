@@ -7,7 +7,7 @@
  * not care when the Leader starts, stops, or receives a new IP address.
  */
 
-import { app, BrowserWindow, ipcMain, powerSaveBlocker, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, powerSaveBlocker, shell } from 'electron';
 import {
   createServer,
   request as httpRequest,
@@ -15,12 +15,18 @@ import {
   type Server,
   type ServerResponse,
 } from 'node:http';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { createSocket, type Socket as DgramSocket } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
 import { extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import Bonjour, { type Browser, type Service } from 'bonjour-service';
 import WebSocket, { WebSocketServer } from 'ws';
+import type { Song } from '@worship/core';
+import {
+  createMissingPowerPoints,
+  findPowerPoints,
+  resolvePowerPointFile,
+} from '@worship/server/powerpoints';
 import {
   LAN_DISCOVERY_PORT,
   LAN_DISCOVERY_REQUEST,
@@ -32,6 +38,7 @@ import {
   type ClientRole,
   type ClientSettings,
 } from './client-settings.js';
+import { openInMicrosoftPowerPoint } from './powerpoint.js';
 
 declare const __WORSHIP_DESKTOP_ROLE__: ClientRole;
 declare const __WORSHIP_PRODUCT_NAME__: string;
@@ -478,6 +485,55 @@ function registerIpc(): void {
   ipcMain.handle('worship-client:update-settings', (_event, patch: EditableClientSettings) =>
     updateClientSettings(patch),
   );
+  ipcMain.handle('worship-client:choose-powerpoints-dir', async () => {
+    if (ROLE !== 'band') return null;
+    const result = await dialog.showOpenDialog({
+      title: 'Choose the PowerPoints folder',
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: settings.powerpointsDir,
+    });
+    const chosen = result.filePaths[0];
+    if (result.canceled || !chosen) return null;
+    mkdirSync(chosen, { recursive: true });
+    settings.powerpointsDir = chosen;
+    saveClientSettings(settings);
+    return chosen;
+  });
+  ipcMain.handle('worship-client:reveal-powerpoints-dir', async () => {
+    if (ROLE !== 'band') return;
+    mkdirSync(settings.powerpointsDir, { recursive: true });
+    await shell.openPath(settings.powerpointsDir);
+  });
+  ipcMain.handle('worship-client:find-powerpoints', (_event, songs: Song[]) => {
+    if (ROLE !== 'band' || !Array.isArray(songs)) throw new Error('Not available');
+    return findPowerPoints(settings.powerpointsDir, songs);
+  });
+  ipcMain.handle('worship-client:create-powerpoints', (_event, songs: Song[]) => {
+    if (ROLE !== 'band' || !Array.isArray(songs)) throw new Error('Not available');
+    return createMissingPowerPoints(settings.powerpointsDir, songs);
+  });
+  ipcMain.handle('worship-client:open-powerpoints', async (_event, paths: unknown) => {
+    if (ROLE !== 'band' || !Array.isArray(paths)) return [];
+    const files: Array<{ relativePath: string; fullPath: string }> = [];
+    for (const candidate of paths) {
+      if (typeof candidate !== 'string') continue;
+      const full = resolvePowerPointFile(settings.powerpointsDir, candidate);
+      if (!full) throw new Error(`PowerPoint file was not found: ${candidate}`);
+      files.push({ relativePath: candidate, fullPath: full });
+    }
+    try {
+      await openInMicrosoftPowerPoint(files.map((file) => file.fullPath));
+      return [];
+    } catch {
+      // PowerPoint is preferred, but another registered presentation app is valid.
+      const failed: string[] = [];
+      for (const file of files) {
+        const error = await shell.openPath(file.fullPath);
+        if (error) failed.push(file.relativePath);
+      }
+      return failed;
+    }
+  });
   ipcMain.handle('worship-client:quit', () => app.quit());
 }
 

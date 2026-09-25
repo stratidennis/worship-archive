@@ -27,6 +27,8 @@ export interface StartOptions {
   dataDir: string;
   /** Preferred port. If taken, the next few are tried — see `portRetries`. */
   port?: number;
+  /** Interface to bind. Production defaults to every LAN interface. */
+  host?: string;
   /** Directory of the built UI. Without it only the API is served. */
   uiDir?: string | undefined;
   /** How many ports to try after `port` before giving up. */
@@ -39,6 +41,8 @@ export interface StartOptions {
   leaderName?: string;
   /** Best-effort browser alias advertised over multicast DNS. */
   friendlyHostname?: string;
+  /** Folder recursively searched for audience PowerPoint files. */
+  powerpointsDir?: string;
   /** Watch the library folder and reindex on change. */
   watch?: boolean;
   log?: (message: string) => void;
@@ -212,10 +216,11 @@ async function listenSomewhere(
   app: FastifyInstance,
   first: number,
   retries: number,
+  host: string,
 ): Promise<number> {
   for (let port = first; port <= first + retries; port++) {
     try {
-      await app.listen({ port, host: '0.0.0.0' });
+      await app.listen({ port, host });
       return port;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
@@ -251,6 +256,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
   const serverOptions: Parameters<typeof createServer>[0] = {
     library,
     sets,
+    powerpointsDir: resolve(options.powerpointsDir ?? resolve(dataDir, 'PowerPoints')),
     port: options.port ?? 7374,
     mdnsName: `${MDNS_TYPE}.local`,
     networkStatus,
@@ -258,7 +264,12 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
   };
   const app = createServer(serverOptions);
 
-  const port = await listenSomewhere(app, options.port ?? 7374, options.portRetries ?? 10);
+  const port = await listenSomewhere(
+    app,
+    options.port ?? 7374,
+    options.portRetries ?? 10,
+    options.host ?? '0.0.0.0',
+  );
   serverOptions.port = port;
 
   // The hub upgrades connections on the HTTP server, so it can only exist once Fastify

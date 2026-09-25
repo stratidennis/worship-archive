@@ -45,6 +45,24 @@ export interface SetSummary {
   updatedAt: string;
 }
 
+export interface PowerPointFile {
+  name: string;
+  relativePath: string;
+}
+
+export interface PowerPointSongResult {
+  songId: string;
+  title: string;
+  firstLine: string | null;
+  status: 'found' | 'missing';
+  file: PowerPointFile | null;
+}
+
+export interface PowerPointReport {
+  folder: string;
+  results: PowerPointSongResult[];
+}
+
 /**
  * The host answered, and the thing is not there.
  *
@@ -140,6 +158,10 @@ export const api = {
   duplicateSet: (id: string, body: { title?: string; date?: string | null } = {}) =>
     send<ServiceSet>(`/api/sets/${encodeURIComponent(id)}/duplicate`, 'POST', body),
   deleteSet: (id: string) => send<void>(`/api/sets/${encodeURIComponent(id)}`, 'DELETE'),
+  findPowerPoints: (songIds: string[]) =>
+    send<PowerPointReport>('/api/powerpoints/find', 'POST', { songIds }),
+  createPowerPoints: (songIds: string[]) =>
+    send<PowerPointReport>('/api/powerpoints/create', 'POST', { songIds }),
 };
 
 // ---- backup, restore, chord cleanup ----------------------------------------

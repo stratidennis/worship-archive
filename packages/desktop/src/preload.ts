@@ -17,6 +17,7 @@ export interface DesktopState {
   dataDir: string;
   songsDir: string;
   setsDir: string;
+  powerpointsDir: string;
   port: number;
   addresses: string[];
   hostname: string;
@@ -48,6 +49,12 @@ const api = {
   /** Returns the chosen folder; the app restarts immediately afterwards. */
   chooseDataDir: (): Promise<string | null> => ipcRenderer.invoke('worship:choose-data-dir'),
   revealDataDir: (): Promise<void> => ipcRenderer.invoke('worship:reveal-data-dir'),
+  choosePowerpointsDir: (): Promise<string | null> =>
+    ipcRenderer.invoke('worship:choose-powerpoints-dir'),
+  revealPowerpointsDir: (): Promise<void> =>
+    ipcRenderer.invoke('worship:reveal-powerpoints-dir'),
+  openPowerPoints: (paths: string[]): Promise<string[]> =>
+    ipcRenderer.invoke('worship:open-powerpoints', paths),
 
   pickFiles: (): Promise<PickedFile[] | null> => ipcRenderer.invoke('worship:pick-files'),
   saveFile: (name: string, contents: string): Promise<string | null> =>

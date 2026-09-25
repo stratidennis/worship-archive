@@ -342,6 +342,28 @@ export function SettingsPage() {
             </Button>
           </Section>
 
+          {native && state && (
+            <Section title={t('settings.powerpoints')}>
+              <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
+                {t('settings.powerpointsDir')}
+              </span>
+              <code className="mt-1 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
+                {state.powerpointsDir}
+              </code>
+              <p className="mt-2 text-xs text-(--color-muted)">
+                {t('settings.powerpointsDirHint')}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button onClick={() => void native.revealPowerpointsDir()}>
+                  {t('settings.revealPowerpointsDir')}
+                </Button>
+                <Button onClick={() => void native.choosePowerpointsDir()}>
+                  {t('settings.choosePowerpointsDir')}
+                </Button>
+              </div>
+            </Section>
+          )}
+
           <Section title={t('settings.connections')}>
             <p className="text-sm text-(--color-muted)">{t('settings.connectionsHint')}</p>
             <Link

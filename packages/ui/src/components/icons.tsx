@@ -36,6 +36,7 @@ import {
   Moon,
   Music4,
   Pencil,
+  Presentation,
   Plus,
   Printer,
   Redo2,
@@ -87,6 +88,7 @@ export const IconChevronRight = make(ChevronRight);
 export const IconChevronUp = make(ChevronUp);
 export const IconEdit = make(Pencil);
 export const IconPrint = make(Printer);
+export const IconPresentation = make(Presentation);
 export const IconTrash = make(Trash2);
 export const IconSearch = make(Search);
 export const IconCalendar = make(Calendar);

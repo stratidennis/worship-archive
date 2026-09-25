@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   isMinorKey,
@@ -29,11 +29,12 @@ import {
   FontSize,
   LanguageChoice,
 } from '../components/DisplaySettings.js';
-import { IconMusic, IconSets, IconSettings } from '../components/icons.js';
+import { IconMusic, IconPresentation, IconSets, IconSettings } from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
 import { PerformanceInfo } from '../components/PerformanceInfo.js';
+import { PowerPointDialog } from '../components/PowerPointDialog.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -83,9 +84,19 @@ export function BandPage() {
   const [clientState, setClientState] = useState<ClientDesktopState | null>(null);
   const [clientName, setClientName] = useState(name);
   const [help, setHelp] = useState(false);
+  const [powerpointsOpen, setPowerpointsOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const songIndices = useSongIndices(live.set);
+  const powerPointSongs = useMemo(() => {
+    const seen = new Set<string>();
+    return (live.set?.items ?? []).flatMap((item) => {
+      if (item.kind !== 'song' || seen.has(item.songId)) return [];
+      seen.add(item.songId);
+      const song = live.songs[item.songId];
+      return song ? [song] : [];
+    });
+  }, [live.set, live.songs]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -271,6 +282,13 @@ export function BandPage() {
           onClick={() => setListOpen((open) => !open)}
         >
           <IconSets size={14} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label={t('powerpoint.action')}
+          onClick={() => setPowerpointsOpen(true)}
+        >
+          <IconPresentation size={14} />
         </IconButton>
         {/*
           Settings, here rather than through the settings page.
@@ -556,6 +574,41 @@ export function BandPage() {
                 />
                 <span className="min-w-0">{t('settings.fullscreen')}</span>
               </label>
+              <div className="mt-3 border-t border-(--color-line) pt-4">
+                <span className="block text-xs font-semibold uppercase tracking-wide text-(--color-muted)">
+                  {t('settings.powerpoints')}
+                </span>
+                <code className="mt-1 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
+                  {clientState.powerpointsDir}
+                </code>
+                <p className="mt-2 text-xs text-(--color-muted)">
+                  {t('settings.powerpointsDirHint')}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => void clientDesktop()?.revealPowerpointsDir()}
+                  >
+                    {t('settings.revealPowerpointsDir')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      void clientDesktop()
+                        ?.choosePowerpointsDir()
+                        .then((powerpointsDir) => {
+                          if (powerpointsDir) {
+                            setClientState((current) =>
+                              current ? { ...current, powerpointsDir } : current,
+                            );
+                          }
+                        });
+                    }}
+                  >
+                    {t('settings.choosePowerpointsDir')}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
@@ -590,6 +643,13 @@ export function BandPage() {
       )}
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
+      {powerpointsOpen && (
+        <PowerPointDialog
+          role="band"
+          songs={powerPointSongs}
+          onDismiss={() => setPowerpointsOpen(false)}
+        />
+      )}
     </div>
   );
 }

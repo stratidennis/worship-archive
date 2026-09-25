@@ -19,6 +19,8 @@ export interface DesktopSettings {
   deviceName: string;
   /** Where the `.chopro` files live. */
   dataDir: string;
+  /** Where existing and generated audience presentations live. */
+  powerpointsDir: string;
   port: number;
   /** Keep the screen awake while the app is running. On by default — see `main.ts`. */
   preventSleep: boolean;
@@ -33,6 +35,7 @@ function defaults(): DesktopSettings {
     installationId: randomUUID(),
     deviceName: 'Worship Archive',
     dataDir: join(app.getPath('userData'), 'library'),
+    powerpointsDir: join(app.getPath('documents'), 'Worship Archive Leader PowerPoints'),
     port: 7373,
     preventSleep: true,
     autoStart: false,

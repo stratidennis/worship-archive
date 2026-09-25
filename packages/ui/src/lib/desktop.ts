@@ -13,6 +13,7 @@ export interface DesktopState {
   dataDir: string;
   songsDir: string;
   setsDir: string;
+  powerpointsDir: string;
   port: number;
   addresses: string[];
   hostname: string;
@@ -37,6 +38,9 @@ interface DesktopApi {
   retryServer: () => Promise<boolean>;
   chooseDataDir: () => Promise<string | null>;
   revealDataDir: () => Promise<void>;
+  choosePowerpointsDir: () => Promise<string | null>;
+  revealPowerpointsDir: () => Promise<void>;
+  openPowerPoints: (paths: string[]) => Promise<string[]>;
   pickFiles: () => Promise<PickedFile[] | null>;
   saveFile: (name: string, contents: string) => Promise<string | null>;
   openFile: () => Promise<PickedFile | null>;

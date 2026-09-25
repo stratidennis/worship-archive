@@ -13,6 +13,8 @@ export interface ClientSettings {
   autoStart: boolean;
   fullscreen: boolean;
   preventSleep: boolean;
+  /** Local presentations for this installation. Never shared with the Leader. */
+  powerpointsDir: string;
   setupComplete: boolean;
 }
 
@@ -25,6 +27,12 @@ function defaults(role: ClientRole): ClientSettings {
     autoStart: role === 'stage',
     fullscreen: role === 'stage',
     preventSleep: role === 'stage',
+    powerpointsDir: join(
+      app.getPath('documents'),
+      role === 'band'
+        ? 'Worship Archive Band PowerPoints'
+        : 'Worship Archive Stage PowerPoints',
+    ),
     setupComplete: false,
   };
 }

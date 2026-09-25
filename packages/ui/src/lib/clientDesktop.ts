@@ -1,3 +1,6 @@
+import type { Song } from '@worship/core';
+import type { PowerPointReport } from './api.js';
+
 export interface ClientDesktopState {
   installationId: string;
   name: string;
@@ -6,6 +9,7 @@ export interface ClientDesktopState {
   autoStart: boolean;
   fullscreen: boolean;
   preventSleep: boolean;
+  powerpointsDir: string;
   setupComplete: boolean;
   role: 'band' | 'stage';
   connected: boolean;
@@ -21,6 +25,11 @@ interface WorshipClientApi {
   ) => Promise<void>;
   state: () => Promise<ClientDesktopState>;
   updateSettings: (patch: EditableClientSettings) => Promise<ClientDesktopState>;
+  choosePowerpointsDir: () => Promise<string | null>;
+  revealPowerpointsDir: () => Promise<void>;
+  findPowerPoints: (songs: Song[]) => Promise<PowerPointReport>;
+  createPowerPoints: (songs: Song[]) => Promise<PowerPointReport>;
+  openPowerPoints: (paths: string[]) => Promise<string[]>;
   quit: () => Promise<void>;
 }
 

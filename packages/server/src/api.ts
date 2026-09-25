@@ -8,7 +8,8 @@
 
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import { existsSync } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
+import { basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import {
@@ -28,6 +29,11 @@ import type { SessionHub } from './hub.js';
 import { auditLibrary, applyFixes, type Fix } from './cleanup.js';
 import { backupFilename, createBackup, isBackup, restoreBackup } from './backup.js';
 import { isLoopbackAddress } from './network.js';
+import {
+  createMissingPowerPoints,
+  findPowerPoints,
+  resolvePowerPointFile,
+} from './powerpoints.js';
 
 export interface ApiOptions {
   library: Library;
@@ -38,6 +44,8 @@ export interface ApiOptions {
   port?: number | undefined;
   mdnsName?: string | undefined;
   networkStatus?: NetworkRuntimeStatus | undefined;
+  /** Recursively searched for presentation files and used for generated decks. */
+  powerpointsDir?: string | undefined;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
@@ -346,6 +354,66 @@ export function createServer(options: ApiOptions): FastifyInstance {
       protocol: SESSION_PROTOCOL_VERSION,
       at: new Date().toISOString(),
     };
+  });
+
+  // ---- PowerPoint ----------------------------------------------------------
+
+  const requestedSongs = (body: unknown): Song[] | null => {
+    const ids =
+      body && typeof body === 'object' && Array.isArray((body as { songIds?: unknown }).songIds)
+        ? (body as { songIds: unknown[] }).songIds
+        : null;
+    if (!ids || ids.length === 0 || ids.length > 250) return null;
+    const seen = new Set<string>();
+    const songs: Song[] = [];
+    for (const value of ids) {
+      if (typeof value !== 'string' || seen.has(value)) continue;
+      seen.add(value);
+      const song = library.get(value);
+      if (song) songs.push(song);
+    }
+    return songs.length > 0 ? songs : null;
+  };
+
+  app.post('/api/powerpoints/find', async (request, reply) => {
+    if (!options.powerpointsDir) {
+      return reply.code(503).send({ error: 'PowerPoint folder is not configured' });
+    }
+    const songs = requestedSongs(request.body);
+    if (!songs) return reply.code(400).send({ error: 'expected songIds' });
+    return findPowerPoints(options.powerpointsDir, songs);
+  });
+
+  app.post('/api/powerpoints/create', async (request, reply) => {
+    if (!options.powerpointsDir) {
+      return reply.code(503).send({ error: 'PowerPoint folder is not configured' });
+    }
+    const songs = requestedSongs(request.body);
+    if (!songs) return reply.code(400).send({ error: 'expected songIds' });
+    try {
+      return await createMissingPowerPoints(options.powerpointsDir, songs);
+    } catch (error) {
+      return reply.code(422).send({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get('/api/powerpoints/file', async (request, reply) => {
+    if (!options.powerpointsDir) return reply.code(404).send({ error: 'not found' });
+    const q = request.query as Record<string, string | undefined>;
+    const full = resolvePowerPointFile(options.powerpointsDir, q['path'] ?? '');
+    if (!full) return reply.code(404).send({ error: 'not found' });
+    const name = basename(full);
+    reply.header(
+      'Content-Disposition',
+      `attachment; filename="presentation.pptx"; filename*=UTF-8''${encodeURIComponent(name)}`,
+    );
+    reply.header(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    );
+    return reply.send(createReadStream(full));
   });
 
   // ---- backup, restore, cleanup ---------------------------------------------

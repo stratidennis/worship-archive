@@ -61,6 +61,7 @@ import {
   IconPlus,
 } from '../components/icons.js';
 import { PrintableSet } from '../components/PrintableSet.js';
+import { PowerPointDialog } from '../components/PowerPointDialog.js';
 
 /**
  * The set workspace — where the app opens, and where the service is both built and led.
@@ -132,6 +133,16 @@ export function SetPage() {
   const savedRef = useRef('');
 
   const [help, setHelp] = useState(false);
+  const [powerpointsOpen, setPowerpointsOpen] = useState(false);
+  const powerPointSongs = useMemo(() => {
+    const seen = new Set<string>();
+    return (set?.items ?? []).flatMap((item) => {
+      if (item.kind !== 'song' || seen.has(item.songId)) return [];
+      seen.add(item.songId);
+      const song = songs[item.songId];
+      return song ? [song] : [];
+    });
+  }, [set, songs]);
 
   useHeader({ current: 'home' });
 
@@ -650,6 +661,7 @@ export function SetPage() {
               {t('sets.addGap')}
             </Action>
             <Action onClick={() => window.print()}>{t('app.print')}</Action>
+            <Action onClick={() => setPowerpointsOpen(true)}>{t('powerpoint.action')}</Action>
             <span className="text-xs text-(--color-muted)">
               {t('set.itemCount', { count: set.items.length })}
             </span>
@@ -994,6 +1006,13 @@ export function SetPage() {
       </div>
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
+      {powerpointsOpen && (
+        <PowerPointDialog
+          role="leader"
+          songs={powerPointSongs}
+          onDismiss={() => setPowerpointsOpen(false)}
+        />
+      )}
     </>
   );
 }
