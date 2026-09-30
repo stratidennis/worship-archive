@@ -159,7 +159,7 @@ export function StagePage() {
         id="main"
         ref={container}
         className={`min-h-0 flex-1 touch-pan-y px-4 py-3 sm:px-5 ${
-          fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
+          fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
         } ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
       >
         {state.output === 'cleared' ? null : song ? (
