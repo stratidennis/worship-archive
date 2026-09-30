@@ -366,6 +366,13 @@ export class Library {
     // matches this includes a multi-word query split between title and content. Title
     // matches are removed from it and remain the entire first result group.
     const lyricRows = run(fts).filter((row) => !titleIds.has(row['id'] as string));
+    const byTitle = (a: Record<string, unknown>, b: Record<string, unknown>): number =>
+      String(a['title']).localeCompare(String(b['title']), 'ro', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    titleRows.sort(byTitle);
+    lyricRows.sort(byTitle);
     const rows = [...titleRows, ...lyricRows].slice(0, limit);
     return rows.map((r) => ({
       ...this.toSummary(r),

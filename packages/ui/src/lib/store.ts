@@ -147,8 +147,12 @@ export const store = {
     }
 
     return [
-      ...titleHits.sort((a, b) => a.song.title.localeCompare(b.song.title)),
-      ...lyricHits.sort((a, b) => a.song.title.localeCompare(b.song.title)),
+      ...titleHits.sort((a, b) =>
+        a.song.title.localeCompare(b.song.title, 'ro', { sensitivity: 'base', numeric: true }),
+      ),
+      ...lyricHits.sort((a, b) =>
+        a.song.title.localeCompare(b.song.title, 'ro', { sensitivity: 'base', numeric: true }),
+      ),
     ]
       .slice(0, limit)
       .map(({ song, snippet }) => ({ song, snippet }));

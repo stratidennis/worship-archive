@@ -108,8 +108,18 @@ describe('offline search matches the server closely enough to be trusted', () =>
 
   it('returns title matches first, followed by additional lyric matches', async () => {
     await store.putSong(song('d', 'Alt titlu', 'crucea apare doar aici'));
+    await store.putSong(song('e', 'Acolo la crucea', 'altceva complet'));
+    await store.putSong(song('f', 'Zidit pe crucea', 'altceva complet'));
+    await store.putSong(song('g', 'Zebra', 'crucea apare în conținut'));
     const hits = await store.search('crucea');
-    expect(hits.map((hit) => hit.song.title)).toEqual(['Crucea', 'La crucea Ta', 'Alt titlu']);
+    expect(hits.map((hit) => hit.song.title)).toEqual([
+      'Acolo la crucea',
+      'Crucea',
+      'La crucea Ta',
+      'Zidit pe crucea',
+      'Alt titlu',
+      'Zebra',
+    ]);
   });
 
   it('includes a song when query terms are split between its title and lyrics', async () => {

@@ -12,7 +12,7 @@
  */
 
 import { build } from 'esbuild';
-import { rm, mkdir, cp } from 'node:fs/promises';
+import { rm, mkdir, cp, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,6 +71,12 @@ await cp(resolve(root, 'build'), resolve(out, 'build'), { recursive: true });
 // The built UI is served by the embedded Fastify, so it ships as plain files next to
 // the bundle rather than being loaded from disk by the renderer.
 const ui = resolve(root, '../ui/dist');
+const index = await readFile(resolve(ui, 'index.html'), 'utf8').catch(() => '');
+if (index.includes('registerSW.js') || index.includes('vite-plugin-pwa:register-sw')) {
+  throw new Error(
+    'The desktop UI must not auto-register a service worker; it can cache an older local server API.',
+  );
+}
 await cp(ui, resolve(out, 'ui'), { recursive: true }).catch(() => {
   console.warn(
     '  no built UI at packages/ui/dist — run `pnpm --filter @worship/ui build` first',
