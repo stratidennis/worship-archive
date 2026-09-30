@@ -153,6 +153,7 @@ export function FontSize({
   onClear,
   clearLabel,
   fallback,
+  min = 14,
 }: {
   value: number | null;
   onChange: (value: number) => void;
@@ -167,6 +168,8 @@ export function FontSize({
   clearLabel?: string | undefined;
   /** Shown when nothing has been chosen — the size that screen would use anyway. */
   fallback?: number;
+  /** A phone held close remains readable below the stage-display default. */
+  min?: number;
 }) {
   const { t } = useT();
   const shown = value ?? fallback ?? 26;
@@ -189,7 +192,7 @@ export function FontSize({
       </span>
       <input
         type="range"
-        min={14}
+        min={min}
         max={72}
         step={1}
         value={shown}

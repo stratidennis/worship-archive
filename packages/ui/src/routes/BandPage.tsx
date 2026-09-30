@@ -85,6 +85,7 @@ export function BandPage() {
   const [clientName, setClientName] = useState(name);
   const [help, setHelp] = useState(false);
   const [powerpointsOpen, setPowerpointsOpen] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const songIndices = useSongIndices(live.set);
@@ -254,6 +255,9 @@ export function BandPage() {
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
     narrowMinFontPx: 10,
+    // On a phone the musician can scroll, so their chosen size should be the actual
+    // size, not merely a ceiling that the fit algorithm silently reduces.
+    narrowScrollAtPreferredSize: true,
     key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}:${displayedKey}:${JSON.stringify(accidentalPreferences)}`,
   });
 
@@ -588,13 +592,19 @@ export function BandPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     size="sm"
-                    onClick={() => void clientDesktop()?.revealPowerpointsDir()}
+                    onClick={() => {
+                      setSettingsError(null);
+                      void clientDesktop()
+                        ?.revealPowerpointsDir()
+                        .catch((error: unknown) => setSettingsError(String(error)));
+                    }}
                   >
                     {t('settings.revealPowerpointsDir')}
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => {
+                      setSettingsError(null);
                       void clientDesktop()
                         ?.choosePowerpointsDir()
                         .then((powerpointsDir) => {
@@ -603,17 +613,27 @@ export function BandPage() {
                               current ? { ...current, powerpointsDir } : current,
                             );
                           }
-                        });
+                        })
+                        .catch((error: unknown) => setSettingsError(String(error)));
                     }}
                   >
                     {t('settings.choosePowerpointsDir')}
                   </Button>
                 </div>
+                {settingsError && (
+                  <p role="alert" className="mt-2 text-xs text-red-500">
+                    {settingsError}
+                  </p>
+                )}
               </div>
             </div>
           )}
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
-          <FontSize value={prefs.maxFontPx} onChange={(maxFontPx) => setPrefs({ maxFontPx })} />
+          <FontSize
+            value={prefs.maxFontPx}
+            min={10}
+            onChange={(maxFontPx) => setPrefs({ maxFontPx })}
+          />
           <ChordColour
             value={prefs.chordColor}
             onChange={(chordColor) => setPrefs({ chordColor })}

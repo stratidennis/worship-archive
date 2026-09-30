@@ -72,6 +72,28 @@ export function SettingsPage() {
   const inherit = selected ? t('settings.asAllScreens') : t('settings.asThisDevice');
   const setStage = (patch: Partial<StageDisplay>): void => saveStage(selected, patch);
 
+  const revealPowerpointsDir = async (): Promise<void> => {
+    if (!native) return;
+    setError(null);
+    try {
+      await native.revealPowerpointsDir();
+    } catch (reason: unknown) {
+      setError(String(reason));
+    }
+  };
+
+  const choosePowerpointsDir = async (): Promise<void> => {
+    if (!native) return;
+    setError(null);
+    try {
+      const powerpointsDir = await native.choosePowerpointsDir();
+      if (powerpointsDir)
+        setState((current) => (current ? { ...current, powerpointsDir } : current));
+    } catch (reason: unknown) {
+      setError(String(reason));
+    }
+  };
+
   useEffect(() => {
     void native?.state().then(setState);
     void repo.status().then(setMirror);
@@ -354,10 +376,10 @@ export function SettingsPage() {
                 {t('settings.powerpointsDirHint')}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button onClick={() => void native.revealPowerpointsDir()}>
+                <Button onClick={() => void revealPowerpointsDir()}>
                   {t('settings.revealPowerpointsDir')}
                 </Button>
-                <Button onClick={() => void native.choosePowerpointsDir()}>
+                <Button onClick={() => void choosePowerpointsDir()}>
                   {t('settings.choosePowerpointsDir')}
                 </Button>
               </div>

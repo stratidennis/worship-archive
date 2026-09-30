@@ -79,7 +79,6 @@ win:
   # `process.execPath` appears in Task Manager but cannot survive a restart.
   target:
     - target: nsis
-      arch: [x64]
 
 nsis:
   artifactName: Worship-Archive-Leader-${version}-Windows-${arch}-Setup.${ext}

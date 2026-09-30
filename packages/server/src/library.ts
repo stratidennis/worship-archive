@@ -362,9 +362,10 @@ export class Library {
     // useful even when another song happens to contain the query in its title.
     const titleRows = run(`title : (${fts})`);
     const titleIds = new Set(titleRows.map((row) => row['id'] as string));
-    const lyricRows = run(`lyrics : (${fts})`).filter(
-      (row) => !titleIds.has(row['id'] as string),
-    );
+    // The second pass searches the whole indexed song, not lyrics alone. Besides lyric
+    // matches this includes a multi-word query split between title and content. Title
+    // matches are removed from it and remain the entire first result group.
+    const lyricRows = run(fts).filter((row) => !titleIds.has(row['id'] as string));
     const rows = [...titleRows, ...lyricRows].slice(0, limit);
     return rows.map((r) => ({
       ...this.toSummary(r),

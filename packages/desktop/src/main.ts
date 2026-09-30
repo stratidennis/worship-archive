@@ -560,7 +560,8 @@ function registerIpc(): void {
 
   ipcMain.handle('worship:reveal-powerpoints-dir', async () => {
     mkdirSync(settings.powerpointsDir, { recursive: true });
-    await shell.openPath(settings.powerpointsDir);
+    const error = await shell.openPath(settings.powerpointsDir);
+    if (error) throw new Error(error);
   });
 
   ipcMain.handle('worship:open-powerpoints', async (_event, paths: unknown) => {

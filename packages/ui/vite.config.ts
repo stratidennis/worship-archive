@@ -9,6 +9,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Electron already ships this exact UI inside the application. Registering a
+      // service worker there can leave an upgraded renderer talking to an older local
+      // server/preload bridge (or the reverse), which presents as missing native
+      // buttons and 404s for newly added API routes. Browser clients still register
+      // the generated worker explicitly in main.tsx.
+      injectRegister: null,
       // Everything is bundled and same-origin — no CDN, no external font — so an
       // offline load is indistinguishable from an online one.
       workbox: {

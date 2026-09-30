@@ -105,7 +105,25 @@ async function publishMdns(
 ): Promise<MdnsPublisher | null> {
   try {
     const { Bonjour } = await import('bonjour-service');
-    const instance = new Bonjour();
+    let reported = false;
+    const onError = (error: unknown): void => {
+      status.mdns = 'unavailable';
+      status.error = String(error);
+      // A missing multicast route is common while Wi-Fi is reconnecting. Reporting it
+      // once is useful; throwing it from bonjour-service opens an endless Electron
+      // "Uncaught Exception" dialog whenever another local client asks a question.
+      if (!reported) {
+        reported = true;
+        log(`  mDNS advertisement failed (${String(error)}) — using LAN broadcast instead`);
+      }
+    };
+    const instance = new Bonjour(undefined, onError);
+    // multicast-dns reserves its callback for failed sends; socket bind failures are
+    // emitted separately as an `error` event and must also be consumed.
+    const mdns = instance as unknown as {
+      server: { mdns: { on: (event: 'error', listener: (error: unknown) => void) => void } };
+    };
+    mdns.server.mdns.on('error', onError);
     const service = instance.publish({
       name: `${leaderName} (${hostname().replace(/\.local$/, '')})`,
       type: 'http',
@@ -128,11 +146,7 @@ async function publishMdns(
       raw addresses are the paths that always work, so the only right response is to say
       so and carry on.
     */
-    service.on('error', (error: unknown) => {
-      status.mdns = 'unavailable';
-      status.error = String(error);
-      log(`  mDNS advertisement failed (${String(error)}) — use the QR code or an IP address`);
-    });
+    service.on('error', onError);
     service.once('up', () => {
       status.mdns = 'published';
       status.error = null;

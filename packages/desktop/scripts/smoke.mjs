@@ -108,6 +108,21 @@ try {
   const song = await (await fetch(`${base}/api/songs/${songs[0].id}`)).json();
   check('a song parses back out', song.blocks[0].lines[0].chords[0].raw === 'G');
 
+  // Keep the presentation feature in the packaged server contract. A stale desktop
+  // bundle used to serve the new PowerPoint interface with an older API and returned
+  // 404 here, even though source-level presentation tests all passed.
+  const presentations = await fetch(`${base}/api/powerpoints/find`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ songIds: [song.id] }),
+  });
+  const presentationReport = await presentations.json();
+  check(
+    'the PowerPoint lookup route is bundled',
+    presentations.ok && presentationReport.results?.[0]?.songId === song.id,
+    `${presentations.status}`,
+  );
+
   // The WebSocket hub upgrades on the same server; a bundled `ws` that cannot upgrade
   // would take the whole live session down.
   // Node's own global WebSocket, not `ws`: this checks that a *client* unrelated to the

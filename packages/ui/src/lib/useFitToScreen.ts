@@ -6,9 +6,10 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
  * > "A nice thing about the old app is that the whole song is always displayed on one
  * > page, and there is no need to have it displayed on multiple pages."
  *
- * A musician mid-song must never scroll, swipe, or lose their place, so font size is an
- * *output* of layout rather than a setting. The per-device "max font" preference is a
- * ceiling the algorithm may come down from.
+ * On a fixed stage or laptop display, a musician mid-song must never scroll or lose
+ * their place, so font size is an *output* of layout. On a touch phone the caller may
+ * instead preserve the chosen size and scroll, because that is both possible and more
+ * readable than silently shrinking the text.
  *
  * Strategy, in order of preference:
  *   1. one column at the largest size that fits
@@ -27,6 +28,11 @@ export interface FitOptions {
   /** The separate font floor used on portrait/narrow screens before scrolling. */
   narrowMinFontPx?: number;
   maxFontPx?: number;
+  /**
+   * On a phone, keep the chosen size and scroll instead of silently shrinking it.
+   * Desktop displays keep fitting because they may have no practical scroll input.
+   */
+  narrowScrollAtPreferredSize?: boolean;
   /** Change this when the content changes, to force a re-fit. */
   key?: unknown;
 }
@@ -43,6 +49,10 @@ export interface FitResult {
 const MIN_DEFAULT = 11;
 const MAX_DEFAULT = 40;
 const NARROW_WIDTH = 620;
+
+export function usesPreferredSizeScrolling(width: number, enabled: boolean): boolean {
+  return enabled && width < NARROW_WIDTH;
+}
 
 export function minimumFontForWidth(
   width: number,
@@ -74,6 +84,7 @@ export function useFitToScreen(
   const minFont = options.minFontPx ?? MIN_DEFAULT;
   const narrowMinFont = options.narrowMinFontPx ?? minFont;
   const maxFont = options.maxFontPx ?? MAX_DEFAULT;
+  const narrowScrollAtPreferredSize = options.narrowScrollAtPreferredSize ?? false;
   const [result, setResult] = useState<FitResult>({
     fontPx: maxFont,
     columns: 1,
@@ -125,27 +136,31 @@ export function useFitToScreen(
 
       let best = { fontPx: effectiveMinFont, columns: 1, fits: false };
 
-      for (const columns of columnCandidates(width)) {
-        if (!overflows(maxFont, columns)) {
-          best = { fontPx: maxFont, columns, fits: true };
-          break; // Fewer columns is always preferable at the same size.
-        }
-        // Largest size in [minFont, maxFont] that fits, to the nearest pixel.
-        let low = effectiveMinFont;
-        let high = maxFont;
-        let found = 0;
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          if (overflows(mid, columns)) high = mid - 1;
-          else {
-            found = mid;
-            low = mid + 1;
+      if (usesPreferredSizeScrolling(width, narrowScrollAtPreferredSize)) {
+        best = { fontPx: maxFont, columns: 1, fits: !overflows(maxFont, 1) };
+      } else {
+        for (const columns of columnCandidates(width)) {
+          if (!overflows(maxFont, columns)) {
+            best = { fontPx: maxFont, columns, fits: true };
+            break; // Fewer columns is always preferable at the same size.
           }
+          // Largest size in [minFont, maxFont] that fits, to the nearest pixel.
+          let low = effectiveMinFont;
+          let high = maxFont;
+          let found = 0;
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (overflows(mid, columns)) high = mid - 1;
+            else {
+              found = mid;
+              low = mid + 1;
+            }
+          }
+          if (found > best.fontPx || (found > 0 && !best.fits)) {
+            best = { fontPx: found, columns, fits: true };
+          }
+          if (best.fits && best.fontPx >= maxFont) break;
         }
-        if (found > best.fontPx || (found > 0 && !best.fits)) {
-          best = { fontPx: found, columns, fits: true };
-        }
-        if (best.fits && best.fontPx >= maxFont) break;
       }
 
       content.style.fontSize = original.fontSize;
@@ -176,7 +191,15 @@ export function useFitToScreen(
     };
     // `key` re-runs the fit when the content itself changed: transpose alters chord
     // widths, toggling chords changes line height, and both change what fits.
-  }, [containerRef, contentRef, minFont, narrowMinFont, maxFont, options.key]);
+  }, [
+    containerRef,
+    contentRef,
+    minFont,
+    narrowMinFont,
+    maxFont,
+    narrowScrollAtPreferredSize,
+    options.key,
+  ]);
 
   return result;
 }

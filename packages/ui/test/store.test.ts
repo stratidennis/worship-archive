@@ -112,6 +112,12 @@ describe('offline search matches the server closely enough to be trusted', () =>
     expect(hits.map((hit) => hit.song.title)).toEqual(['Crucea', 'La crucea Ta', 'Alt titlu']);
   });
 
+  it('includes a song when query terms are split between its title and lyrics', async () => {
+    await store.putSong(song('d', 'Mare Rege', 'Te voi urma mereu'));
+    const hits = await store.search('rege urma');
+    expect(hits.map((hit) => hit.song.title)).toEqual(['Mare Rege']);
+  });
+
   it('still searches song content when no title matches', async () => {
     const hits = await store.search('gandesc');
     expect(hits.map((hit) => hit.song.title)).toEqual(['La crucea Ta']);

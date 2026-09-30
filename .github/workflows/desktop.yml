@@ -17,38 +17,71 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            platform: macOS
             args: --mac
             role: leader
             config: electron-builder.yml
+            label: macOS · leader
+            native_args: ''
+            artifact: worship-archive-leader-macOS
           - os: windows-latest
-            platform: Windows
-            args: --win
+            args: --win --x64
             role: leader
             config: electron-builder.yml
+            label: Windows · leader · x64
+            native_args: --arch x64
+            artifact: worship-archive-leader-Windows-x64
+          - os: windows-latest
+            args: --win --ia32
+            role: leader
+            config: electron-builder.yml
+            label: Windows · leader · 32-bit
+            native_args: --arch ia32
+            artifact: worship-archive-leader-Windows-ia32
           - os: macos-latest
-            platform: macOS
             args: --mac
             role: band
             config: electron-builder.band.yml
+            label: macOS · band
+            native_args: ''
+            artifact: worship-archive-band-macOS
           - os: windows-latest
-            platform: Windows
-            args: --win
+            args: --win --x64
             role: band
             config: electron-builder.band.yml
+            label: Windows · band · x64
+            native_args: --arch x64
+            artifact: worship-archive-band-Windows-x64
+          - os: windows-latest
+            args: --win --ia32
+            role: band
+            config: electron-builder.band.yml
+            label: Windows · band · 32-bit
+            native_args: --arch ia32
+            artifact: worship-archive-band-Windows-ia32
           - os: macos-latest
-            platform: macOS
             args: --mac
             role: stage
             config: electron-builder.stage.yml
+            label: macOS · stage
+            native_args: ''
+            artifact: worship-archive-stage-macOS
           - os: windows-latest
-            platform: Windows
-            args: --win
+            args: --win --x64
             role: stage
             config: electron-builder.stage.yml
+            label: Windows · stage · x64
+            native_args: --arch x64
+            artifact: worship-archive-stage-Windows-x64
+          - os: windows-latest
+            args: --win --ia32
+            role: stage
+            config: electron-builder.stage.yml
+            label: Windows · stage · 32-bit
+            native_args: --arch ia32
+            artifact: worship-archive-stage-Windows-ia32
 
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.platform }} · ${{ matrix.role }}
+    name: ${{ matrix.label }}
 
     steps:
       - uses: actions/checkout@v7
@@ -65,7 +98,7 @@ jobs:
       # that dies on launch with NODE_MODULE_VERSION.
       - name: Rebuild native modules for Electron
         if: matrix.role == 'leader'
-        run: pnpm --filter @worship/desktop exec electron-builder install-app-deps
+        run: pnpm --filter @worship/desktop exec electron-builder install-app-deps ${{ matrix.native_args }}
 
       - name: Build the UI
         run: pnpm --filter @worship/ui build
@@ -83,7 +116,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: worship-archive-${{ matrix.role }}-${{ matrix.platform }}
+          name: ${{ matrix.artifact }}
           # The installers only. `release/` also holds the unpacked app directory, which
           # is hundreds of megabytes and of no use to anyone downloading this.
           path: |

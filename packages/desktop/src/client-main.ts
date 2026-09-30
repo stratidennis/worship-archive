@@ -103,9 +103,32 @@ function selectLeader(): void {
 }
 
 function startDiscovery(): void {
-  discovery = new Bonjour(undefined, (error: unknown) => {
-    console.warn('local discovery error:', error);
-  });
+  let failed = false;
+  const onError = (error: unknown): void => {
+    if (failed) return;
+    failed = true;
+    console.warn('mDNS discovery unavailable; using LAN broadcast:', error);
+    mdnsLeaders.clear();
+    selectLeader();
+    // Stop further multicast sends. The independent UDP discovery below remains live
+    // and reconnects automatically as network interfaces appear or disappear.
+    setTimeout(() => {
+      browser?.stop();
+      browser = null;
+      const current = discovery;
+      discovery = null;
+      try {
+        current?.destroy();
+      } catch {
+        // A socket which failed before binding may already be closed.
+      }
+    }, 0);
+  };
+  discovery = new Bonjour(undefined, onError);
+  const mdns = discovery as unknown as {
+    server: { mdns: { on: (event: 'error', listener: (error: unknown) => void) => void } };
+  };
+  mdns.server.mdns.on('error', onError);
   browser = discovery.find({ type: 'http' });
   browser.on('up', (service) => {
     const endpoint = serviceEndpoint(service);
@@ -502,7 +525,8 @@ function registerIpc(): void {
   ipcMain.handle('worship-client:reveal-powerpoints-dir', async () => {
     if (ROLE !== 'band') return;
     mkdirSync(settings.powerpointsDir, { recursive: true });
-    await shell.openPath(settings.powerpointsDir);
+    const error = await shell.openPath(settings.powerpointsDir);
+    if (error) throw new Error(error);
   });
   ipcMain.handle('worship-client:find-powerpoints', (_event, songs: Song[]) => {
     if (ROLE !== 'band' || !Array.isArray(songs)) throw new Error('Not available');

@@ -132,8 +132,11 @@ export const store = {
             : new RegExp(`\\b${escape(term)}`).test(value),
         );
       const titleMatches = matches(title);
-      const lyricsMatch = matches(lyrics);
-      if (!titleMatches && !lyricsMatch) continue;
+      // Search the complete song as well. This includes the useful mixed case where
+      // one term is in the title and another is remembered from a verse, while title
+      // matches still occupy the first group.
+      const songMatches = matches(`${title}\n${lyrics}`);
+      if (!songMatches) continue;
 
       const at = lyrics.indexOf(terms[terms.length - 1]!);
       const raw = song.blocks.flatMap((b) => b.lines.map((l) => l.text)).join('\n');
