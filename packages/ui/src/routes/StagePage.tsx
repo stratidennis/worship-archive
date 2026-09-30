@@ -127,7 +127,9 @@ export function StagePage() {
     // handheld device would — and the leader can raise or lower that ceiling for every
     // screen at once.
     maxFontPx: stage.maxFontPx ?? STAGE_DEFAULT_FONT,
-    minFontPx: 14,
+    // Full-size stage displays cannot be scrolled, so allow a smaller last-resort
+    // floor there. Phones use their separate, more readable floor and then scroll.
+    minFontPx: 8,
     narrowMinFontPx: 12,
     key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${capo}:${stage.maxFontPx}:${JSON.stringify(accidentalPreferences)}`,
   });

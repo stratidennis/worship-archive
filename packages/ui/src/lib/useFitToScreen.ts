@@ -24,7 +24,7 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 export interface FitOptions {
   minFontPx?: number;
-  /** A slightly smaller floor allowed on portrait/narrow screens before scrolling. */
+  /** The separate font floor used on portrait/narrow screens before scrolling. */
   narrowMinFontPx?: number;
   maxFontPx?: number;
   /** Change this when the content changes, to force a re-fit. */
@@ -49,7 +49,7 @@ export function minimumFontForWidth(
   minFontPx: number,
   narrowMinFontPx = minFontPx,
 ): number {
-  return width < NARROW_WIDTH ? Math.min(minFontPx, narrowMinFontPx) : minFontPx;
+  return width < NARROW_WIDTH ? narrowMinFontPx : minFontPx;
 }
 
 /**

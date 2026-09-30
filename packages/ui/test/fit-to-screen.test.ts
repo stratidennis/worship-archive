@@ -10,7 +10,7 @@ describe('fit-to-screen font floor', () => {
     expect(minimumFontForWidth(768, 14, 10)).toBe(14);
   });
 
-  it('never raises the configured minimum on a narrow screen', () => {
-    expect(minimumFontForWidth(390, 11, 14)).toBe(11);
+  it('can keep a more readable floor on phones than on non-scrollable stage displays', () => {
+    expect(minimumFontForWidth(390, 8, 12)).toBe(12);
   });
 });
