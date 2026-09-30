@@ -253,6 +253,7 @@ export function BandPage() {
 
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
+    narrowMinFontPx: 10,
     key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}:${displayedKey}:${JSON.stringify(accidentalPreferences)}`,
   });
 
@@ -436,7 +437,7 @@ export function BandPage() {
         <main
           id="main"
           ref={container}
-          className={`min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
+          className={`min-h-0 flex-1 touch-pan-y px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
             fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
           }`}
           onTouchStart={(e) => {

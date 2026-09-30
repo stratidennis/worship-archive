@@ -24,6 +24,8 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 export interface FitOptions {
   minFontPx?: number;
+  /** A slightly smaller floor allowed on portrait/narrow screens before scrolling. */
+  narrowMinFontPx?: number;
   maxFontPx?: number;
   /** Change this when the content changes, to force a re-fit. */
   key?: unknown;
@@ -40,6 +42,15 @@ export interface FitResult {
 
 const MIN_DEFAULT = 11;
 const MAX_DEFAULT = 40;
+const NARROW_WIDTH = 620;
+
+export function minimumFontForWidth(
+  width: number,
+  minFontPx: number,
+  narrowMinFontPx = minFontPx,
+): number {
+  return width < NARROW_WIDTH ? Math.min(minFontPx, narrowMinFontPx) : minFontPx;
+}
 
 /**
  * Column counts worth trying at a given width. Columns are useless on a phone.
@@ -49,7 +60,7 @@ const MAX_DEFAULT = 40;
  * is what makes the text bigger.
  */
 function columnCandidates(width: number): number[] {
-  if (width < 620) return [1];
+  if (width < NARROW_WIDTH) return [1];
   if (width < 1100) return [1, 2];
   if (width < 1800) return [1, 2, 3];
   return [1, 2, 3, 4];
@@ -61,6 +72,7 @@ export function useFitToScreen(
   options: FitOptions = {},
 ): FitResult {
   const minFont = options.minFontPx ?? MIN_DEFAULT;
+  const narrowMinFont = options.narrowMinFontPx ?? minFont;
   const maxFont = options.maxFontPx ?? MAX_DEFAULT;
   const [result, setResult] = useState<FitResult>({
     fontPx: maxFont,
@@ -102,6 +114,7 @@ export function useFitToScreen(
       }
 
       const original = { fontSize: content.style.fontSize, columns: content.style.columnCount };
+      const effectiveMinFont = minimumFontForWidth(width, minFont, narrowMinFont);
 
       const overflows = (fontPx: number, columns: number): boolean => {
         content.style.fontSize = `${fontPx}px`;
@@ -110,7 +123,7 @@ export function useFitToScreen(
         return content.scrollHeight > available + 1;
       };
 
-      let best = { fontPx: minFont, columns: 1, fits: false };
+      let best = { fontPx: effectiveMinFont, columns: 1, fits: false };
 
       for (const columns of columnCandidates(width)) {
         if (!overflows(maxFont, columns)) {
@@ -118,7 +131,7 @@ export function useFitToScreen(
           break; // Fewer columns is always preferable at the same size.
         }
         // Largest size in [minFont, maxFont] that fits, to the nearest pixel.
-        let low = minFont;
+        let low = effectiveMinFont;
         let high = maxFont;
         let found = 0;
         while (low <= high) {
@@ -163,7 +176,7 @@ export function useFitToScreen(
     };
     // `key` re-runs the fit when the content itself changed: transpose alters chord
     // widths, toggling chords changes line height, and both change what fits.
-  }, [containerRef, contentRef, minFont, maxFont, options.key]);
+  }, [containerRef, contentRef, minFont, narrowMinFont, maxFont, options.key]);
 
   return result;
 }

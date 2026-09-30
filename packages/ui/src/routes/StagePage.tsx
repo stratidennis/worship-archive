@@ -128,6 +128,7 @@ export function StagePage() {
     // screen at once.
     maxFontPx: stage.maxFontPx ?? STAGE_DEFAULT_FONT,
     minFontPx: 14,
+    narrowMinFontPx: 12,
     key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${capo}:${stage.maxFontPx}:${JSON.stringify(accidentalPreferences)}`,
   });
 
@@ -157,9 +158,9 @@ export function StagePage() {
       <div
         id="main"
         ref={container}
-        className={`min-h-0 flex-1 overflow-hidden px-4 py-3 sm:px-5 ${
-          state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''
-        }`}
+        className={`min-h-0 flex-1 touch-pan-y px-4 py-3 sm:px-5 ${
+          fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
+        } ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
       >
         {state.output === 'cleared' ? null : song ? (
           <div
