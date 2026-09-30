@@ -61,6 +61,40 @@ describe('the offline mirror', () => {
     ]);
   });
 
+  it('sorts Romanian letters in their proper alphabet positions', async () => {
+    await store.replaceAll(
+      [
+        song('a', 'Unul', ''),
+        song('b', 'Țara', ''),
+        song('c', 'Tatăl', ''),
+        song('d', 'Șalom', ''),
+        song('e', 'Speranță', ''),
+        song('f', 'Înger', ''),
+        song('g', 'Iosif', ''),
+        song('h', 'Bucurie', ''),
+        song('i', 'Ânger', ''),
+        song('j', 'Ăsta', ''),
+        song('k', 'Aleluia', ''),
+      ],
+      [],
+      'romanian-order',
+    );
+
+    expect((await store.allSongs()).map((item) => item.title)).toEqual([
+      'Aleluia',
+      'Ăsta',
+      'Ânger',
+      'Bucurie',
+      'Iosif',
+      'Înger',
+      'Speranță',
+      'Șalom',
+      'Tatăl',
+      'Țara',
+      'Unul',
+    ]);
+  });
+
   it('replaces rather than merges, so deletions do not come back', async () => {
     await store.replaceAll([LIBRARY[0]!], [], '2026-02-01T00:00:00.000Z');
     expect((await store.allSongs()).map((s) => s.id)).toEqual(['a']);

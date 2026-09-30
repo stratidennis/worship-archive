@@ -22,6 +22,7 @@ import { dirname, extname, join, relative, sep } from 'node:path';
 import {
   canonicalFilterKey,
   compareFilterKeys,
+  compareRomanianText,
   filterKeyAliases,
   parseChordPro,
   serialiseChordPro,
@@ -313,11 +314,14 @@ export class Library {
       where.push('EXISTS (SELECT 1 FROM json_each(songs.tags) WHERE json_each.value = @tag)');
       params['tag'] = options.tag;
     }
-    const order = options.sort === 'updated' ? 'updated_at DESC' : 'title COLLATE NOCASE ASC';
-    const sql = `SELECT * FROM songs ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY ${order}`;
-    return (this.db.prepare(sql).all(params) as Record<string, unknown>[]).map((r) =>
+    const order = options.sort === 'updated' ? ' ORDER BY updated_at DESC' : '';
+    const sql = `SELECT * FROM songs ${where.length ? `WHERE ${where.join(' AND ')}` : ''}${order}`;
+    const songs = (this.db.prepare(sql).all(params) as Record<string, unknown>[]).map((r) =>
       this.toSummary(r),
     );
+    return options.sort === 'updated'
+      ? songs
+      : songs.sort((a, b) => compareRomanianText(a.title, b.title));
   }
 
   /**
@@ -328,11 +332,9 @@ export class Library {
    * difference between a sync that finishes on church WiFi and one that does not.
    */
   all(): Song[] {
-    return (
-      this.db.prepare('SELECT doc FROM songs ORDER BY title COLLATE NOCASE').all() as {
-        doc: string;
-      }[]
-    ).map((r) => JSON.parse(r.doc) as Song);
+    return (this.db.prepare('SELECT doc FROM songs').all() as { doc: string }[])
+      .map((r) => JSON.parse(r.doc) as Song)
+      .sort((a, b) => compareRomanianText(a.title, b.title));
   }
 
   get(id: string): Song | null {
@@ -367,10 +369,7 @@ export class Library {
     // matches are removed from it and remain the entire first result group.
     const lyricRows = run(fts).filter((row) => !titleIds.has(row['id'] as string));
     const byTitle = (a: Record<string, unknown>, b: Record<string, unknown>): number =>
-      String(a['title']).localeCompare(String(b['title']), 'ro', {
-        sensitivity: 'base',
-        numeric: true,
-      });
+      compareRomanianText(String(a['title']), String(b['title']));
     titleRows.sort(byTitle);
     lyricRows.sort(byTitle);
     const rows = [...titleRows, ...lyricRows].slice(0, limit);

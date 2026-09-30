@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { ServiceSet, Song } from '@worship/core';
+import { compareRomanianText, type ServiceSet, type Song } from '@worship/core';
 
 /**
  * The local mirror.
@@ -79,7 +79,7 @@ export const store = {
   },
 
   async allSongs(): Promise<Song[]> {
-    return db.songs.orderBy('title').toArray();
+    return (await db.songs.toArray()).sort((a, b) => compareRomanianText(a.title, b.title));
   },
 
   async song(id: string): Promise<Song | null> {
@@ -147,12 +147,8 @@ export const store = {
     }
 
     return [
-      ...titleHits.sort((a, b) =>
-        a.song.title.localeCompare(b.song.title, 'ro', { sensitivity: 'base', numeric: true }),
-      ),
-      ...lyricHits.sort((a, b) =>
-        a.song.title.localeCompare(b.song.title, 'ro', { sensitivity: 'base', numeric: true }),
-      ),
+      ...titleHits.sort((a, b) => compareRomanianText(a.song.title, b.song.title)),
+      ...lyricHits.sort((a, b) => compareRomanianText(a.song.title, b.song.title)),
     ]
       .slice(0, limit)
       .map(({ song, snippet }) => ({ song, snippet }));
