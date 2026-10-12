@@ -26,6 +26,8 @@ import { moveItem } from '../lib/reorder.js';
 import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { adjacentSong } from '../lib/songNavigation.js';
+import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import {
   archiveFiltersFromParams,
@@ -96,8 +98,8 @@ import {
  */
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
-  { keys: '→', label: 'keys.nextSong' },
-  { keys: '←', label: 'keys.prevSong' },
+  { keys: '→ / ↓', label: 'keys.nextSong' },
+  { keys: '← / ↑', label: 'keys.prevSong' },
   { keys: 'Space', label: 'keys.sendLive' },
   { keys: 'c', label: 'keys.clear' },
   { keys: 'm', label: 'keys.autoManual' },
@@ -474,16 +476,26 @@ export function SetPage() {
 
   const step = useCallback(
     (delta: 1 | -1) => {
-      const from = cursorIndex ?? state.itemIndex;
-      const at = songIndices.indexOf(from);
+      if (tab === 'library') {
+        const current = selection?.kind === 'candidate' ? selection.songId : null;
+        const next = adjacentSong(
+          shown.map((song) => song.id),
+          current,
+          delta,
+        );
+        if (next !== undefined) setSelection({ kind: 'candidate', songId: next });
+        return;
+      }
+      const from = cursorIndex ?? (leading ? state.itemIndex : -1);
       const next =
-        at === -1
-          ? (songIndices[0] ?? 0)
-          : (songIndices[Math.min(Math.max(at + delta, 0), songIndices.length - 1)] ?? from);
-      selectItem(next);
+        delta === 1
+          ? songIndices.find((index) => index > from)
+          : songIndices.findLast((index) => index < from);
+      if (next !== undefined) selectItem(next);
     },
-    [cursorIndex, state.itemIndex, songIndices, selectItem],
+    [tab, selection, shown, cursorIndex, leading, state.itemIndex, songIndices, selectItem],
   );
+  useSongArrows(step);
 
   const sendLive = useCallback(() => {
     if (cursorIndex !== null) patch(livePatchFor(cursorIndex));
@@ -493,8 +505,6 @@ export function SetPage() {
   // editing a set should get the letter b when they press b.
   useHotkeys(
     {
-      ArrowRight: () => step(1),
-      ArrowLeft: () => step(-1),
       ' ': () => {
         if (!auto) sendLive();
       },

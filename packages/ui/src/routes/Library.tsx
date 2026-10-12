@@ -8,6 +8,7 @@ import { Scroll } from '../components/Scroll.js';
 import { HeaderActions, useHeader } from '../components/header-slots.js';
 import { IconPlus, IconSearch } from '../components/icons.js';
 import { Button, ButtonLink, Input } from '../components/ui.js';
+import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { usePrefs } from '../lib/settings.js';
 import { filterArchiveSongs, toggleArchiveKey } from '../lib/archiveFilter.js';
@@ -199,6 +200,13 @@ export function Library() {
     () => filterArchiveSongs(hits ?? songs, { collection, keys }, inCollection),
     [hits, songs, collection, keys, inCollection],
   );
+  const songIds = useMemo(() => results.map((song) => song.id), [results]);
+  const songState = { returnTo: `${location.pathname}${location.search}`, songIds };
+  useSongArrows((direction) => {
+    if (direction === 1 && songIds[0]) {
+      navigate(`/song/${encodeURIComponent(songIds[0])}`, { state: songState });
+    }
+  });
   const keyFacets = useMemo(() => {
     const merged = new Map<string, number>();
     for (const item of facets?.keys ?? []) {
@@ -293,7 +301,7 @@ export function Library() {
               <li key={song.id} className="border-b border-(--color-line)">
                 <Link
                   to={`/song/${encodeURIComponent(song.id)}`}
-                  state={{ returnTo: `${location.pathname}${location.search}` }}
+                  state={songState}
                   className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
                 >
                   <span className="min-w-0 flex-1">

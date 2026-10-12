@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { preferredKeyName, type Song } from '@worship/core';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { adjacentSong } from '../lib/songNavigation.js';
+import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { SongBody, resolveKey } from '../components/SongBody.js';
@@ -13,6 +15,8 @@ import { IconEdit, IconPrint } from '../components/icons.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
+  { keys: '→ / ↓', label: 'keys.nextSong' },
+  { keys: '← / ↑', label: 'keys.prevSong' },
   { keys: '+', label: 'keys.transposeUp' },
   { keys: '-', label: 'keys.transposeDown' },
   { keys: 'c', label: 'keys.chords' },
@@ -24,6 +28,13 @@ export function SongPage() {
   const { t } = useT();
   const { id = '' } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const songIds = (location.state as { songIds?: string[] } | null)?.songIds ?? [];
+  useSongArrows((direction) => {
+    const next = adjacentSong(songIds, id, direction);
+    if (next !== undefined)
+      navigate(`/song/${encodeURIComponent(next)}`, { replace: true, state: location.state });
+  });
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo ?? '/archive';
   const [song, setSong] = useState<Song | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,14 +47,20 @@ export function SongPage() {
   useHeader({ back: true });
 
   useEffect(() => {
+    let cancelled = false;
     setSong(null);
+    setError(null);
     repo
       .song(id)
       .then((loaded) => {
+        if (cancelled) return;
         if (loaded) setSong(loaded);
         else setError(t('song.notLocal'));
       })
-      .catch((e: unknown) => setError(String(e)));
+      .catch((e: unknown) => !cancelled && setError(String(e)));
+    return () => {
+      cancelled = true;
+    };
   }, [id, t]);
 
   useHotkeys({
