@@ -31,6 +31,7 @@ function isTyping(target: EventTarget | null): boolean {
 export function hotkeyOf(event: KeyboardEvent): string {
   const parts: string[] = [];
   if (event.shiftKey && event.key.length > 1) parts.push('shift');
+  if (event.altKey) parts.push('alt');
   if (event.metaKey || event.ctrlKey) parts.push('mod');
   parts.push(event.key.length === 1 ? event.key.toLowerCase() : event.key);
   return parts.join('+');

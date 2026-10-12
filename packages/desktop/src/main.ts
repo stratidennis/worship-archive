@@ -40,6 +40,7 @@ import {
 } from '@worship/server';
 import { loadSettings, saveSettings, isFirstRun, type DesktopSettings } from './settings.js';
 import { openInMicrosoftPowerPoint } from './powerpoint.js';
+import { installHistoryCommands } from './navigation.js';
 
 // `__dirname` is the bundle's own folder: `resources/app/dist` when packaged.
 const RESOURCES = __dirname;
@@ -199,6 +200,7 @@ function createWindow(path = '/'): BrowserWindow {
   created.on('closed', () => {
     win = null;
   });
+  installHistoryCommands(created);
 
   // A link to anywhere else opens in the real browser rather than trapping the user in
   // a window with no address bar.

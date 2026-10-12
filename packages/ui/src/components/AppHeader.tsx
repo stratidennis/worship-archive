@@ -7,6 +7,7 @@ import { useLeaderSession } from './LeaderSession.js';
 import { Logo } from './Logo.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { usePrefs } from '../lib/settings.js';
+import { useHotkeys } from '../lib/useHotkeys.js';
 import { Button, ButtonLink, IconButton } from './ui.js';
 import {
   IconBack,
@@ -123,15 +124,26 @@ export function AppHeader() {
     return () => observer.disconnect();
   }, [hosts.actions]);
 
-  const goBack = (): void => {
+  const goBack = useCallback((): void => {
     // `idx` is React Router's position in its own history stack. At zero there is
     // nothing of ours behind us — a deep link, or a fresh tab — and going back would
     // leave the app entirely.
-    const idx = (location as { key?: string; state?: unknown } & { idx?: number }).idx;
+    const idx = (window.history.state as { idx?: unknown } | null)?.idx;
     if (typeof idx === 'number' && idx > 0) navigate(-1);
-    else if (window.history.length > 1) navigate(-1);
     else navigate('/');
-  };
+  }, [navigate]);
+
+  // Match the operating system and browser conventions. Keeping this beside the
+  // visible button guarantees that every way of asking for Back uses the same fallback
+  // and still passes through React Router's unsaved-edit blocker.
+  useHotkeys(
+    {
+      'alt+ArrowLeft': goBack,
+      'mod+[': goBack,
+      BrowserBack: goBack,
+    },
+    back,
+  );
 
   return (
     /*

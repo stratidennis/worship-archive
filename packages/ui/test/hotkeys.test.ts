@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { hotkeyOf } from '../src/lib/useHotkeys.js';
 
-/** A minimal stand-in: only the four fields `hotkeyOf` reads. */
+/** A minimal stand-in: only the fields `hotkeyOf` reads. */
 function event(init: Partial<KeyboardEvent>): KeyboardEvent {
   return {
     key: '',
     shiftKey: false,
+    altKey: false,
     metaKey: false,
     ctrlKey: false,
     ...init,
@@ -30,6 +31,10 @@ describe('naming a keypress', () => {
     expect(hotkeyOf(event({ key: 'z', ctrlKey: true }))).toBe('mod+z');
   });
 
+  it('keeps Alt, so browser Back is not mistaken for an ordinary arrow shortcut', () => {
+    expect(hotkeyOf(event({ key: 'ArrowLeft', altKey: true }))).toBe('alt+ArrowLeft');
+  });
+
   it('ignores Shift for printable keys, because the key already reflects it', () => {
     // Shift+/ arrives as `?`; naming it `shift+?` would mean no handler ever matched.
     expect(hotkeyOf(event({ key: '?', shiftKey: true }))).toBe('?');
@@ -41,8 +46,8 @@ describe('naming a keypress', () => {
   });
 
   it('orders modifiers consistently', () => {
-    expect(hotkeyOf(event({ key: 'ArrowUp', shiftKey: true, metaKey: true }))).toBe(
-      'shift+mod+ArrowUp',
-    );
+    expect(
+      hotkeyOf(event({ key: 'ArrowUp', shiftKey: true, altKey: true, metaKey: true })),
+    ).toBe('shift+alt+mod+ArrowUp');
   });
 });

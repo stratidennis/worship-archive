@@ -39,6 +39,7 @@ import {
   type ClientSettings,
 } from './client-settings.js';
 import { openInMicrosoftPowerPoint } from './powerpoint.js';
+import { installHistoryCommands } from './navigation.js';
 
 declare const __WORSHIP_DESKTOP_ROLE__: ClientRole;
 declare const __WORSHIP_PRODUCT_NAME__: string;
@@ -478,6 +479,7 @@ function createWindow(): void {
   win.on('closed', () => {
     win = null;
   });
+  installHistoryCommands(win);
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
