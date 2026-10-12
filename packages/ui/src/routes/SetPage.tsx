@@ -27,6 +27,12 @@ import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
+import {
+  archiveFiltersFromParams,
+  readArchiveState,
+  rememberArchiveState,
+} from '../lib/archiveState.js';
+import { useArchiveScroll } from '../lib/useArchiveScroll.js';
 import { setLeading, useLeading } from '../lib/leading.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { nextSunday } from '../lib/setName.js';
@@ -62,7 +68,11 @@ import {
 } from '../components/icons.js';
 import { PrintableSet } from '../components/PrintableSet.js';
 import { PowerPointDialog } from '../components/PowerPointDialog.js';
-import { filterArchiveSongs } from '../lib/archiveFilter.js';
+import {
+  filterArchiveSongs,
+  toggleArchiveKey,
+  type ArchiveFilters,
+} from '../lib/archiveFilter.js';
 
 /**
  * The set workspace — where the app opens, and where the service is both built and led.
@@ -122,15 +132,28 @@ export function SetPage() {
   const [songs, setSongs] = useState<Record<string, Song>>({});
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'program' | 'library'>('program');
-  const [query, setQuery] = useState('');
+  const [archiveState] = useState(() => readArchiveState('workspace'));
+  const [tab, setTab] = useState<'program' | 'library'>(() =>
+    archiveState.get('tab') === 'library' ? 'library' : 'program',
+  );
+  const [query, setQuery] = useState(() => archiveState.get('q') ?? '');
   const [hits, setHits] = useState<(SearchHit | SongSummary)[]>([]);
-  const [selection, setSelection] = useState<Selection>(null);
-  /** Applied archive filters. The popover edits a draft and commits it here. */
-  const [filters, setFilters] = useState<{ collection: string; key: string }>({
-    collection: '',
-    key: '',
+  const [selection, setSelection] = useState<Selection>(() => {
+    const songId = archiveState.get('candidate');
+    return songId ? { kind: 'candidate', songId } : null;
   });
+  /** Archive filters apply immediately as their chips are toggled. */
+  const [filters, setFilters] = useState<ArchiveFilters>(() =>
+    archiveFiltersFromParams(archiveState),
+  );
+  const [hitsReady, setHitsReady] = useState(false);
+  const browsingParams = useMemo(() => {
+    const params = new URLSearchParams({ tab, q: query, collection: filters.collection });
+    filters.keys.forEach((key) => params.append('key', key));
+    if (selection?.kind === 'candidate') params.set('candidate', selection.songId);
+    return params;
+  }, [tab, query, filters, selection]);
+  useEffect(() => rememberArchiveState('workspace', browsingParams), [browsingParams]);
   const savedRef = useRef('');
 
   const [help, setHelp] = useState(false);
@@ -182,8 +205,12 @@ export function SetPage() {
         setSet(result.set);
         setSongs(result.songs);
         const previous = lastSetItem(id, result.set.items.length);
-        setSelection(
-          result.set.items.length > 0 ? { kind: 'item', index: previous ?? 0 } : null,
+        setSelection((current) =>
+          current?.kind === 'candidate'
+            ? current
+            : result.set.items.length > 0
+              ? { kind: 'item', index: previous ?? 0 }
+              : null,
         );
       })
       .catch((e: unknown) => !cancelled && setError(String(e)));
@@ -204,11 +231,19 @@ export function SetPage() {
   // "songs in G" mean "songs in G among the first sixty alphabetically".
   useEffect(() => {
     if (tab !== 'library') return;
+    let cancelled = false;
+    setHitsReady(false);
     const timer = setTimeout(() => {
       const request = query.trim() ? repo.search(query) : repo.songs();
-      request.then(setHits).catch(() => setHits([]));
+      request
+        .then((next) => !cancelled && setHits(next))
+        .catch(() => !cancelled && setHits([]))
+        .finally(() => !cancelled && setHitsReady(true));
     }, 120);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query, tab]);
 
   /*
@@ -224,6 +259,13 @@ export function SetPage() {
   */
   const [collections, setCollections] = useState<[string, number][]>([]);
   const [inCollection, setInCollection] = useState<Set<string> | null>(null);
+  const archiveScroll = useArchiveScroll<HTMLUListElement>(
+    'workspace:' + JSON.stringify([query, filters]),
+    Boolean(set) &&
+      tab === 'library' &&
+      hitsReady &&
+      (!filters.collection || inCollection !== null),
+  );
 
   useEffect(() => {
     if (tab !== 'library') return;
@@ -239,6 +281,7 @@ export function SetPage() {
       return;
     }
     let cancelled = false;
+    setInCollection(null);
     api
       .songs({ collection: filters.collection })
       .then((list) => !cancelled && setInCollection(new Set(list.map((song) => song.id))))
@@ -830,7 +873,7 @@ export function SetPage() {
                 value={filters}
                 onChange={setFilters}
               />
-              <ul className="scroll-slim min-h-0 flex-1 overflow-y-auto">
+              <ul {...archiveScroll} className="scroll-slim min-h-0 flex-1 overflow-y-auto">
                 {shown.map((song) => (
                   <li key={song.id}>
                     <div
@@ -1021,10 +1064,8 @@ export function SetPage() {
  * left half was off the side of the screen. Anchored to the row it cannot leave the
  * panel at any width, and it lines up with the field it filters.
  *
- * It edits a **draft**. Apply commits it; Cancel, Escape and clicking away all discard
- * it — three ways to do the same thing rather than one of them quietly meaning the
- * opposite. The button stays lit while anything is filtered, so a list that looks short
- * can always be explained without opening this.
+ * Filters apply immediately. Closing the popover keeps the selected filters, and the
+ * button stays lit while anything is filtered.
  */
 function ArchiveSearch({
   query,
@@ -1036,15 +1077,14 @@ function ArchiveSearch({
   query: string;
   onQuery: (value: string) => void;
   facets: { collections: [string, number][]; keys: [string, number][] };
-  value: { collection: string; key: string };
-  onChange: (next: { collection: string; key: string }) => void;
+  value: ArchiveFilters;
+  onChange: (next: ArchiveFilters) => void;
 }) {
   const { t } = useT();
   const [prefs] = usePrefs();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value);
   const wrapper = useRef<HTMLDivElement>(null);
-  const active = value.collection !== '' || value.key !== '';
+  const active = value.collection !== '' || value.keys.length > 0;
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -1083,11 +1123,7 @@ function ArchiveSearch({
           label={t('set.filters')}
           active={open || active}
           aria-expanded={open}
-          onClick={() => {
-            // Always open on what is actually applied, not on last time's abandoned draft.
-            setDraft(value);
-            setOpen((current) => !current);
-          }}
+          onClick={() => setOpen((current) => !current)}
         >
           <IconFilter size={16} />
         </IconButton>
@@ -1103,16 +1139,18 @@ function ArchiveSearch({
             <FilterGroup
               label={t('set.filterCollection')}
               options={facets.collections}
-              value={draft.collection}
-              onChange={(collection) => setDraft((d) => ({ ...d, collection }))}
+              value={[value.collection].filter(Boolean)}
+              onChange={(collection) => onChange({ ...value, collection })}
               allLabel={t('library.all')}
             />
           )}
           <FilterGroup
             label={t('set.filterKey')}
             options={facets.keys}
-            value={draft.key}
-            onChange={(key) => setDraft((d) => ({ ...d, key }))}
+            value={value.keys}
+            onChange={(key) =>
+              onChange({ ...value, keys: key ? toggleArchiveKey(value.keys, key) : [] })
+            }
             allLabel={t('library.all')}
             formatOption={(key) => preferredKeyName(key, prefs.accidentalPreferences) ?? key}
             className={facets.collections.length > 0 ? 'mt-3' : ''}
@@ -1126,23 +1164,13 @@ function ArchiveSearch({
               size="sm"
               variant="ghost"
               className="mr-auto whitespace-nowrap text-(--color-muted)"
-              disabled={draft.collection === '' && draft.key === ''}
-              onClick={() => setDraft({ collection: '', key: '' })}
+              disabled={!active}
+              onClick={() => onChange({ collection: '', keys: [] })}
             >
               {t('set.filtersClear')}
             </Button>
             <Button size="sm" onClick={close}>
-              {t('app.cancel')}
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => {
-                onChange(draft);
-                close();
-              }}
-            >
-              {t('app.apply')}
+              {t('app.close')}
             </Button>
           </div>
         </div>
@@ -1163,7 +1191,7 @@ function FilterGroup({
 }: {
   label: string;
   options: [string, number][];
-  value: string;
+  value: string[];
   onChange: (value: string) => void;
   allLabel: string;
   formatOption?: (option: string) => string;
@@ -1175,11 +1203,11 @@ function FilterGroup({
         {label}
       </span>
       <div className="flex flex-wrap gap-1">
-        <Chip active={value === ''} onClick={() => onChange('')}>
+        <Chip active={value.length === 0} onClick={() => onChange('')}>
           {allLabel}
         </Chip>
         {options.map(([name, count]) => (
-          <Chip key={name} active={value === name} onClick={() => onChange(name)}>
+          <Chip key={name} active={value.includes(name)} onClick={() => onChange(name)}>
             {formatOption(name)}
             <span className="ml-1 opacity-60 tabular-nums">{count}</span>
           </Chip>

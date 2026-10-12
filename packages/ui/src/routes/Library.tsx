@@ -10,6 +10,13 @@ import { IconPlus, IconSearch } from '../components/icons.js';
 import { Button, ButtonLink, Input } from '../components/ui.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { usePrefs } from '../lib/settings.js';
+import { filterArchiveSongs, toggleArchiveKey } from '../lib/archiveFilter.js';
+import {
+  archiveFiltersFromParams,
+  readArchiveState,
+  rememberArchiveState,
+} from '../lib/archiveState.js';
+import { useArchiveScroll } from '../lib/useArchiveScroll.js';
 
 /** Render an FTS5 snippet, which marks matches with «». */
 function Snippet({ text }: { text: string }) {
@@ -68,10 +75,15 @@ export function Library() {
   const [prefs] = usePrefs();
   const navigate = useNavigate();
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
+  const [initialParams] = useState(() =>
+    location.search ? new URLSearchParams(location.search) : readArchiveState('library'),
+  );
+  const [params, setParams] = useSearchParams(initialParams);
+  useEffect(() => rememberArchiveState('library', params), [params]);
   const query = params.get('q') ?? '';
   const collection = params.get('collection') ?? '';
-  const key = params.get('key') ?? '';
+  const { keys } = useMemo(() => archiveFiltersFromParams(params), [params]);
+  const [inCollection, setInCollection] = useState<Set<string> | null>(null);
 
   const [facets, setFacets] = useState<Facets | null>(null);
   const [songs, setSongs] = useState<SongSummary[]>([]);
@@ -80,6 +92,12 @@ export function Library() {
   const [reach, setReach] = useState<Reachability>('unknown');
   const [mirror, setMirror] = useState<{ songs: number; lastSync: string | null } | null>(null);
   const search = useRef<HTMLInputElement>(null);
+  const [songsReady, setSongsReady] = useState(false);
+  const [searchReady, setSearchReady] = useState(false);
+  const archiveScroll = useArchiveScroll<HTMLDivElement>(
+    'library:' + params.toString(),
+    songsReady && (!query.trim() || searchReady) && (!collection || inCollection !== null),
+  );
 
   useHeader({ current: 'library' });
 
@@ -103,6 +121,7 @@ export function Library() {
       if (cancelled) return;
       if (synced) setSongs(await repo.songs());
       setMirror(await repo.status());
+      setSongsReady(true);
     };
     void show();
     return () => {
@@ -120,14 +139,19 @@ export function Library() {
 
   useEffect(() => {
     let cancelled = false;
-    const load = collection || key ? api.songs({ collection, key }) : repo.songs();
-    void load
-      .then((next) => !cancelled && setSongs(next))
+    if (!collection) {
+      setInCollection(null);
+      return;
+    }
+    setInCollection(null);
+    void api
+      .songs({ collection })
+      .then((next) => !cancelled && setInCollection(new Set(next.map((song) => song.id))))
       .catch((e: unknown) => !cancelled && setError(String(e)));
     return () => {
       cancelled = true;
     };
-  }, [collection, key]);
+  }, [collection]);
 
   // Debounced so typing does not fire a request per keystroke.
   useEffect(() => {
@@ -135,13 +159,19 @@ export function Library() {
       setHits(null);
       return;
     }
+    let cancelled = false;
+    setSearchReady(false);
     const timer = setTimeout(() => {
       repo
         .search(query)
-        .then(setHits)
-        .catch((e: unknown) => setError(String(e)));
+        .then((next) => !cancelled && setHits(next))
+        .catch((e: unknown) => !cancelled && setError(String(e)))
+        .finally(() => !cancelled && setSearchReady(true));
     }, 120);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const createSong = (): void => {
@@ -158,7 +188,17 @@ export function Library() {
     setParams(next, { replace: true });
   };
 
-  const results: SongSummary[] = useMemo(() => hits ?? songs, [hits, songs]);
+  const toggleKey = (key: string): void => {
+    const next = new URLSearchParams(params);
+    next.delete('key');
+    for (const selected of toggleArchiveKey(keys, key)) next.append('key', selected);
+    setParams(next, { replace: true });
+  };
+
+  const results = useMemo(
+    () => filterArchiveSongs(hits ?? songs, { collection, keys }, inCollection),
+    [hits, songs, collection, keys, inCollection],
+  );
   const keyFacets = useMemo(() => {
     const merged = new Map<string, number>();
     for (const item of facets?.keys ?? []) {
@@ -179,7 +219,7 @@ export function Library() {
           <span className="hidden sm:inline">{t('library.new')}</span>
         </Button>
       </HeaderActions>
-      <Scroll>
+      <Scroll {...archiveScroll}>
         <div className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           {/* Every page carries one, so a screen reader announces where it landed. */}
           <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
@@ -218,8 +258,8 @@ export function Library() {
               {keyFacets.map((k) => (
                 <Chip
                   key={k.name}
-                  active={key === k.name}
-                  onClick={() => setParam('key', key === k.name ? '' : k.name)}
+                  active={keys.includes(k.name)}
+                  onClick={() => toggleKey(k.name)}
                 >
                   {preferredKeyName(k.name, prefs.accidentalPreferences) ?? k.name}
                 </Chip>
@@ -311,6 +351,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={`inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-medium transition-colors ${
         active
           ? 'border-(--color-chord) bg-(--color-chord) text-white'

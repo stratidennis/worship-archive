@@ -3,19 +3,29 @@ import type { SongSummary } from './api.js';
 
 export interface ArchiveFilters {
   collection: string;
-  key: string;
+  keys: string[];
 }
 
-/** Apply the set workspace's archive filters without truncating the result list. */
+/** Toggle one key without changing the other selections. */
+export function toggleArchiveKey(keys: string[], key: string): string[] {
+  return keys.includes(key) ? keys.filter((selected) => selected !== key) : [...keys, key];
+}
+
+/** Apply either archive view's filters without truncating the result list. */
 export function filterArchiveSongs<T extends SongSummary>(
   songs: T[],
   filters: ArchiveFilters,
   inCollection: Set<string> | null,
 ): T[] {
+  const selectedKeys = new Set(
+    filters.keys.map(canonicalFilterKey).filter((key) => key !== null),
+  );
   return songs.filter(
     (song) =>
-      (inCollection === null || inCollection.has(song.id)) &&
-      (filters.key === '' ||
-        canonicalFilterKey(song.performanceKey ?? song.writtenKey ?? '') === filters.key),
+      (!filters.collection || inCollection?.has(song.id) === true) &&
+      (filters.keys.length === 0 ||
+        selectedKeys.has(
+          canonicalFilterKey(song.performanceKey ?? song.writtenKey ?? '') ?? '',
+        )),
   );
 }

@@ -1,3 +1,5 @@
+import type { HTMLAttributes, Ref } from 'react';
+
 /**
  * The scrolling region of a page.
  *
@@ -13,12 +15,17 @@
 export function Scroll({
   children,
   className = '',
+  ...props
 }: {
   children: React.ReactNode;
   className?: string;
-}) {
+  ref?: Ref<HTMLDivElement>;
+} & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`min-h-0 flex-1 overflow-y-auto print:overflow-visible ${className}`}>
+    <div
+      {...props}
+      className={`min-h-0 flex-1 overflow-y-auto print:overflow-visible ${className}`}
+    >
       {children}
     </div>
   );
