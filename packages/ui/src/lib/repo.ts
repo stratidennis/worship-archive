@@ -167,8 +167,8 @@ export const repo = {
   },
 
   /** Write through: server first, mirror updated from what it stored. */
-  async saveSong(id: string, song: Song): Promise<Song> {
-    const stored = await api.saveSong(id, song);
+  async saveSong(id: string, song: Song, location?: string): Promise<Song> {
+    const stored = await api.saveSong(id, song, location);
     await store.putSong(stored);
     setReachable('online');
     return stored;

@@ -18,7 +18,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, extname, join, relative, sep } from 'node:path';
+import { basename, dirname, extname, join, relative, sep } from 'node:path';
 import {
   canonicalFilterKey,
   compareFilterKeys,
@@ -130,6 +130,30 @@ function collectionOf(relPath: string): string {
   const dir = dirname(relPath);
   if (dir === '.' || dir === '') return ROOT_COLLECTION;
   return dir.split(sep)[0] ?? ROOT_COLLECTION;
+}
+
+/**
+ * A song location is one direct child of the Songs folder, or the virtual "Main"
+ * location for files stored directly in Songs.
+ *
+ * Keep the name portable. A library is often synced between macOS and Windows, so a
+ * folder that one OS accepts and the other refuses is not a useful location.
+ */
+function normaliseLocation(raw: string): string {
+  const name = raw.trim();
+  if (name.toLocaleLowerCase('en') === ROOT_COLLECTION.toLocaleLowerCase('en')) {
+    return ROOT_COLLECTION;
+  }
+  if (!name) throw new Error('location name is required');
+  if (name.length > 100) throw new Error('location name must be 100 characters or fewer');
+  const hasControlCharacter = [...name].some((character) => character.charCodeAt(0) < 32);
+  if (/[<>:"/\\|?*]/.test(name) || hasControlCharacter || /[. ]$/.test(name)) {
+    throw new Error('location name contains characters that cannot be used in a folder name');
+  }
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(name)) {
+    throw new Error('that location name is reserved by Windows');
+  }
+  return name;
 }
 
 /** Escape a user query for FTS5, so punctuation cannot become syntax. */
@@ -388,6 +412,37 @@ export class Library {
       .all() as { name: string; count: number }[];
   }
 
+  /** Every selectable song folder, including empty folders and the root location. */
+  locations(): string[] {
+    const folders = readdirSync(this.songsDir, { withFileTypes: true })
+      .filter((entry) => !entry.name.startsWith('.') && entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter(
+        (name) => name.toLocaleLowerCase('en') !== ROOT_COLLECTION.toLocaleLowerCase('en'),
+      )
+      .sort(compareRomanianText);
+    return [ROOT_COLLECTION, ...folders];
+  }
+
+  /** Create a selectable song folder. Existing folders are returned unchanged. */
+  createLocation(rawName: string): string {
+    const requested = normaliseLocation(rawName);
+    if (requested === ROOT_COLLECTION) return ROOT_COLLECTION;
+    const existing = this.locations().find(
+      (name) => name.toLocaleLowerCase('en') === requested.toLocaleLowerCase('en'),
+    );
+    if (existing) return existing;
+    mkdirSync(join(this.songsDir, requested));
+    return requested;
+  }
+
+  /** The physical song folder represented as a user-facing location. */
+  locationOf(id: string): string | null {
+    const row = this.db.prepare('SELECT path FROM songs WHERE id = ?').get(id) as
+      { path: string } | undefined;
+    return row ? collectionOf(row.path) : null;
+  }
+
   tags(): { name: string; count: number }[] {
     return this.db
       .prepare(
@@ -473,6 +528,35 @@ export class Library {
     return row ? join(this.songsDir, row.path) : null;
   }
 
+  /** Save a song in a selected location, moving its file when that location changes. */
+  saveInLocation(song: Song, rawLocation: string): Song {
+    const location = normaliseLocation(rawLocation);
+    const existing = this.db.prepare('SELECT path FROM songs WHERE id = ?').get(song.id) as
+      { path: string } | undefined;
+    const originalName = existing
+      ? basename(existing.path)
+      : `${slug(song.title, song.id)}.chopro`;
+    const directory = location === ROOT_COLLECTION ? '' : location;
+    let target = directory ? join(directory, originalName) : originalName;
+
+    // Never overwrite an unrelated file merely because two songs share a title or
+    // two locations already contain the same filename.
+    if (target !== existing?.path && existsSync(join(this.songsDir, target))) {
+      const extension = extname(originalName) || '.chopro';
+      const stem = basename(originalName, extension);
+      const suffix = song.id.slice(0, 8);
+      let attempt = 1;
+      do {
+        target = join(
+          directory,
+          `${stem}-${suffix}${attempt === 1 ? '' : `-${attempt}`}${extension}`,
+        );
+        attempt++;
+      } while (existsSync(join(this.songsDir, target)));
+    }
+    return this.save(song, target);
+  }
+
   /**
    * Write a song to disk and reindex it. Returns what was actually stored.
    *
@@ -516,6 +600,9 @@ export class Library {
     const full = join(this.songsDir, target);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, serialiseChordPro(stored), 'utf8');
+    if (existing && existing.path !== target) {
+      rmSync(join(this.songsDir, existing.path), { force: true });
+    }
     this.reindex();
     return stored;
   }

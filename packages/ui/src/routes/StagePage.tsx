@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { preferredKeyName, resolveStageDisplay, semitonesBetween } from '@worship/core';
+import {
+  DEFAULT_SONG_LINE_HEIGHT,
+  preferredKeyName,
+  resolveStageDisplay,
+  semitonesBetween,
+} from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
 import { useFitToScreen } from '../lib/useFitToScreen.js';
@@ -131,7 +136,7 @@ export function StagePage() {
     // floor there. Phones use their separate, more readable floor and then scroll.
     minFontPx: 8,
     narrowMinFontPx: 12,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${capo}:${stage.maxFontPx}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${capo}:${stage.maxFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.
@@ -188,6 +193,7 @@ export function StagePage() {
                 showBass,
                 capo,
                 transpose: extraTranspose,
+                lineHeight: stage.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT,
                 accidentalPreferences,
               }}
             />

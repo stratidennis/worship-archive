@@ -81,7 +81,17 @@ export class NotFound extends Error {
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: { accept: 'application/json' } });
   if (response.status === 404) throw new NotFound(path);
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${path}`);
+  if (!response.ok) {
+    let message = `${response.status} ${response.statusText} for ${path}`;
+    try {
+      const payload = (await response.json()) as { error?: unknown };
+      if (typeof payload.error === 'string' && payload.error) message = payload.error;
+    } catch {
+      // A proxy or crashed server may answer with HTML or no body. Keep the useful
+      // status-and-path fallback in that case.
+    }
+    throw new Error(message);
+  }
   return (await response.json()) as T;
 }
 
@@ -107,7 +117,16 @@ async function send<T>(
       ? {}
       : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   });
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${path}`);
+  if (!response.ok) {
+    let message = `${response.status} ${response.statusText} for ${path}`;
+    try {
+      const payload = (await response.json()) as { error?: unknown };
+      if (typeof payload.error === 'string' && payload.error) message = payload.error;
+    } catch {
+      // Keep the status-and-path fallback when the response is not JSON.
+    }
+    throw new Error(message);
+  }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
@@ -141,8 +160,14 @@ export const api = {
 
   host: () => get<HostInfo>('/api/host'),
 
-  saveSong: (id: string, song: Song) =>
-    send<Song>(`/api/songs/${encodeURIComponent(id)}`, 'PUT', song),
+  songLocations: () => get<{ locations: string[] }>('/api/song-locations'),
+  songLocation: (id: string) =>
+    get<{ location: string }>(`/api/song-locations/${encodeURIComponent(id)}`),
+
+  saveSong: (id: string, song: Song, location?: string) => {
+    const q = location ? `?location=${encodeURIComponent(location)}` : '';
+    return send<Song>(`/api/songs/${encodeURIComponent(id)}${q}`, 'PUT', song);
+  },
 
   sets: () => get<SetSummary[]>('/api/sets'),
   set: (id: string) => get<ServiceSet>(`/api/sets/${encodeURIComponent(id)}`),
@@ -212,6 +237,11 @@ export const adminApi = {
       fixes,
     }),
   /** Creates in one write, so an imported song starts with a clean history. */
-  createSong: (song: Partial<Song>) => send<Song>('/api/songs', 'POST', song),
+  createSong: (song: Partial<Song>, location?: string) => {
+    const q = location ? `?location=${encodeURIComponent(location)}` : '';
+    return send<Song>(`/api/songs${q}`, 'POST', song);
+  },
+  createSongLocation: (name: string) =>
+    send<{ location: string }>('/api/song-locations', 'POST', { name }),
   deleteSong: (id: string) => send<void>(`/api/songs/${encodeURIComponent(id)}`, 'DELETE'),
 };

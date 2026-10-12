@@ -28,6 +28,7 @@ import {
   ChordSample,
   FontSize,
   LanguageChoice,
+  LineSpacing,
 } from '../components/DisplaySettings.js';
 import { IconMusic, IconPresentation, IconSets, IconSettings } from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
@@ -254,11 +255,14 @@ export function BandPage() {
 
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
+    // A desktop Band window follows the same fit-to-one-screen rule as Leader and
+    // Stage. The separate narrow floor below remains the readable phone fallback.
+    minFontPx: 8,
     narrowMinFontPx: 10,
     // On a phone the musician can scroll, so their chosen size should be the actual
     // size, not merely a ceiling that the fit algorithm silently reduces.
     narrowScrollAtPreferredSize: true,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}:${displayedKey}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}:${displayedKey}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (
@@ -442,7 +446,7 @@ export function BandPage() {
           id="main"
           ref={container}
           className={`min-h-0 flex-1 touch-pan-y px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
-            fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
+            fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
           }`}
           onTouchStart={(e) => {
             const x = e.touches[0]?.clientX ?? 0;
@@ -485,6 +489,7 @@ export function BandPage() {
                   showBass: false,
                   capo: capoFret,
                   transpose,
+                  lineHeight: prefs.lineHeight,
                   accidentalPreferences,
                 }}
               />
@@ -633,6 +638,10 @@ export function BandPage() {
             value={prefs.maxFontPx}
             min={10}
             onChange={(maxFontPx) => setPrefs({ maxFontPx })}
+          />
+          <LineSpacing
+            value={prefs.lineHeight}
+            onChange={(lineHeight) => setPrefs({ lineHeight })}
           />
           <ChordColour
             value={prefs.chordColor}

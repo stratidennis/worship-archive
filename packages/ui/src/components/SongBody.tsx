@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import {
   chordForCapo,
+  DEFAULT_SONG_LINE_HEIGHT,
   formatChord,
   parseChord,
   respellChord,
@@ -21,6 +22,8 @@ export interface RenderOptions {
   showChords: boolean;
   showBass: boolean;
   capo: number;
+  /** Unitless lyric line-height multiplier. */
+  lineHeight?: number;
   /** Extra semitones on top of the song's own written→performance shift. */
   transpose: number;
   /** When present, every enharmonic chord is displayed in this device's notation. */
@@ -43,6 +46,16 @@ interface Part {
   chord: string | null;
   bass: string | null;
   text: string;
+}
+
+/** Whether this line needs the small row above its lyric for a visible music layer. */
+export function hasVisibleChordRow(
+  line: Pick<Line, 'chords' | 'bass'>,
+  options: Pick<RenderOptions, 'showChords' | 'showBass'>,
+): boolean {
+  return (
+    (options.showChords && line.chords.length > 0) || (options.showBass && line.bass.length > 0)
+  );
 }
 
 /** One word, plus any trailing whitespace. Never broken across lines. */
@@ -142,9 +155,11 @@ function LineView({
     [line, options, semitones, targetKey],
   );
 
-  if (line.text === '' && line.chords.length === 0) return <div style={{ height: '0.6em' }} />;
+  if (line.text === '' && line.chords.length === 0 && line.bass.length === 0) {
+    return <div style={{ height: '0.6em' }} />;
+  }
 
-  const anyChords = options.showChords || options.showBass;
+  const showChordRow = hasVisibleChordRow(line, options);
 
   return (
     <div
@@ -158,13 +173,18 @@ function LineView({
         <span key={c} className="flex items-end">
           {chunk.map((part, i) => (
             <span key={i} className="whitespace-pre">
-              {anyChords && (
+              {showChordRow && (
                 <span className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord-ink)">
                   {part.chord ?? ' '}
                   {part.bass && <span className="ml-1 text-(--color-bass)">{part.bass}</span>}
                 </span>
               )}
-              <span className="block leading-[1.25]">{part.text}</span>
+              <span
+                className="block"
+                style={{ lineHeight: options.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT }}
+              >
+                {part.text}
+              </span>
             </span>
           ))}
         </span>

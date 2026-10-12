@@ -125,6 +125,7 @@ describe('how a stage screen should look', () => {
       theme: 'dark',
       language: null,
       maxFontPx: 40,
+      lineHeight: null,
       chordColor: null,
       showChords: null,
     });
@@ -157,6 +158,7 @@ describe('how a stage screen should look', () => {
       theme: null,
       language: null,
       maxFontPx: 28,
+      lineHeight: null,
       chordColor: '#f59e0b',
       showChords: null,
     });
@@ -175,6 +177,7 @@ describe('how a stage screen should look', () => {
       language: 'en',
       chordColor: '#ef4444',
       maxFontPx: null,
+      lineHeight: null,
       showChords: null,
     });
   });
@@ -209,6 +212,15 @@ describe('how a stage screen should look', () => {
       },
     });
     expect(resolveStageDisplay(state, 'New name', 'stage-installation-1').maxFontPx).toBe(34);
+  });
+
+  it('lets one screen use tighter line spacing than the shared setting', () => {
+    const state = session({
+      stage: { ...DEFAULT_STAGE_DISPLAY, lineHeight: 1.2 },
+      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, lineHeight: 1.05 } },
+    });
+    expect(resolveStageDisplay(state, 'Drums').lineHeight).toBe(1.05);
+    expect(resolveStageDisplay(state, 'Back').lineHeight).toBe(1.2);
   });
 
   /*

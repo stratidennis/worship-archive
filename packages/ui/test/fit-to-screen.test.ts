@@ -23,4 +23,9 @@ describe('phone font-size control', () => {
   it('keeps fitting on desktop screens even when phone scrolling is enabled', () => {
     expect(usesPreferredSizeScrolling(1280, true)).toBe(false);
   });
+
+  it('keeps the desktop Band floor separate from its phone floor', () => {
+    expect(minimumFontForWidth(1280, 8, 10)).toBe(8);
+    expect(minimumFontForWidth(390, 8, 10)).toBe(10);
+  });
 });

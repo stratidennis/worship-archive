@@ -192,8 +192,11 @@ export const Select = forwardRef<
   HTMLSelectElement,
   React.SelectHTMLAttributes<HTMLSelectElement> & { tight?: boolean }
 >(function Select({ className = '', tight, children, ...rest }, ref) {
+  const wrapperWidth = className.split(/\s+/).find((token) => token.startsWith('w-'));
   return (
-    <span className="relative inline-flex items-center">
+    <span
+      className={`relative items-center ${wrapperWidth ? `flex ${wrapperWidth}` : 'inline-flex'}`}
+    >
       <select
         ref={ref}
         className={`${fieldClasses(tight, className)} cursor-pointer appearance-none ${

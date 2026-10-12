@@ -73,6 +73,12 @@ describe('the stage screens’ appearance', () => {
     expect(hub.getState().stage.theme).toBeNull();
   });
 
+  it('rejects line spacing outside the supported readable range', async () => {
+    expect((await put({ lineHeight: 0.8 })).statusCode).toBe(400);
+    expect((await put({ lineHeight: 1.5 })).statusCode).toBe(400);
+    expect(hub.getState().stage.lineHeight).toBeNull();
+  });
+
   it('leaves alone what the request did not mention', async () => {
     await put({ theme: 'dark', chordColor: '#ef4444' });
     await put({ maxFontPx: 40 });
@@ -80,6 +86,7 @@ describe('the stage screens’ appearance', () => {
       theme: 'dark',
       language: null,
       maxFontPx: 40,
+      lineHeight: null,
       chordColor: '#ef4444',
       showChords: null,
     });
@@ -141,6 +148,15 @@ describe('one screen at a time', () => {
     expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
   });
 
+  it('sets line spacing for all screens or one screen', async () => {
+    await put({ lineHeight: 1.2 });
+    await put({ screen: 'Drums', lineHeight: 1.05 });
+
+    const state = hub.getState();
+    expect(resolveStageDisplay(state, 'Drums').lineHeight).toBe(1.05);
+    expect(resolveStageDisplay(state, 'Back').lineHeight).toBe(1.2);
+  });
+
   it('keeps two screens apart', async () => {
     await put({ screen: 'Drums', theme: 'dark' });
     await put({ screen: 'Back', theme: 'light' });
@@ -155,6 +171,7 @@ describe('one screen at a time', () => {
       theme: 'dark',
       language: null,
       maxFontPx: 30,
+      lineHeight: null,
       chordColor: '#ef4444',
       showChords: null,
     });

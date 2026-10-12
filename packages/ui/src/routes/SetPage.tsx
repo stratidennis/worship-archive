@@ -62,6 +62,7 @@ import {
 } from '../components/icons.js';
 import { PrintableSet } from '../components/PrintableSet.js';
 import { PowerPointDialog } from '../components/PowerPointDialog.js';
+import { filterArchiveSongs } from '../lib/archiveFilter.js';
 
 /**
  * The set workspace — where the app opens, and where the service is both built and led.
@@ -280,16 +281,8 @@ export function SetPage() {
   }, [hits, collections]);
 
   const shown = useMemo(
-    () =>
-      hits
-        .filter(
-          (song) =>
-            (inCollection === null || inCollection.has(song.id)) &&
-            (filters.key === '' ||
-              canonicalFilterKey(song.performanceKey ?? song.writtenKey ?? '') === filters.key),
-        )
-        .slice(0, 80),
-    [hits, filters.key, inCollection],
+    () => filterArchiveSongs(hits, filters, inCollection),
+    [hits, filters, inCollection],
   );
 
   /*
@@ -1430,7 +1423,7 @@ function Preview({
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
@@ -1493,6 +1486,7 @@ function Preview({
               showBass: false,
               capo: capo ?? 0,
               transpose: shift,
+              lineHeight: prefs.lineHeight,
               accidentalPreferences: prefs.accidentalPreferences,
             }}
           />

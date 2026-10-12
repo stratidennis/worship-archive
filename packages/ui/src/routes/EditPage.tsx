@@ -22,7 +22,7 @@ import {
   type Singers,
   type Song,
 } from '@worship/core';
-import { adminApi } from '../lib/api.js';
+import { adminApi, api } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { useUndoable } from '../lib/useUndoable.js';
 import { useT, type Translator } from '../lib/i18n.js';
@@ -32,7 +32,7 @@ import { newSongDraft } from '../lib/newSong.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
-import { Modal } from '../components/Modal.js';
+import { Modal, useOverlay } from '../components/Modal.js';
 import { SaveBadge, type SaveState } from '../components/SaveBadge.js';
 import { Button, Checkbox, Field as UiField, Input, Select } from '../components/ui.js';
 import {
@@ -55,6 +55,17 @@ const TYPE_KEYS: Record<string, BlockType> = {
 
 /** The same four the reading view tints — a cue is not a verse, in either place. */
 const CUE_TYPES = new Set<BlockType>(['Intro', 'Instrumental', 'Solo', 'Note']);
+const MAIN_LOCATION = 'Main';
+const NEW_LOCATION = '__new_location__';
+
+function sortLocations(locations: string[]): string[] {
+  return [
+    MAIN_LOCATION,
+    ...[...new Set(locations)]
+      .filter((location) => location !== MAIN_LOCATION)
+      .sort((a, b) => a.localeCompare(b, 'ro')),
+  ];
+}
 
 /**
  * What is compared to decide whether there is anything to save.
@@ -80,6 +91,10 @@ export function EditPage() {
   const song = useUndoable<Song | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [preview, setPreview] = useState(false);
+  const [locations, setLocations] = useState<string[]>([MAIN_LOCATION]);
+  const [songLocation, setSongLocation] = useState(MAIN_LOCATION);
+  const [locationReady, setLocationReady] = useState(false);
+  const [newLocationOpen, setNewLocationOpen] = useState(false);
   const titleInput = useRef<HTMLInputElement>(null);
   const titleFocusedFor = useRef<string | null>(null);
   const savingNew = useRef(false);
@@ -87,24 +102,39 @@ export function EditPage() {
   useHeader({ back: true });
   const [error, setError] = useState<string | null>(null);
   const savedRef = useRef<string>('');
+  const savedLocationRef = useRef(MAIN_LOCATION);
 
   const { reset } = song;
   useEffect(() => {
+    setError(null);
+    setLocationReady(false);
     if (isNew) {
       const draft = newSongDraft();
       savedRef.current = contentOf(draft);
+      savedLocationRef.current = MAIN_LOCATION;
+      setSongLocation(MAIN_LOCATION);
       reset(draft);
+      api
+        .songLocations()
+        .then(({ locations: available }) => {
+          setLocations(sortLocations(available));
+          setLocationReady(true);
+        })
+        .catch((e: unknown) => setError(String(e)));
       return;
     }
     savingNew.current = false;
-    repo
-      .song(id)
-      .then((loaded) => {
+    Promise.all([repo.song(id), api.songLocations(), api.songLocation(id)])
+      .then(([loaded, available, storedLocation]) => {
         if (!loaded) {
           setError(t('song.notLocal'));
           return;
         }
         savedRef.current = contentOf(loaded);
+        savedLocationRef.current = storedLocation.location;
+        setSongLocation(storedLocation.location);
+        setLocations(sortLocations(available.locations));
+        setLocationReady(true);
         reset(loaded);
       })
       .catch((e: unknown) => setError(String(e)));
@@ -129,7 +159,9 @@ export function EditPage() {
     Save — and nothing leaves this page *silently*, either: navigating away with unsaved
     work is blocked below.
   */
-  const dirty = current !== null && contentOf(current) !== savedRef.current;
+  const dirty =
+    current !== null &&
+    (contentOf(current) !== savedRef.current || songLocation !== savedLocationRef.current);
 
   useEffect(() => {
     setSaveState((previous) => {
@@ -147,11 +179,12 @@ export function EditPage() {
     setSaveState('saving');
     try {
       const stored = isNew
-        ? await adminApi.createSong(current)
-        : await repo.saveSong(id, current);
+        ? await adminApi.createSong(current, songLocation)
+        : await repo.saveSong(id, current, songLocation);
       // What was sent is now what is stored; the server's own `rev` and `updatedAt`
       // are deliberately not part of the comparison — see `contentOf`.
       savedRef.current = contentOf(stored);
+      savedLocationRef.current = songLocation;
       if (isNew) {
         savingNew.current = true;
         reset(stored);
@@ -168,7 +201,7 @@ export function EditPage() {
       setSaveState('error');
       return false;
     }
-  }, [current, id, isNew, navigate, reset, returnTo]);
+  }, [current, id, isNew, navigate, reset, returnTo, songLocation]);
 
   // Closing the tab or reloading is the browser's to warn about, not ours.
   useEffect(() => {
@@ -255,7 +288,7 @@ export function EditPage() {
           <Button
             variant="primary"
             onClick={() => void save()}
-            disabled={!dirty || saveState === 'saving' || !hasTitle}
+            disabled={!dirty || saveState === 'saving' || !hasTitle || !locationReady}
             title={hasTitle ? t('edit.saveShortcut') : t('edit.titleRequired')}
           >
             <IconSave size={16} />
@@ -276,7 +309,26 @@ export function EditPage() {
           */}
           <div className="mx-auto w-full max-w-[min(100%,90rem)] text-[20px] leading-snug">
             <div className="text-base">
-              <Metadata song={current} edit={edit} t={t} />
+              {error && (
+                <p
+                  role="alert"
+                  className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500"
+                >
+                  {error}
+                </p>
+              )}
+              <Metadata
+                song={current}
+                edit={edit}
+                t={t}
+                locations={locations}
+                location={songLocation}
+                locationReady={locationReady}
+                onLocationChange={(next) => {
+                  if (next === NEW_LOCATION) setNewLocationOpen(true);
+                  else setSongLocation(next);
+                }}
+              />
             </div>
 
             {current.blocks.map((block, blockIndex) => (
@@ -567,6 +619,19 @@ export function EditPage() {
           </Modal>
         )}
 
+        {newLocationOpen && (
+          <NewLocationDialog
+            t={t}
+            onDismiss={() => setNewLocationOpen(false)}
+            onCreate={async (name) => {
+              const created = await adminApi.createSongLocation(name);
+              setLocations((current) => sortLocations([...current, created.location]));
+              setSongLocation(created.location);
+              setNewLocationOpen(false);
+            }}
+          />
+        )}
+
         {preview && (
           <aside className="scroll-slim hidden min-h-0 w-[42%] shrink-0 overflow-y-auto border-l border-(--color-line) px-4 py-4 lg:block">
             <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
@@ -580,6 +645,7 @@ export function EditPage() {
                   showBass: false,
                   capo: 0,
                   transpose: 0,
+                  lineHeight: prefs.lineHeight,
                   accidentalPreferences: prefs.accidentalPreferences,
                 }}
               />
@@ -602,10 +668,18 @@ function Metadata({
   song,
   edit,
   t,
+  locations,
+  location,
+  locationReady,
+  onLocationChange,
 }: {
   song: Song;
   edit: (fn: (s: Song) => Song, k?: string) => void;
   t: Translator['t'];
+  locations: string[];
+  location: string;
+  locationReady: boolean;
+  onLocationChange: (location: string) => void;
 }) {
   return (
     <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -671,6 +745,99 @@ function Metadata({
         }
         placeholder={t('block.Chorus').toLowerCase()}
       />
+      <UiField label={t('edit.location')}>
+        <Select
+          className="w-full"
+          value={location}
+          disabled={!locationReady}
+          onChange={(event) => onLocationChange(event.target.value)}
+          aria-label={t('edit.location')}
+        >
+          {locations.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+          <option value={NEW_LOCATION}>{t('edit.addLocation')}</option>
+        </Select>
+      </UiField>
+    </div>
+  );
+}
+
+function NewLocationDialog({
+  t,
+  onDismiss,
+  onCreate,
+}: {
+  t: Translator['t'];
+  onDismiss: () => void;
+  onCreate: (name: string) => Promise<void>;
+}) {
+  const panel = useOverlay<HTMLFormElement>(onDismiss);
+  const [name, setName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async (): Promise<void> => {
+    if (!name.trim() || creating) return;
+    setCreating(true);
+    setError(null);
+    try {
+      await onCreate(name.trim());
+    } catch (e: unknown) {
+      setError(String(e));
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div
+      className="modal-backdrop fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onDismiss();
+      }}
+    >
+      <form
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-location-title"
+        className="modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-(--color-line) bg-(--color-surface) shadow-2xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void create();
+        }}
+      >
+        <div className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+          <h2 id="new-location-title" className="text-lg font-bold leading-snug">
+            {t('edit.newLocationTitle')}
+          </h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-(--color-muted)">
+            {t('edit.newLocationHint')}
+          </p>
+          <UiField label={t('edit.locationName')} className="mt-4">
+            <Input
+              data-autofocus
+              value={name}
+              maxLength={100}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={t('edit.locationPlaceholder')}
+            />
+          </UiField>
+          {error && (
+            <p role="alert" className="mt-2 text-xs text-red-500">
+              {error}
+            </p>
+          )}
+        </div>
+        <div className="flex justify-between gap-2 border-t border-(--color-line) bg-(--color-raised) px-5 py-4 sm:px-6">
+          <Button onClick={onDismiss}>{t('app.cancel')}</Button>
+          <Button type="submit" variant="primary" disabled={!name.trim() || creating}>
+            {t('edit.createLocation')}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

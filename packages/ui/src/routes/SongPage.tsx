@@ -64,7 +64,11 @@ export function SongPage() {
   // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.transpose}:${prefs.capo}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    // The Leader's opened-song view is a fixed desktop display, just like Stage. Use
+    // the same last-resort floor so small viewport and platform font-metric differences
+    // do not make the fit stop at 11px and turn the song into a scrolling page.
+    minFontPx: 8,
+    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (error) {
@@ -165,15 +169,15 @@ export function SongPage() {
 
       {/*
         The container is the measuring frame: exactly the space a song must fit into.
-        When a song genuinely cannot fit even at the minimum size, it becomes scrollable
-        rather than clipped. Truncating a song is never acceptable — a musician reaching
-        the bridge and finding it missing is a far worse failure than having to scroll.
+        Desktop Leader windows keep the fixed-display contract and do not scroll. A
+        genuinely narrow view may scroll rather than clip a song that cannot fit even
+        at the minimum size.
       */}
       <main
         id="main"
         ref={container}
         className={`min-h-0 flex-1 px-3 py-3 print:overflow-visible sm:px-4 ${
-          fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
+          fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
         }`}
       >
         <div
@@ -193,6 +197,7 @@ export function SongPage() {
               showBass: false,
               capo: prefs.capo,
               transpose: prefs.transpose,
+              lineHeight: prefs.lineHeight,
               accidentalPreferences: prefs.accidentalPreferences,
             }}
           />

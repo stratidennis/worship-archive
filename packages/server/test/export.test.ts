@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Library, libraryFingerprint } from '../src/library.js';
@@ -185,6 +185,40 @@ describe('creating and saving songs', () => {
     });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({ error: 'song title is required' });
+  });
+
+  it('creates a location and saves a new song directly into it', async () => {
+    const location = await app.inject({
+      method: 'POST',
+      url: '/api/song-locations',
+      payload: { name: 'Youth' },
+    });
+    expect(location.statusCode).toBe(201);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/songs?location=Youth',
+      payload: { title: 'In the right folder' },
+    });
+    expect(created.statusCode).toBe(201);
+    const song = created.json();
+
+    const storedLocation = await app.inject({
+      method: 'GET',
+      url: `/api/song-locations/${encodeURIComponent(song.id)}`,
+    });
+    expect(storedLocation.json()).toEqual({ location: 'Youth' });
+    expect(library.list({ collection: 'Youth' }).map((item) => item.id)).toEqual([song.id]);
+  });
+
+  it('rejects location names that could escape the Songs folder', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/song-locations',
+      payload: { name: '../Outside' },
+    });
+    expect(response.statusCode).toBe(422);
+    expect(existsSync(join(dir, 'Outside'))).toBe(false);
   });
 });
 

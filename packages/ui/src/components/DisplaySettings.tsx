@@ -1,5 +1,8 @@
 import {
+  DEFAULT_SONG_LINE_HEIGHT,
   ENHARMONIC_PAIRS,
+  MAX_SONG_LINE_HEIGHT,
+  MIN_SONG_LINE_HEIGHT,
   type AccidentalPreferences,
   type LanguageName,
   type ThemeName,
@@ -16,7 +19,7 @@ import { Segment, Segmented } from './ui.js';
  * one. And the settings page asks *again* on behalf of the stage displays, which have
  * nobody standing at them at all.
  *
- * Three callers, the same four questions, so the controls are values-in,
+ * Three callers, the same display questions, so the controls are values-in,
  * changes-out and know nothing about where the answer is stored. That is the only
  * reason the stage's copy can write to the session while the other two write to
  * localStorage without any of them being a special case.
@@ -201,6 +204,54 @@ export function FontSize({
       />
       <span className="mt-1 block text-xs text-(--color-muted)">
         {t('settings.maxFontHint')}
+      </span>
+    </label>
+  );
+}
+
+export function LineSpacing({
+  value,
+  onChange,
+  onClear,
+  clearLabel,
+  fallback,
+}: {
+  value: number | null;
+  onChange: (value: number) => void;
+  onClear?: (() => void) | undefined;
+  clearLabel?: string | undefined;
+  fallback?: number;
+}) {
+  const { t } = useT();
+  const shown = value ?? fallback ?? DEFAULT_SONG_LINE_HEIGHT;
+  return (
+    <label className="mt-4 block">
+      <span className="flex items-baseline justify-between gap-2 text-sm">
+        {t('settings.lineSpacing')}
+        <span className="flex items-baseline gap-2">
+          {onClear && clearLabel && value !== null && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded text-xs text-(--color-chord) hover:underline"
+            >
+              {clearLabel}
+            </button>
+          )}
+          <span className="font-mono text-xs text-(--color-muted)">{shown.toFixed(2)}×</span>
+        </span>
+      </span>
+      <input
+        type="range"
+        min={MIN_SONG_LINE_HEIGHT}
+        max={MAX_SONG_LINE_HEIGHT}
+        step={0.05}
+        value={shown}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-1 w-full cursor-pointer accent-(--color-chord)"
+      />
+      <span className="mt-1 block text-xs text-(--color-muted)">
+        {t('settings.lineSpacingHint')}
       </span>
     </label>
   );

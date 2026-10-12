@@ -11,6 +11,7 @@ import type { IncomingMessage, Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
+  DEFAULT_STAGE_DISPLAY,
   INITIAL_SESSION,
   SESSION_PROTOCOL_VERSION,
   type ClientMessage,
@@ -112,11 +113,15 @@ export class SessionHub {
       const restored = { ...INITIAL_SESSION, ...known, rev: (saved.rev ?? 0) + 1 };
       this.state = {
         ...restored,
-        stage: { ...restored.stage, theme: restoredTheme(restored.stage.theme) },
+        stage: {
+          ...DEFAULT_STAGE_DISPLAY,
+          ...restored.stage,
+          theme: restoredTheme(restored.stage.theme),
+        },
         stageBy: Object.fromEntries(
           Object.entries(restored.stageBy).map(([name, display]) => [
             name,
-            { ...display, theme: restoredTheme(display.theme) },
+            { ...DEFAULT_STAGE_DISPLAY, ...display, theme: restoredTheme(display.theme) },
           ]),
         ),
         stageByDevice: Object.fromEntries(
@@ -124,7 +129,11 @@ export class SessionHub {
             id,
             {
               ...device,
-              display: { ...device.display, theme: restoredTheme(device.display.theme) },
+              display: {
+                ...DEFAULT_STAGE_DISPLAY,
+                ...device.display,
+                theme: restoredTheme(device.display.theme),
+              },
             },
           ]),
         ),

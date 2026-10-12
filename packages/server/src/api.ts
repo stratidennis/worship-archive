@@ -15,6 +15,8 @@ import { hostname, networkInterfaces } from 'node:os';
 import {
   DEFAULT_STAGE_DISPLAY,
   DEFAULT_ACCIDENTAL_PREFERENCES,
+  MAX_SONG_LINE_HEIGHT,
+  MIN_SONG_LINE_HEIGHT,
   SESSION_PROTOCOL_VERSION,
   emptyBlock,
   emptyLine,
@@ -126,6 +128,29 @@ export function createServer(options: ApiOptions): FastifyInstance {
     keys: library.keys(),
   }));
 
+  app.get('/api/song-locations', async () => ({ locations: library.locations() }));
+
+  app.post('/api/song-locations', async (request, reply) => {
+    const body = request.body as { name?: unknown } | undefined;
+    if (typeof body?.name !== 'string') {
+      return reply.code(400).send({ error: 'location name is required' });
+    }
+    try {
+      return reply.code(201).send({ location: library.createLocation(body.name) });
+    } catch (error) {
+      return reply.code(422).send({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get('/api/song-locations/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const location = library.locationOf(id);
+    if (!location) return reply.code(404).send({ error: 'not found' });
+    return { location };
+  });
+
   app.get('/api/songs', async (request) => {
     const q = request.query as Record<string, string | undefined>;
     return library.list({
@@ -166,7 +191,17 @@ export function createServer(options: ApiOptions): FastifyInstance {
       return reply.code(400).send({ error: 'song title is required' });
     }
     // `rev`, `createdAt` and `updatedAt` are the library's to set, not the client's.
-    const saved = library.save({ ...incoming, id });
+    const q = request.query as Record<string, string | undefined>;
+    let saved: Song;
+    try {
+      saved = q['location']
+        ? library.saveInLocation({ ...incoming, id }, q['location'])
+        : library.save({ ...incoming, id });
+    } catch (error) {
+      return reply.code(422).send({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     /*
       Tell the room.
 
@@ -208,7 +243,16 @@ export function createServer(options: ApiOptions): FastifyInstance {
       updatedAt: now,
       rev: 0,
     };
-    return reply.code(201).send(library.save(song));
+    const q = request.query as Record<string, string | undefined>;
+    try {
+      return reply
+        .code(201)
+        .send(q['location'] ? library.saveInLocation(song, q['location']) : library.save(song));
+    } catch (error) {
+      return reply.code(422).send({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   });
 
   app.delete('/api/songs/:id', async (request, reply) => {
@@ -488,6 +532,16 @@ export function createServer(options: ApiOptions): FastifyInstance {
       body.theme !== 'dark'
     ) {
       return reply.code(400).send({ error: 'bad theme' });
+    }
+    if (
+      body.lineHeight !== undefined &&
+      body.lineHeight !== null &&
+      (typeof body.lineHeight !== 'number' ||
+        !Number.isFinite(body.lineHeight) ||
+        body.lineHeight < MIN_SONG_LINE_HEIGHT ||
+        body.lineHeight > MAX_SONG_LINE_HEIGHT)
+    ) {
+      return reply.code(400).send({ error: 'bad line height' });
     }
 
     /*

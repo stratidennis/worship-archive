@@ -12,10 +12,15 @@ import {
   AccidentalChoice,
   FontSize,
   LanguageChoice,
+  LineSpacing,
   ThemeChoice,
 } from '../components/DisplaySettings.js';
 import { useStageDisplay } from '../lib/stageDisplay.js';
-import { DEFAULT_STAGE_DISPLAY, type StageDisplay } from '@worship/core';
+import {
+  DEFAULT_SONG_LINE_HEIGHT,
+  DEFAULT_STAGE_DISPLAY,
+  type StageDisplay,
+} from '@worship/core';
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
 import { desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
@@ -176,7 +181,7 @@ export function SettingsPage() {
 
           <Section title={t('settings.display')} className="lg:col-span-2">
             {/*
-              The same four questions, asked of two different things.
+              The same display questions, asked of two different things.
 
               A leader sets up their own laptop and also the televisions on the wall,
               which have nobody standing at them — and those are genuinely different
@@ -198,6 +203,10 @@ export function SettingsPage() {
                 <FontSize
                   value={prefs.maxFontPx}
                   onChange={(maxFontPx) => setPrefs({ maxFontPx })}
+                />
+                <LineSpacing
+                  value={prefs.lineHeight}
+                  onChange={(lineHeight) => setPrefs({ lineHeight })}
                 />
                 <Toggle
                   checked={prefs.showChords}
@@ -291,6 +300,13 @@ export function SettingsPage() {
                   onClear={() => setStage({ maxFontPx: null })}
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.maxFontPx : null) ?? 72}
+                />
+                <LineSpacing
+                  value={stage.lineHeight}
+                  onChange={(lineHeight) => setStage({ lineHeight })}
+                  onClear={() => setStage({ lineHeight: null })}
+                  clearLabel={selected ? inherit : t('settings.chordColorDefault')}
+                  fallback={(selected ? shared.lineHeight : null) ?? DEFAULT_SONG_LINE_HEIGHT}
                 />
                 {/* Whether chords are shown belongs to a physical display, not to an
                     abstract "all screens" default. It is offered only after the

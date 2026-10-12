@@ -1,5 +1,11 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { DEFAULT_ACCIDENTAL_PREFERENCES, type AccidentalPreferences } from '@worship/core';
+import {
+  DEFAULT_ACCIDENTAL_PREFERENCES,
+  DEFAULT_SONG_LINE_HEIGHT,
+  MAX_SONG_LINE_HEIGHT,
+  MIN_SONG_LINE_HEIGHT,
+  type AccidentalPreferences,
+} from '@worship/core';
 
 /**
  * Per-device preferences.
@@ -22,6 +28,8 @@ export interface Prefs {
   transpose: number;
   /** A ceiling, not a command — the fit algorithm decides the actual size. */
   maxFontPx: number;
+  /** Lyric line height as a unitless multiplier. */
+  lineHeight: number;
   /**
    * What colour chords are printed in, as a CSS colour, or null for the theme's own.
    *
@@ -54,6 +62,7 @@ export const DEFAULT_PREFS: Prefs = {
   capo: 0,
   transpose: 0,
   maxFontPx: 26,
+  lineHeight: DEFAULT_SONG_LINE_HEIGHT,
   chordColor: null,
   accidentalPreferences: DEFAULT_ACCIDENTAL_PREFERENCES,
   bandFollowsLeaderAccidentals: true,
@@ -74,12 +83,17 @@ function read(): Prefs {
       saved.theme === 'light' || saved.theme === 'dark' || saved.theme === 'auto'
         ? saved.theme
         : DEFAULT_PREFS.theme;
+    const lineHeight =
+      typeof saved.lineHeight === 'number' && Number.isFinite(saved.lineHeight)
+        ? Math.min(MAX_SONG_LINE_HEIGHT, Math.max(MIN_SONG_LINE_HEIGHT, saved.lineHeight))
+        : DEFAULT_PREFS.lineHeight;
     return {
       ...DEFAULT_PREFS,
       ...saved,
       // Older builds offered a separate Stage palette. Treat that retired value as
       // the normal system theme instead of leaving an unsupported data attribute.
       theme,
+      lineHeight,
       accidentalPreferences: {
         ...DEFAULT_ACCIDENTAL_PREFERENCES,
         ...(saved.accidentalPreferences ?? {}),

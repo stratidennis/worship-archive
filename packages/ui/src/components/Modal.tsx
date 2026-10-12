@@ -36,14 +36,16 @@ const TONES: Record<Tone, { ring: string; Icon: typeof IconAlert }> = {
  * on Escape, focusing something inside on open, and putting focus back where it came
  * from on close. Returns the ref to put on the panel.
  */
-export function useOverlay(onDismiss: () => void): React.RefObject<HTMLDivElement | null> {
-  const panel = useRef<HTMLDivElement>(null);
+export function useOverlay<T extends HTMLElement = HTMLDivElement>(
+  onDismiss: () => void,
+): React.RefObject<T | null> {
+  const panel = useRef<T>(null);
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    panel.current?.querySelector('button')?.focus();
+    panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus();
 
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;

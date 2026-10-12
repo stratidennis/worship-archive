@@ -21,6 +21,11 @@ export type DeviceRole = 'leader' | 'band' | 'stage';
 export type ThemeName = 'auto' | 'light' | 'dark';
 export type LanguageName = 'ro' | 'en';
 
+/** Readable bounds shared by every song renderer and its settings controls. */
+export const MIN_SONG_LINE_HEIGHT = 1;
+export const DEFAULT_SONG_LINE_HEIGHT = 1.2;
+export const MAX_SONG_LINE_HEIGHT = 1.35;
+
 /**
  * Increment only when a released client can no longer speak to a released host.
  *
@@ -58,6 +63,8 @@ export interface StageDisplay {
   language: LanguageName | null;
   /** A ceiling for the fit, in pixels. Null leaves the stage's own generous default. */
   maxFontPx: number | null;
+  /** Unitless lyric line height. Null leaves the stage's own default. */
+  lineHeight: number | null;
   /** Any CSS colour, or null for the theme's own accent. */
   chordColor: string | null;
   /** Null follows the Stage installation's own choice. */
@@ -102,6 +109,7 @@ export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   theme: null,
   language: null,
   maxFontPx: null,
+  lineHeight: null,
   chordColor: null,
   showChords: null,
 };
@@ -112,6 +120,7 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
     display.theme === null &&
     display.language === null &&
     display.maxFontPx === null &&
+    display.lineHeight === null &&
     display.chordColor === null &&
     display.showChords == null
   );
@@ -132,6 +141,7 @@ export function patchStageDisplay(
     theme: patch.theme !== undefined ? patch.theme : current.theme,
     language: patch.language !== undefined ? patch.language : current.language,
     maxFontPx: patch.maxFontPx !== undefined ? patch.maxFontPx : current.maxFontPx,
+    lineHeight: patch.lineHeight !== undefined ? patch.lineHeight : current.lineHeight,
     chordColor: patch.chordColor !== undefined ? patch.chordColor : current.chordColor,
     showChords: patch.showChords !== undefined ? patch.showChords : current.showChords,
   };
@@ -164,6 +174,7 @@ export function resolveStageDisplay(
     showChords: own?.showChords ?? null,
     // Not the leader's. See {@link HostDisplay}.
     maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
+    lineHeight: own?.lineHeight ?? state.stage.lineHeight,
   };
 }
 
