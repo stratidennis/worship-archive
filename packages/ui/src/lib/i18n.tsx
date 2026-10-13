@@ -376,6 +376,9 @@ const ro = {
   'settings.lineSpacingHint':
     'Mai strâns lasă loc pentru text mai mare; mai aerisit separă mai clar rândurile.',
   'settings.showChords': 'Arată acordurile',
+  'settings.showBlockTitles': 'Arată titlurile secțiunilor',
+  'settings.showBlockTitlesHint':
+    'Ascunde etichetele precum Strofă, Refren și Notă pentru a lăsa mai mult loc textului.',
   'settings.chordsShown': 'Cu acorduri',
   'settings.chordsHidden': 'Doar versuri',
   'settings.accidentals': 'Scrierea diezurilor și bemolilor',
@@ -847,6 +850,9 @@ const en: Record<TranslationKey, Entry> = {
   'settings.lineSpacingHint':
     'Tighter spacing leaves room for larger text; looser spacing separates the lines more clearly.',
   'settings.showChords': 'Show chords',
+  'settings.showBlockTitles': 'Show section titles',
+  'settings.showBlockTitlesHint':
+    'Hide labels such as Verse, Chorus and Note to leave more room for the song text.',
   'settings.chordsShown': 'With chords',
   'settings.chordsHidden': 'Words only',
   'settings.accidentals': 'Sharp and flat notation',

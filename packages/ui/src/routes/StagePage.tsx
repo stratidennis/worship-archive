@@ -136,7 +136,7 @@ export function StagePage() {
     // floor there. Phones use their separate, more readable floor and then scroll.
     minFontPx: 8,
     narrowMinFontPx: 12,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${extraTranspose}:${capo}:${stage.maxFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${stage.showBlockTitles}:${extraTranspose}:${capo}:${stage.maxFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.
@@ -191,6 +191,7 @@ export function StagePage() {
               options={{
                 showChords,
                 showBass,
+                showBlockTitles: stage.showBlockTitles ?? true,
                 capo,
                 transpose: extraTranspose,
                 lineHeight: stage.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT,

@@ -62,10 +62,14 @@ let shellServer: Server | null = null;
 let shellUrl = '';
 let discovery: Bonjour | null = null;
 let browser: Browser | null = null;
+let mdnsTimer: NodeJS.Timeout | null = null;
+let mdnsRetry: NodeJS.Timeout | null = null;
 let udpDiscovery: DgramSocket | null = null;
 let udpTimer: NodeJS.Timeout | null = null;
+let udpRetry: NodeJS.Timeout | null = null;
 let leader: LeaderEndpoint | null = null;
 let sleepBlocker: number | null = null;
+let stopping = false;
 const mdnsLeaders = new Map<string, LeaderEndpoint>();
 const udpLeaders = new Map<string, LeaderEndpoint & { seenAt: number }>();
 
@@ -103,46 +107,71 @@ function selectLeader(): void {
     preferred ?? (leaders.size === 1 ? leaders.values().next().value : undefined) ?? null;
 }
 
+function stopMdnsDiscovery(): void {
+  if (mdnsTimer) clearInterval(mdnsTimer);
+  mdnsTimer = null;
+  browser?.stop();
+  browser = null;
+  const current = discovery;
+  discovery = null;
+  try {
+    current?.destroy();
+  } catch {
+    // A socket which failed before binding may already be closed.
+  }
+}
+
 function startDiscovery(): void {
+  if (stopping) return;
+  if (mdnsRetry) clearTimeout(mdnsRetry);
+  mdnsRetry = null;
+  stopMdnsDiscovery();
   let failed = false;
   const onError = (error: unknown): void => {
     if (failed) return;
     failed = true;
-    console.warn('mDNS discovery unavailable; using LAN broadcast:', error);
+    console.warn('mDNS discovery interrupted; retrying and using LAN broadcast:', error);
     mdnsLeaders.clear();
     selectLeader();
-    // Stop further multicast sends. The independent UDP discovery below remains live
-    // and reconnects automatically as network interfaces appear or disappear.
     setTimeout(() => {
-      browser?.stop();
-      browser = null;
-      const current = discovery;
-      discovery = null;
-      try {
-        current?.destroy();
-      } catch {
-        // A socket which failed before binding may already be closed.
-      }
+      stopMdnsDiscovery();
+      if (!stopping) mdnsRetry = setTimeout(startDiscovery, 3000);
     }, 0);
   };
-  discovery = new Bonjour(undefined, onError);
-  const mdns = discovery as unknown as {
-    server: { mdns: { on: (event: 'error', listener: (error: unknown) => void) => void } };
-  };
-  mdns.server.mdns.on('error', onError);
-  browser = discovery.find({ type: 'http' });
-  browser.on('up', (service) => {
-    const endpoint = serviceEndpoint(service);
-    if (!endpoint) return;
-    mdnsLeaders.set(endpoint.id, endpoint);
-    selectLeader();
-  });
-  browser.on('down', (service) => {
-    const endpoint = serviceEndpoint(service);
-    if (!endpoint) return;
-    mdnsLeaders.delete(endpoint.id);
-    selectLeader();
-  });
+  try {
+    discovery = new Bonjour(undefined, onError);
+    const mdns = discovery as unknown as {
+      server: { mdns: { on: (event: 'error', listener: (error: unknown) => void) => void } };
+    };
+    mdns.server.mdns.on('error', onError);
+    browser = discovery.find({ type: 'http' });
+    browser.on('up', (service) => {
+      const endpoint = serviceEndpoint(service);
+      if (!endpoint) return;
+      mdnsLeaders.set(endpoint.id, endpoint);
+      selectLeader();
+    });
+    browser.on('down', (service) => {
+      const endpoint = serviceEndpoint(service);
+      if (!endpoint) return;
+      mdnsLeaders.delete(endpoint.id);
+      selectLeader();
+    });
+    // Bonjour sends one query when browsing starts. Ask again periodically so a Leader
+    // that appears later, or whose first response was lost while Wi-Fi came up, is
+    // discovered without requiring either application to restart.
+    mdnsTimer = setInterval(() => {
+      try {
+        browser?.expire();
+        browser?.update();
+      } catch (error) {
+        onError(error);
+      }
+    }, 5000);
+    mdnsTimer.unref();
+  } catch (error) {
+    onError(error);
+  }
 }
 
 function ipv4Broadcasts(): string[] {
@@ -171,8 +200,34 @@ function ipv4Broadcasts(): string[] {
 
 /** A broadcast fallback for Windows and networks where mDNS browsing is unavailable. */
 function startUdpDiscovery(): void {
+  if (stopping) return;
+  if (udpRetry) clearTimeout(udpRetry);
+  udpRetry = null;
+  if (udpTimer) clearInterval(udpTimer);
+  udpTimer = null;
+  try {
+    udpDiscovery?.close();
+  } catch {
+    // The previous socket may have failed before binding.
+  }
   const socket = createSocket({ type: 'udp4', reuseAddr: true });
   udpDiscovery = socket;
+  let failed = false;
+
+  const retry = (error: unknown): void => {
+    if (failed || stopping) return;
+    failed = true;
+    console.warn('LAN discovery fallback interrupted; retrying:', error);
+    if (udpTimer) clearInterval(udpTimer);
+    udpTimer = null;
+    if (udpDiscovery === socket) udpDiscovery = null;
+    try {
+      socket.close();
+    } catch {
+      // A bind failure may already have closed it.
+    }
+    udpRetry = setTimeout(startUdpDiscovery, 3000);
+  };
 
   socket.on('message', (message, remote) => {
     try {
@@ -201,7 +256,7 @@ function startUdpDiscovery(): void {
       // Other software can use this UDP port; unrelated packets are simply ignored.
     }
   });
-  socket.on('error', (error) => console.warn('LAN discovery fallback error:', error));
+  socket.on('error', retry);
 
   const discover = (): void => {
     const cutoff = Date.now() - 10_000;
@@ -211,15 +266,21 @@ function startUdpDiscovery(): void {
     selectLeader();
     const request = Buffer.from(LAN_DISCOVERY_REQUEST);
     for (const address of ipv4Broadcasts()) {
-      socket.send(request, LAN_DISCOVERY_PORT, address, () => undefined);
+      socket.send(request, LAN_DISCOVERY_PORT, address, (error) => {
+        if (error) retry(error);
+      });
     }
   };
 
   socket.bind(0, '0.0.0.0', () => {
-    socket.setBroadcast(true);
-    discover();
-    udpTimer = setInterval(discover, 2500);
-    udpTimer.unref();
+    try {
+      socket.setBroadcast(true);
+      discover();
+      udpTimer = setInterval(discover, 2500);
+      udpTimer.unref();
+    } catch (error) {
+      retry(error);
+    }
   });
 }
 
@@ -582,8 +643,10 @@ if (app.hasSingleInstanceLock()) {
   void app.whenReady().then(bootstrap);
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', () => {
-    browser?.stop();
-    discovery?.destroy();
+    stopping = true;
+    if (mdnsRetry) clearTimeout(mdnsRetry);
+    if (udpRetry) clearTimeout(udpRetry);
+    stopMdnsDiscovery();
     if (udpTimer) clearInterval(udpTimer);
     try {
       udpDiscovery?.close();

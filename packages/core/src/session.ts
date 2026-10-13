@@ -69,6 +69,8 @@ export interface StageDisplay {
   chordColor: string | null;
   /** Null follows the Stage installation's own choice. */
   showChords: boolean | null;
+  /** Whether song block labels such as Verse, Chorus and Note are visible. */
+  showBlockTitles: boolean | null;
 }
 
 /**
@@ -112,6 +114,7 @@ export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   lineHeight: null,
   chordColor: null,
   showChords: null,
+  showBlockTitles: null,
 };
 
 /** True when a screen's settings say nothing at all, and can be forgotten entirely. */
@@ -122,7 +125,8 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
     display.maxFontPx === null &&
     display.lineHeight === null &&
     display.chordColor === null &&
-    display.showChords == null
+    display.showChords == null &&
+    display.showBlockTitles == null
   );
 }
 
@@ -144,6 +148,8 @@ export function patchStageDisplay(
     lineHeight: patch.lineHeight !== undefined ? patch.lineHeight : current.lineHeight,
     chordColor: patch.chordColor !== undefined ? patch.chordColor : current.chordColor,
     showChords: patch.showChords !== undefined ? patch.showChords : current.showChords,
+    showBlockTitles:
+      patch.showBlockTitles !== undefined ? patch.showBlockTitles : current.showBlockTitles,
   };
 }
 
@@ -172,6 +178,7 @@ export function resolveStageDisplay(
     language: own?.language ?? state.stage.language ?? host?.language ?? null,
     chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
     showChords: own?.showChords ?? null,
+    showBlockTitles: own?.showBlockTitles ?? state.stage.showBlockTitles,
     // Not the leader's. See {@link HostDisplay}.
     maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
     lineHeight: own?.lineHeight ?? state.stage.lineHeight,

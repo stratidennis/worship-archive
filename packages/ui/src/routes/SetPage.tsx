@@ -1461,7 +1461,7 @@ function Preview({
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
     maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.showBlockTitles}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
@@ -1522,6 +1522,7 @@ function Preview({
             options={{
               showChords: prefs.showChords,
               showBass: false,
+              showBlockTitles: prefs.showBlockTitles,
               capo: capo ?? 0,
               transpose: shift,
               lineHeight: prefs.lineHeight,

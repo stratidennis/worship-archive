@@ -23,6 +23,8 @@ import {
 
 export interface Prefs {
   showChords: boolean;
+  /** Whether song block labels such as Verse, Chorus and Note are visible. */
+  showBlockTitles: boolean;
   capo: number;
   /** Extra transposition on top of the song's performance key. */
   transpose: number;
@@ -59,6 +61,7 @@ export interface Prefs {
 
 export const DEFAULT_PREFS: Prefs = {
   showChords: true,
+  showBlockTitles: true,
   capo: 0,
   transpose: 0,
   maxFontPx: 26,

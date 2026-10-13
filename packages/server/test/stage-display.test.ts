@@ -79,6 +79,16 @@ describe('the stage screens’ appearance', () => {
     expect(hub.getState().stage.lineHeight).toBeNull();
   });
 
+  it('sets block-title visibility for all screens or one screen', async () => {
+    await put({ showBlockTitles: false });
+    await put({ screen: 'Drums', showBlockTitles: true });
+
+    const state = hub.getState();
+    expect(resolveStageDisplay(state, 'Drums').showBlockTitles).toBe(true);
+    expect(resolveStageDisplay(state, 'Back').showBlockTitles).toBe(false);
+    expect((await put({ showBlockTitles: 'sometimes' })).statusCode).toBe(400);
+  });
+
   it('leaves alone what the request did not mention', async () => {
     await put({ theme: 'dark', chordColor: '#ef4444' });
     await put({ maxFontPx: 40 });
@@ -89,6 +99,7 @@ describe('the stage screens’ appearance', () => {
       lineHeight: null,
       chordColor: '#ef4444',
       showChords: null,
+      showBlockTitles: null,
     });
   });
 
@@ -174,6 +185,7 @@ describe('one screen at a time', () => {
       lineHeight: null,
       chordColor: '#ef4444',
       showChords: null,
+      showBlockTitles: null,
     });
   });
 

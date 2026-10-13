@@ -65,8 +65,7 @@ export interface RunningServer {
 }
 
 interface MdnsPublisher {
-  unpublishAll: (callback?: () => void) => void;
-  destroy: () => void;
+  close: () => void;
 }
 
 interface DiscoveryResponder {
@@ -105,59 +104,121 @@ async function publishMdns(
 ): Promise<MdnsPublisher | null> {
   try {
     const { Bonjour } = await import('bonjour-service');
-    let reported = false;
-    const onError = (error: unknown): void => {
-      status.mdns = 'unavailable';
-      status.error = String(error);
-      // A missing multicast route is common while Wi-Fi is reconnecting. Reporting it
-      // once is useful; throwing it from bonjour-service opens an endless Electron
-      // "Uncaught Exception" dialog whenever another local client asks a question.
-      if (!reported) {
-        reported = true;
-        log(`  mDNS advertisement failed (${String(error)}) — using LAN broadcast instead`);
+    let instance: InstanceType<typeof Bonjour> | null = null;
+    let retry: NodeJS.Timeout | null = null;
+    let publishTimeout: NodeJS.Timeout | null = null;
+    let closed = false;
+    let lastReported = 0;
+
+    const dispose = (): void => {
+      if (publishTimeout) clearTimeout(publishTimeout);
+      publishTimeout = null;
+      const current = instance;
+      instance = null;
+      try {
+        if (current) {
+          let destroyed = false;
+          current.unpublishAll(() => {
+            if (destroyed) return;
+            destroyed = true;
+            try {
+              current.destroy();
+            } catch {
+              // Already closed by the failed socket.
+            }
+          });
+          // A failed multicast socket does not always complete the goodbye callback.
+          // Do not let that dead socket survive into the retry that is meant to repair it.
+          const force = setTimeout(() => {
+            if (!destroyed) {
+              destroyed = true;
+              try {
+                current.destroy();
+              } catch {
+                // Already closed by the failed socket.
+              }
+            }
+          }, 250);
+          force.unref();
+        }
+      } catch {
+        // A socket which failed before binding may already be closed.
       }
     };
-    const instance = new Bonjour(undefined, onError);
-    // multicast-dns reserves its callback for failed sends; socket bind failures are
-    // emitted separately as an `error` event and must also be consumed.
-    const mdns = instance as unknown as {
-      server: { mdns: { on: (event: 'error', listener: (error: unknown) => void) => void } };
-    };
-    mdns.server.mdns.on('error', onError);
-    const service = instance.publish({
-      name: `${leaderName} (${hostname().replace(/\.local$/, '')})`,
-      type: 'http',
-      // This adds A/AAAA records for the memorable alias as well as the service record.
-      // It is intentionally best-effort: networks that suppress multicast still use IP.
-      host: friendlyHostname,
-      port,
-      txt: {
-        app: MDNS_TYPE,
-        role: 'leader',
-        leaderId,
-        protocol: String(SESSION_PROTOCOL_VERSION),
-      },
-    });
-    /*
-      A publish failure arrives asynchronously, long after the try/catch has returned —
-      a duplicate name on the network is the common one. Without this listener it is an
-      unhandled 'error' event, which in the Electron main process means the app can die
-      mid-service over a naming collision. mDNS is a convenience; the QR code and the
-      raw addresses are the paths that always work, so the only right response is to say
-      so and carry on.
-    */
-    service.on('error', onError);
-    service.once('up', () => {
-      status.mdns = 'published';
-      status.error = null;
-    });
-    setTimeout(() => {
-      if (status.mdns === 'starting') {
+
+    const publish = (): void => {
+      if (closed) return;
+      status.mdns = 'starting';
+      let failed = false;
+      const onError = (error: unknown): void => {
+        if (failed || closed) return;
+        failed = true;
         status.mdns = 'unavailable';
-        status.error = 'The local-network name was not published.';
+        status.error = String(error);
+        const now = Date.now();
+        if (now - lastReported > 30_000) {
+          lastReported = now;
+          log(`  mDNS advertisement interrupted (${String(error)}) — retrying`);
+        }
+        setTimeout(() => {
+          dispose();
+          if (!closed) {
+            retry = setTimeout(publish, 3000);
+            retry.unref();
+          }
+        }, 0);
+      };
+
+      try {
+        instance = new Bonjour(undefined, onError);
+        // multicast-dns reserves its callback for failed sends; socket bind failures are
+        // emitted separately as an `error` event and must also be consumed.
+        const mdns = instance as unknown as {
+          server: {
+            mdns: { on: (event: 'error', listener: (error: unknown) => void) => void };
+          };
+        };
+        mdns.server.mdns.on('error', onError);
+        const service = instance.publish({
+          name: `${leaderName} (${hostname().replace(/\.local$/, '')})`,
+          type: 'http',
+          // This adds A/AAAA records for the memorable alias as well as the service record.
+          // It is intentionally best-effort: networks that suppress multicast still use IP.
+          host: friendlyHostname,
+          port,
+          txt: {
+            app: MDNS_TYPE,
+            role: 'leader',
+            leaderId,
+            protocol: String(SESSION_PROTOCOL_VERSION),
+          },
+        });
+        service.on('error', onError);
+        service.once('up', () => {
+          if (failed || closed) return;
+          status.mdns = 'published';
+          status.error = null;
+          if (publishTimeout) clearTimeout(publishTimeout);
+          publishTimeout = null;
+        });
+        publishTimeout = setTimeout(
+          () => onError(new Error('The local-network name was not published.')),
+          3000,
+        );
+        publishTimeout.unref();
+      } catch (error) {
+        onError(error);
       }
-    }, 3000).unref();
-    return instance as unknown as MdnsPublisher;
+    };
+
+    publish();
+    return {
+      close: () => {
+        closed = true;
+        if (retry) clearTimeout(retry);
+        dispose();
+      },
+    };
   } catch (error) {
     status.mdns = 'unavailable';
     status.error = String(error);
@@ -179,8 +240,7 @@ async function startDiscoveryResponder(
   leaderId: string,
   leaderName: string,
   log: (message: string) => void,
-): Promise<DiscoveryResponder | null> {
-  const socket: DgramSocket = createSocket({ type: 'udp4', reuseAddr: true });
+): Promise<DiscoveryResponder> {
   const payload = Buffer.from(
     JSON.stringify({
       app: MDNS_TYPE,
@@ -191,32 +251,57 @@ async function startDiscoveryResponder(
       port: httpPort,
     }),
   );
+  let socket: DgramSocket | null = null;
+  let retry: NodeJS.Timeout | null = null;
+  let closed = false;
 
-  socket.on('message', (message, remote) => {
-    if (message.toString('utf8') !== LAN_DISCOVERY_REQUEST) return;
-    socket.send(payload, remote.port, remote.address, (error) => {
-      if (error) log(`  LAN discovery reply failed (${String(error)})`);
+  const listen = (): void => {
+    if (closed) return;
+    const next = createSocket({ type: 'udp4', reuseAddr: true });
+    socket = next;
+    let failed = false;
+
+    const recover = (error: unknown): void => {
+      if (failed || closed) return;
+      failed = true;
+      log(`  LAN discovery fallback interrupted (${String(error)}) — retrying`);
+      if (socket === next) socket = null;
+      try {
+        next.close();
+      } catch {
+        // A bind failure may already have closed the socket.
+      }
+      retry = setTimeout(listen, 3000);
+      retry.unref();
+    };
+
+    next.on('message', (message, remote) => {
+      if (message.toString('utf8') !== LAN_DISCOVERY_REQUEST) return;
+      next.send(payload, remote.port, remote.address, (error) => {
+        if (error) recover(error);
+      });
     });
-  });
+    next.on('error', recover);
+    try {
+      next.bind(LAN_DISCOVERY_PORT, '0.0.0.0');
+    } catch (error) {
+      recover(error);
+    }
+  };
 
-  const started = await new Promise<boolean>((resolveStarted) => {
-    const onError = (error: Error): void => {
-      socket.off('listening', onListening);
-      log(`  LAN discovery fallback unavailable (${String(error)})`);
-      resolveStarted(false);
-    };
-    const onListening = (): void => {
-      socket.off('error', onError);
-      resolveStarted(true);
-    };
-    socket.once('error', onError);
-    socket.once('listening', onListening);
-    socket.bind(LAN_DISCOVERY_PORT, '0.0.0.0');
-  });
-  if (!started) return null;
-
-  socket.on('error', (error) => log(`  LAN discovery fallback error (${String(error)})`));
-  return { close: () => socket.close() };
+  listen();
+  return {
+    close: () => {
+      closed = true;
+      if (retry) clearTimeout(retry);
+      try {
+        socket?.close();
+      } catch {
+        // Already closed after a network change.
+      }
+      socket = null;
+    },
+  };
 }
 
 /**
@@ -355,7 +440,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
     friendlyHostname,
     networkStatus,
     stop: async (): Promise<void> => {
-      bonjour?.unpublishAll(() => bonjour.destroy());
+      bonjour?.close();
       discoveryResponder?.close();
       await hub.close();
       await watcher?.close();

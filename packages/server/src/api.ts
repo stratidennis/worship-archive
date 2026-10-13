@@ -543,6 +543,13 @@ export function createServer(options: ApiOptions): FastifyInstance {
     ) {
       return reply.code(400).send({ error: 'bad line height' });
     }
+    if (
+      body.showBlockTitles !== undefined &&
+      body.showBlockTitles !== null &&
+      typeof body.showBlockTitles !== 'boolean'
+    ) {
+      return reply.code(400).send({ error: 'bad block-title visibility' });
+    }
 
     /*
       With a `screen`, this is about that one television; without one, about all of them.

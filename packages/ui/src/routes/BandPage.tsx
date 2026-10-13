@@ -262,7 +262,7 @@ export function BandPage() {
     // On a phone the musician can scroll, so their chosen size should be the actual
     // size, not merely a ceiling that the fit algorithm silently reduces.
     narrowScrollAtPreferredSize: true,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${transpose}:${capoFret}:${displayedKey}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${prefs.showBlockTitles}:${transpose}:${capoFret}:${displayedKey}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (
@@ -487,6 +487,7 @@ export function BandPage() {
                 options={{
                   showChords: prefs.showChords,
                   showBass: false,
+                  showBlockTitles: prefs.showBlockTitles,
                   capo: capoFret,
                   transpose,
                   lineHeight: prefs.lineHeight,
@@ -643,6 +644,14 @@ export function BandPage() {
             value={prefs.lineHeight}
             onChange={(lineHeight) => setPrefs({ lineHeight })}
           />
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <Checkbox
+              className="mt-0.5"
+              checked={prefs.showBlockTitles}
+              onChange={(event) => setPrefs({ showBlockTitles: event.target.checked })}
+            />
+            <span>{t('settings.showBlockTitles')}</span>
+          </label>
           <ChordColour
             value={prefs.chordColor}
             onChange={(chordColor) => setPrefs({ chordColor })}

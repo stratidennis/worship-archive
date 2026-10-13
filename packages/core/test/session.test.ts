@@ -128,6 +128,7 @@ describe('how a stage screen should look', () => {
       lineHeight: null,
       chordColor: null,
       showChords: null,
+      showBlockTitles: null,
     });
   });
 
@@ -161,6 +162,7 @@ describe('how a stage screen should look', () => {
       lineHeight: null,
       chordColor: '#f59e0b',
       showChords: null,
+      showBlockTitles: null,
     });
     expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
   });
@@ -179,6 +181,7 @@ describe('how a stage screen should look', () => {
       maxFontPx: null,
       lineHeight: null,
       showChords: null,
+      showBlockTitles: null,
     });
   });
 
@@ -221,6 +224,15 @@ describe('how a stage screen should look', () => {
     });
     expect(resolveStageDisplay(state, 'Drums').lineHeight).toBe(1.05);
     expect(resolveStageDisplay(state, 'Back').lineHeight).toBe(1.2);
+  });
+
+  it('lets one screen hide block titles without hiding them on the others', () => {
+    const state = session({
+      stage: { ...DEFAULT_STAGE_DISPLAY, showBlockTitles: true },
+      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, showBlockTitles: false } },
+    });
+    expect(resolveStageDisplay(state, 'Drums').showBlockTitles).toBe(false);
+    expect(resolveStageDisplay(state, 'Back').showBlockTitles).toBe(true);
   });
 
   /*

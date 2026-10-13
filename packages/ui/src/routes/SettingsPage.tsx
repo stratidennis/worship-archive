@@ -213,6 +213,12 @@ export function SettingsPage() {
                   onChange={(showChords) => setPrefs({ showChords })}
                   label={t('settings.showChords')}
                 />
+                <Toggle
+                  checked={prefs.showBlockTitles}
+                  onChange={(showBlockTitles) => setPrefs({ showBlockTitles })}
+                  label={t('settings.showBlockTitles')}
+                  hint={t('settings.showBlockTitlesHint')}
+                />
                 <ChordColour
                   value={prefs.chordColor}
                   onChange={(chordColor) => setPrefs({ chordColor })}
@@ -307,6 +313,14 @@ export function SettingsPage() {
                   onClear={() => setStage({ lineHeight: null })}
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.lineHeight : null) ?? DEFAULT_SONG_LINE_HEIGHT}
+                />
+                <Toggle
+                  checked={
+                    stage.showBlockTitles ?? (selected ? shared.showBlockTitles : null) ?? true
+                  }
+                  onChange={(showBlockTitles) => setStage({ showBlockTitles })}
+                  label={t('settings.showBlockTitles')}
+                  hint={t('settings.showBlockTitlesHint')}
                 />
                 {/* Whether chords are shown belongs to a physical display, not to an
                     abstract "all screens" default. It is offered only after the

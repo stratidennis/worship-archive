@@ -13,6 +13,7 @@ import {
   type Song,
 } from '@worship/core';
 import { useT } from '../lib/i18n.js';
+import { cueAppearance } from '../lib/cueAppearance.js';
 
 /** Block types that are cues rather than lyrics — rendered differently. */
 const CUE_TYPES = new Set(['Intro', 'Instrumental', 'Solo', 'Note']);
@@ -21,6 +22,8 @@ const INDENTED_TYPES = new Set(['Chorus', 'PreChorus', 'Bridge', 'Ending']);
 export interface RenderOptions {
   showChords: boolean;
   showBass: boolean;
+  /** Display the small Verse / Chorus / Note label above each block. */
+  showBlockTitles?: boolean;
   capo: number;
   /** Unitless lyric line-height multiplier. */
   lineHeight?: number;
@@ -210,6 +213,7 @@ function BlockView({
   const { blockName, singerName } = useT();
   const isCue = CUE_TYPES.has(block.type);
   const isIndented = INDENTED_TYPES.has(block.type);
+  const cue = cueAppearance(block.type);
   const label = [
     blockName(block.type),
     block.label ? `— ${block.label}` : null,
@@ -222,18 +226,25 @@ function BlockView({
   return (
     <section
       className={`mb-[0.9em] ${
-        isCue
-          ? 'rounded-md border-l-2 border-(--color-cue) bg-(--color-cue-bg) py-[0.3em] pl-[0.6em]'
-          : isIndented
-            ? 'ml-[1.3em]'
-            : ''
+        isCue ? 'rounded-md border-l-2 py-[0.3em] pl-[0.6em]' : isIndented ? 'ml-[1.3em]' : ''
       }`}
       // Never let a block be split down the middle by a column break.
-      style={{ breakInside: 'avoid' }}
+      style={{
+        breakInside: 'avoid',
+        ...(cue
+          ? {
+              borderColor: cue.border,
+              backgroundColor: cue.background,
+              fontSize: `${cue.fontScale}em`,
+            }
+          : {}),
+      }}
     >
-      <h2 className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)">
-        {label}
-      </h2>
+      {options.showBlockTitles !== false && (
+        <h2 className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)">
+          {label}
+        </h2>
+      )}
       {block.lines.map((line, i) => (
         <LineView
           key={i}

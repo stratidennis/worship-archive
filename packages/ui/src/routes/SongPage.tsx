@@ -85,7 +85,7 @@ export function SongPage() {
     // the same last-resort floor so small viewport and platform font-metric differences
     // do not make the fit stop at 11px and turn the song into a scrolling page.
     minFontPx: 8,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.showBlockTitles}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (error) {
@@ -212,6 +212,7 @@ export function SongPage() {
             options={{
               showChords: prefs.showChords,
               showBass: false,
+              showBlockTitles: prefs.showBlockTitles,
               capo: prefs.capo,
               transpose: prefs.transpose,
               lineHeight: prefs.lineHeight,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { importPlainText, looksLikeStructuredSongText } from '@worship/importers';
 import {
@@ -29,6 +29,7 @@ import { useT, type Translator } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
 import { usePrefs } from '../lib/settings.js';
 import { newSongDraft } from '../lib/newSong.js';
+import { cueAppearance } from '../lib/cueAppearance.js';
 import { LineEditor } from '../components/LineEditor.js';
 import { SongBody } from '../components/SongBody.js';
 import { HeaderActions, HeaderTitle, useHeader } from '../components/header-slots.js';
@@ -65,6 +66,11 @@ function sortLocations(locations: string[]): string[] {
       .filter((location) => location !== MAIN_LOCATION)
       .sort((a, b) => a.localeCompare(b, 'ro')),
   ];
+}
+
+function cueEditorStyle(type: BlockType): CSSProperties | undefined {
+  const cue = cueAppearance(type);
+  return cue ? { borderLeftColor: cue.border, backgroundColor: cue.background } : undefined;
 }
 
 /**
@@ -335,10 +341,9 @@ export function EditPage() {
               <section
                 key={block.id}
                 className={`group/block mb-4 rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-(--color-line) ${
-                  CUE_TYPES.has(block.type)
-                    ? 'border-l-2 border-l-(--color-cue) bg-(--color-cue-bg)'
-                    : ''
+                  CUE_TYPES.has(block.type) ? 'border-l-2' : ''
                 }`}
+                style={cueEditorStyle(block.type)}
                 onKeyDown={(event) => {
                   const type = TYPE_KEYS[event.key];
                   if (type) {
@@ -643,6 +648,7 @@ export function EditPage() {
                 options={{
                   showChords: true,
                   showBass: false,
+                  showBlockTitles: prefs.showBlockTitles,
                   capo: 0,
                   transpose: 0,
                   lineHeight: prefs.lineHeight,
