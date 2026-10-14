@@ -18,4 +18,9 @@ describe('display preference migration', () => {
     expect(normalisePrefs({ minFontPx: 2 }).minFontPx).toBe(8);
     expect(normalisePrefs({ minFontPx: 90 }).minFontPx).toBe(32);
   });
+
+  it('allows line spacing up to 2 and clamps anything larger', () => {
+    expect(normalisePrefs({ lineHeight: 2 }).lineHeight).toBe(2);
+    expect(normalisePrefs({ lineHeight: 3 }).lineHeight).toBe(2);
+  });
 });

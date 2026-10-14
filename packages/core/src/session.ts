@@ -26,7 +26,7 @@ export type CueStyle = 'full' | 'compact' | 'minimal';
 /** Readable bounds shared by every song renderer and its settings controls. */
 export const MIN_SONG_LINE_HEIGHT = 1;
 export const DEFAULT_SONG_LINE_HEIGHT = 1.2;
-export const MAX_SONG_LINE_HEIGHT = 1.35;
+export const MAX_SONG_LINE_HEIGHT = 2;
 /** User-selectable floor for automatic song fitting. */
 export const MIN_SONG_FONT_SIZE = 8;
 export const DEFAULT_SONG_FONT_SIZE = 12;

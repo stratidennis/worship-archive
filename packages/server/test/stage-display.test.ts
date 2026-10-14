@@ -75,8 +75,11 @@ describe('the stage screens’ appearance', () => {
 
   it('rejects line spacing outside the supported readable range', async () => {
     expect((await put({ lineHeight: 0.8 })).statusCode).toBe(400);
-    expect((await put({ lineHeight: 1.5 })).statusCode).toBe(400);
+    expect((await put({ lineHeight: 2.05 })).statusCode).toBe(400);
     expect(hub.getState().stage.lineHeight).toBeNull();
+
+    expect((await put({ lineHeight: 2 })).statusCode).toBe(200);
+    expect(hub.getState().stage.lineHeight).toBe(2);
   });
 
   it('rejects a minimum text size outside the supported readable range', async () => {
