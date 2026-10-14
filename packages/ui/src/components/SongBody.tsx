@@ -236,7 +236,7 @@ function BlockView({
       data-song-font-scale={cue?.fontScale ?? 1}
       className={`mb-[0.9em] ${
         isCue && cue?.coloured
-          ? 'rounded-md border-l-2 py-[0.3em] pl-[0.6em]'
+          ? 'rounded-md border-l-2 py-[0.18em] pl-[0.4em]'
           : isIndented
             ? 'ml-[1.3em]'
             : ''
@@ -244,11 +244,16 @@ function BlockView({
       // Never let a block be split down the middle by a column break.
       style={{
         breakInside: 'avoid',
+        ...(cue
+          ? {
+              fontSize: `${cue.fontScale}em`,
+              color: cue.text ?? undefined,
+            }
+          : {}),
         ...(cue?.coloured
           ? {
               borderColor: cue.border,
               backgroundColor: cue.background,
-              fontSize: `${cue.fontScale}em`,
             }
           : {}),
       }}

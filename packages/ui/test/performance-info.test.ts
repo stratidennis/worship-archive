@@ -36,11 +36,12 @@ describe('Song setup cue styles', () => {
     expect(html).toContain('Capo 2');
   });
 
-  it('removes the title and colour and makes the setup smallest in minimal mode', () => {
+  it('removes the title and background while keeping a colour-coded minimal setup', () => {
     const html = render('minimal');
     expect(html).not.toContain('Song setup');
     expect(html).not.toContain('bg-(--color-chord)/8');
-    expect(html).toContain('data-song-font-scale="0.62"');
+    expect(html).toContain('data-song-font-scale="0.45"');
+    expect(html).toContain('color:var(--color-chord)');
     expect(html).toContain('Performance key G');
   });
 });

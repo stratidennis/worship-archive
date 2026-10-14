@@ -41,17 +41,21 @@ export function PerformanceInfo({
 
   if (leader.length === 0 && mine.length === 0) return null;
   const coloured = cueStyle !== 'minimal';
-  const leaderScale = cueStyle === 'full' ? 0.78 : cueStyle === 'compact' ? 0.7 : 0.62;
-  const mineScale = cueStyle === 'full' ? 0.68 : cueStyle === 'compact' ? 0.62 : 0.56;
+  const leaderScale = cueStyle === 'full' ? 0.75 : cueStyle === 'compact' ? 0.6 : 0.45;
+  const mineScale = cueStyle === 'full' ? 0.65 : cueStyle === 'compact' ? 0.52 : 0.39;
   return (
     <section
       data-song-font-scale={leaderScale}
       className={`mb-[0.9em] ${
         coloured
-          ? 'rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.65em] py-[0.4em]'
+          ? 'rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.45em] py-[0.24em]'
           : ''
       }`}
-      style={{ breakInside: 'avoid', fontSize: `${leaderScale}em` }}
+      style={{
+        breakInside: 'avoid',
+        fontSize: `${leaderScale}em`,
+        color: cueStyle === 'minimal' ? 'var(--color-chord)' : undefined,
+      }}
     >
       {cueStyle === 'full' && (
         <h2
@@ -69,7 +73,10 @@ export function PerformanceInfo({
         <p
           data-song-font-scale={mineScale}
           className="mt-[0.18em] leading-snug text-(--color-muted)"
-          style={{ fontSize: `${mineScale / leaderScale}em` }}
+          style={{
+            fontSize: `${mineScale / leaderScale}em`,
+            color: cueStyle === 'minimal' ? 'inherit' : undefined,
+          }}
         >
           {mine.join(' · ')}
         </p>

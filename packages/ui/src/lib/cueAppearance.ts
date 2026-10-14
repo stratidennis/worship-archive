@@ -19,15 +19,19 @@ export function cueAppearance(
   background: string;
   fontScale: number;
   coloured: boolean;
+  text: string | null;
 } | null {
   const colours = CUE_COLOURS[type];
   if (!colours) return null;
   if (style === 'minimal') {
-    return { ...colours, fontScale: 0.64, coloured: false };
+    // Keep the cue's semantic colour after removing its background. The border colour
+    // is the readable foreground counterpart of that background in both themes.
+    return { ...colours, fontScale: 0.45, coloured: false, text: colours.border };
   }
   return {
     ...colours,
-    fontScale: style === 'compact' ? 0.72 : 0.8,
+    fontScale: style === 'compact' ? 0.6 : 0.75,
     coloured: true,
+    text: null,
   };
 }
