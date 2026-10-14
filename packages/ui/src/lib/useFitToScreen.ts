@@ -286,7 +286,38 @@ export function useFitToScreen(
             return stable;
           }, nextFrame);
           if (disposed) throw cancelled;
-          if (!applied) throw new Error('Browser did not apply the requested song layout');
+          if (!applied) {
+            const style = getComputedStyle(probe);
+            const mismatches = Array.from(
+              probe.querySelectorAll<HTMLElement>('[data-song-font-scale]'),
+            )
+              .map((text) => ({
+                scale: text.dataset.songFontScale,
+                actual: getComputedStyle(text).fontSize,
+              }))
+              .filter(
+                (text) =>
+                  Math.abs(parseFloat(text.actual) - fontPx * Number(text.scale)) >= 0.05,
+              )
+              .slice(0, 3);
+            throw new Error(
+              'Browser did not apply the requested song layout: ' +
+                JSON.stringify({
+                  native,
+                  screenWidth,
+                  screenHeight,
+                  available,
+                  width,
+                  fontPx,
+                  columns,
+                  actualFont: style.fontSize,
+                  actualColumns: style.columnCount,
+                  actualHeight: style.height,
+                  columnFill: style.columnFill,
+                  mismatches,
+                }),
+            );
+          }
         }
         /*
           Some mobile Chromium variants flow excess multi-column content sideways
@@ -383,6 +414,7 @@ export function useFitToScreen(
         void measure()
           .catch((error: unknown) => {
             if (disposed || error === cancelled) return;
+            console.warn('Song fitting failed', String(error));
             activeProbe?.remove();
             activeProbe = null;
             fittedKey.current = options.key;

@@ -80,7 +80,13 @@ public final class BandActivity extends Activity {
                     });
                 }
             });
-            web.setWebChromeClient(new WebChromeClient());
+            web.setWebChromeClient(new WebChromeClient() {
+                @Override public boolean onConsoleMessage(ConsoleMessage message) {
+                    if (message.message().startsWith("Song fitting failed"))
+                        android.util.Log.w("WorshipLayout", message.message());
+                    return super.onConsoleMessage(message);
+                }
+            });
             root.addView(web, new FrameLayout.LayoutParams(-1, -1));
             connection = new TextView(this);
             connection.setTextColor(Color.WHITE);

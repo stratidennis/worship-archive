@@ -236,6 +236,7 @@ try {
   for (const [filename, capture] of [
     ['failure.xml', hierarchy],
     ['logcat.txt', () => adb('logcat', '-d', '-t', '2000')],
+    ['layout-log.txt', () => adb('logcat', '-d', '-s', 'WorshipLayout:V', 'chromium:W')],
     ['failure.png', () => execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p'])],
   ]) {
     try {
