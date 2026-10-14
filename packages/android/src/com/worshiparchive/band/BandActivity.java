@@ -64,6 +64,11 @@ public final class BandActivity extends Activity {
             settings.setBuiltInZoomControls(false);
             settings.setDisplayZoomControls(false);
             settings.setTextZoom(100);
+            // WebView defaults both floors to 8px. Small section headings reach
+            // that floor before lyrics do, invalidating the shared fitter's em
+            // measurements and aborting its search. The UI owns its font floors.
+            settings.setMinimumFontSize(1);
+            settings.setMinimumLogicalFontSize(1);
             settings.setUseWideViewPort(true);
             settings.setLoadWithOverviewMode(false);
             web.addJavascriptInterface(new ConnectionBridge(), "worshipAndroid");

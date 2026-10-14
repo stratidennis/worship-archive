@@ -192,7 +192,6 @@ jobs:
           retention-days: 7
 
       - uses: actions/upload-artifact@v7
-        if: always()
         with:
           name: worship-archive-band-Android
           path: packages/android/release/*.apk

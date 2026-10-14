@@ -55,6 +55,8 @@ existing installation. Local builds default to version code 1; set
   address entry. Multiple Leaders require explicit selection.
 - Portrait, landscape and split-window support. The WebView uses the device viewport,
   not a desktop-width overview or browser zoom. Existing phone scrolling is retained.
+- The UI controls font-size floors, including proportionally smaller section titles;
+  Android's default 8px WebView floor must not interrupt song fitting.
 - Fullscreen and keep-awake settings. Discovery stops while the activity is in the
   background and resumes without reloading the song UI.
 - The JavaScript bridge opens connection settings and reports the actual native
