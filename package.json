@@ -30,6 +30,7 @@
     "dist:leader": "pnpm --filter @worship/desktop dist:leader",
     "dist:band": "pnpm --filter @worship/desktop dist:band",
     "dist:stage": "pnpm --filter @worship/desktop dist:stage",
+    "dist:android:band": "pnpm --filter @worship/ui build && pnpm --filter @worship/android apk",
     "icons": "python3 tools/src/make-icons.py",
     "trace:logo": "python3 tools/src/trace-logo.py"
   },

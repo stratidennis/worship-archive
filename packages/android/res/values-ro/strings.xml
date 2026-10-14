@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">Worship Band</string>
+    <string name="connection_title">Conexiunea cu Leader</string>
+    <string name="connection_hint">Conectează-te la aceeași rețea Wi-Fi ca Leader. Lasă adresa goală pentru conectare automată.</string>
+    <string name="device_name">Numele tău / numele dispozitivului</string>
+    <string name="leader_address">Adresa Leader (opțional)</string>
+    <string name="address_example">ex. 192.168.0.114:7374</string>
+    <string name="save">Conectare</string>
+    <string name="cancel">Anulare</string>
+    <string name="choose_leader">Alege un Leader</string>
+    <string name="automatic">Găsește Leader automat</string>
+    <string name="searching">Se caută un Leader în rețeaua Wi-Fi…</string>
+    <string name="multiple_leaders">Au fost găsite mai multe dispozitive Leader. Deschide setările conexiunii pentru a alege unul.</string>
+    <string name="no_wifi">Conectează-te la aceeași rețea Wi-Fi ca Leader.</string>
+    <string name="invalid_address">Introdu o adresă HTTP pentru Leader, de exemplu 192.168.0.114:7374.</string>
+    <string name="name_required">Introdu numele tău sau numele acestui dispozitiv.</string>
+    <string name="old_webview">Versiunea Android WebView de pe acest dispozitiv este prea veche pentru afișarea cântecelor. Actualizează Android System WebView (sau componenta WebView a dispozitivului), apoi redeschide Worship Band. Datele cântecelor nu au fost modificate.</string>
+    <string name="band_only">Această aplicație Android deschide doar ecranul Band.</string>
+    <string name="startup_error">Ecranul Band nu a putut porni. Închide și redeschide aplicația.</string>
+    <string name="reload">Reîncarcă ecranul</string>
+    <string name="keep_awake">Menține ecranul aprins</string>
+    <string name="fullscreen">Ecran complet</string>
+</resources>

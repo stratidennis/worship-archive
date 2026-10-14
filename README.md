@@ -55,9 +55,11 @@ needs this — the test job and the packaging job are different machines.
 
 ## Building the installers
 
-They are built by GitHub Actions, not locally: **Actions → Desktop builds → Run
-workflow** produces a Windows `.exe` and a macOS `.dmg` (Apple Silicon and Intel) as
-downloadable artifacts. Pushing a `v*` tag does the same and opens a draft release.
+They are built by GitHub Actions: **Actions → App builds → Run workflow** produces
+Windows `.exe`, macOS `.dmg` (Apple Silicon and Intel), and one universal **Android
+Band `.apk`** as downloadable artifacts. Android is Band-only; the existing desktop
+roles and architectures are unchanged. Pushing a `v*` tag does the same and opens a
+draft release.
 
 Locally, if you want one:
 
@@ -72,6 +74,25 @@ Gatekeeper can verify its integrity, but it is not Apple-notarised. Windows Smar
 needs _More info → Run anyway_. On macOS, right-click the app and choose _Open_ the
 first time; if it is still blocked, try once and then use _System Settings → Privacy &
 Security → Open Anyway_.
+
+### Android Band
+
+Install the APK on an Android 8+ tablet or phone, granting installation permission
+for the app used to open the download. A current Android System WebView is required;
+installing a modern browser alone does not update a device's WebView provider.
+The APK bundles the shared Band UI. It finds compatible Leaders over Wi-Fi using
+mDNS and the same UDP fallback as the desktop clients, with a manual address option
+in **Band settings → Leader connection**. Phones retain single-column scrolling;
+tablets retain fitted columns. No Google services or account are required.
+
+Local builds use the already installed Android SDK platform 36, build-tools 36.1.0,
+and Java 17; there are no additional native libraries or Gradle downloads:
+
+```bash
+pnpm dist:android:band
+```
+
+See [Android build and signing instructions](packages/android/README.md).
 
 ## Read in this order
 

@@ -1,4 +1,4 @@
-name: Desktop builds
+name: App builds
 
 # Installers are built on demand and on a version tag, not on every push: each run
 # downloads an Electron runtime per platform and takes minutes, and nobody needs a new
@@ -128,9 +128,77 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  android-band:
+    name: Android · Band · universal APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # These are the same SDK versions used locally. Only the ephemeral GitHub
+      # runner is provisioned; the APK build script never downloads dependencies.
+      - name: Prepare Android SDK tools
+        run: '${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "build-tools;36.1.0"'
+
+      - run: pnpm install --frozen-lockfile
+      - name: Test the native connection layer
+        run: pnpm --filter @worship/android test:native
+      - name: Build the shared UI
+        run: pnpm --filter @worship/ui build
+      - name: Build and verify signed Band APK
+        run: pnpm --filter @worship/android apk
+        env:
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
+          ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+          ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
+
+      # Runtime verification happens on GitHub's disposable Android emulator. No
+      # emulator/system image is installed on the developer's machine.
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch Band APK in Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: node packages/android/scripts/device-smoke.mjs --emulator
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: worship-archive-band-Android-smoke
+          path: packages/android/build/smoke/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: worship-archive-band-Android
+          path: packages/android/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
   # A tag publishes; a manual run just leaves the artifacts above.
   release:
-    needs: build
+    needs: [build, android-band]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -142,7 +210,15 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          files: installers/**/*
+          # Diagnostic screenshots are a separate CI artifact, not downloads for
+          # people installing the app.
+          files: |
+            installers/**/*.dmg
+            installers/**/*.zip
+            installers/**/*.exe
+            installers/**/*.AppImage
+            installers/**/latest*.yml
+            installers/**/*.apk
           draft: true
           generate_release_notes: true
           body: |
@@ -158,6 +234,12 @@ jobs:
             choose **Open Anyway**. The app bundle is ad-hoc signed to protect its
             integrity, but is not Apple-notarised, so macOS asks you to approve its first
             launch.
+
+            **Android (Band only)** — download the `.apk` on your tablet or phone,
+            allow installation from the app used to open the download, and install it.
+            Join the same Wi-Fi as the Leader. Android 8 or newer and a current Android
+            System WebView are required. Future APKs use the same signing key and can
+            update the existing installation without losing its settings.
 
             Choose the installer for this device's role:
 

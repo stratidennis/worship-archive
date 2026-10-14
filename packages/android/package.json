@@ -1,0 +1,10 @@
+{
+  "name": "@worship/android",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "apk": "node scripts/build.mjs",
+    "test:native": "node scripts/test.mjs"
+  }
+}

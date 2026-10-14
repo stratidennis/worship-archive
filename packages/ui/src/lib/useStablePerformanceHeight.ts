@@ -1,4 +1,5 @@
 import { useLayoutEffect, type RefObject } from 'react';
+import { androidBand } from './androidBand.js';
 
 interface DisplaySize {
   width: number;
@@ -29,6 +30,9 @@ export function useStablePerformanceHeight(ref: RefObject<HTMLElement | null>): 
     const handheld =
       !window.worship &&
       !window.worshipClient &&
+      // Android has no browser address bar. Its fullscreen/keyboard/split-window
+      // changes really do resize the available area, even though phones still scroll.
+      !androidBand() &&
       window.matchMedia('(pointer: coarse)').matches;
     const size = (): DisplaySize => ({
       width: window.innerWidth,

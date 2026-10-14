@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">Worship Band</string>
+    <string name="connection_title">Leader connection</string>
+    <string name="connection_hint">Join the same Wi-Fi as the Leader. Leave the address empty to find it automatically.</string>
+    <string name="device_name">Your name / device name</string>
+    <string name="leader_address">Leader address (optional)</string>
+    <string name="address_example">e.g. 192.168.0.114:7374</string>
+    <string name="save">Connect</string>
+    <string name="cancel">Cancel</string>
+    <string name="choose_leader">Choose a Leader</string>
+    <string name="automatic">Find the Leader automatically</string>
+    <string name="searching">Looking for a Leader on your Wi-Fi…</string>
+    <string name="multiple_leaders">Several Leaders found. Open connection settings to choose one.</string>
+    <string name="no_wifi">Connect to the same Wi-Fi as the Leader.</string>
+    <string name="invalid_address">Enter an HTTP Leader address, such as 192.168.0.114:7374.</string>
+    <string name="name_required">Please enter your name or this device’s name.</string>
+    <string name="old_webview">This device’s Android WebView is too old for the song display. Update Android System WebView (or your device’s WebView provider), then reopen Worship Band. No song data has been changed.</string>
+    <string name="band_only">This Android app opens the Band screen only.</string>
+    <string name="startup_error">The Band screen could not start. Close and reopen the app.</string>
+    <string name="reload">Reload screen</string>
+    <string name="keep_awake">Keep the screen awake</string>
+    <string name="fullscreen">Fullscreen</string>
+</resources>

@@ -3,6 +3,7 @@ import type { HostDisplay } from '@worship/core';
 import { usePrefs } from './settings.js';
 import { useLeading } from './leading.js';
 import { desktop } from './desktop.js';
+import { androidBand } from './androidBand.js';
 
 /**
  * Telling the screens what this device looks like.
@@ -26,6 +27,8 @@ import { desktop } from './desktop.js';
 
 /** Which devices are allowed to speak for the room. */
 function isHost(leading: boolean): boolean {
+  // The Android shell also serves its UI on loopback, but never owns the room.
+  if (androidBand()) return false;
   if (leading) return true;
   // The desktop app *is* the host machine, and a browser on that machine reaches it
   // by a loopback address. Everything else on the WiFi is somebody's phone.

@@ -1,16 +1,22 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
+import { androidBand } from './lib/androidBand.js';
 import './index.css';
 
 /**
- * Phones use the PWA cache; installed Electron apps use their bundled files.
+ * Browser phones use the PWA cache; installed Electron/Android apps bundle their UI.
  *
  * Keeping those two cases separate prevents an old service worker from mixing UI and
  * server versions after a desktop upgrade. The preload bridges exist before this
  * module runs, so this test is deterministic rather than user-agent sniffing.
  */
-if (!window.worship && !window.worshipClient && 'serviceWorker' in navigator) {
+if (
+  !window.worship &&
+  !window.worshipClient &&
+  !androidBand() &&
+  'serviceWorker' in navigator
+) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker
       .register('/sw.js', { scope: '/' })

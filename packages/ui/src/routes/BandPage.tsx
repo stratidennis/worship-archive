@@ -17,6 +17,7 @@ import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
+import { androidBand } from '../lib/androidBand.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
@@ -529,6 +530,11 @@ export function BandPage() {
 
       {settingsOpen && (
         <Sheet title={t('settings.title')} onClose={() => setSettingsOpen(false)}>
+          {androidBand() && (
+            <Button className="mb-5" onClick={() => androidBand()?.openConnectionSettings()}>
+              {t('band.leaderConnection')}
+            </Button>
+          )}
           {clientState && (
             <div className="mb-5 grid gap-2 border-b border-(--color-line) pb-5">
               <label className="grid gap-1 text-sm">

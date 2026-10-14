@@ -24,3 +24,4 @@ migration-report.html
 .tsc/
 packages/desktop/release/
 .smoke/
+/packages/android/.signing/

@@ -32,6 +32,8 @@ export default tseslint.config(
       '**/.tsc/**',
       '**/.smoke/**',
       '**/release/**',
+      'packages/android/build/**',
+      'packages/android/.signing/**',
     ],
   },
   js.configs.recommended,
