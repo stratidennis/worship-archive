@@ -9,7 +9,11 @@ import {
 } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
-import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
+import {
+  fittedSongOverflowClass,
+  fittedSongStyle,
+  useFitToScreen,
+} from '../lib/useFitToScreen.js';
 import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { setLanguageOverride, useT } from '../lib/i18n.js';
 import { applyChordColor, applyTheme } from '../lib/theme.js';
@@ -168,9 +172,10 @@ export function StagePage() {
       <div
         id="main"
         ref={container}
-        className={`min-h-0 flex-1 px-4 py-3 sm:px-5 ${
-          fit.phone && !fit.fits ? 'touch-pan-y overflow-y-auto' : 'touch-none overflow-hidden'
-        } ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
+        className={`min-h-0 flex-1 px-4 py-3 sm:px-5 ${fittedSongOverflowClass(
+          fit.fits,
+          false,
+        )} ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
       >
         {state.output === 'cleared' ? null : song ? (
           <div
@@ -212,7 +217,20 @@ export function StagePage() {
         )}
       </div>
 
-      <div className="pointer-events-none absolute bottom-3 right-4 flex items-center gap-3">
+      {!fit.fits && state.output !== 'cleared' && song && (
+        <p
+          role="status"
+          className="shrink-0 border-t border-(--color-line) px-4 py-1.5 text-center text-xs font-medium text-(--color-cue-intro)"
+        >
+          {t('stage.doesNotFit')}
+        </p>
+      )}
+
+      <div
+        className={`pointer-events-none absolute right-4 flex items-center gap-3 ${
+          !fit.fits && state.output !== 'cleared' && song ? 'bottom-10' : 'bottom-3'
+        }`}
+      >
         <BeatLed state={state} clockOffset={clockOffset} />
         {status !== 'live' && (
           <span

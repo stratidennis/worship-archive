@@ -25,7 +25,11 @@ import {
 import { moveItem } from '../lib/reorder.js';
 import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
-import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
+import {
+  fittedSongOverflowClass,
+  fittedSongStyle,
+  useFitToScreen,
+} from '../lib/useFitToScreen.js';
 import { adjacentSong } from '../lib/songNavigation.js';
 import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -1503,9 +1507,10 @@ function Preview({
       </div>
       <div
         ref={container}
-        className={`min-h-0 flex-1 px-3 py-3 sm:px-4 ${
-          fit.phone && !fit.fits ? 'overflow-y-auto' : 'overflow-hidden'
-        }`}
+        className={`min-h-0 flex-1 px-3 py-3 sm:px-4 ${fittedSongOverflowClass(
+          fit.fits,
+          true,
+        )}`}
       >
         <div
           key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}

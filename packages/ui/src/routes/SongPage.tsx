@@ -3,7 +3,11 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { preferredKeyName, type Song } from '@worship/core';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
-import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
+import {
+  fittedSongOverflowClass,
+  fittedSongStyle,
+  useFitToScreen,
+} from '../lib/useFitToScreen.js';
 import { adjacentSong } from '../lib/songNavigation.js';
 import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -182,16 +186,17 @@ export function SongPage() {
 
       {/*
         The container is the measuring frame: exactly the space a song must fit into.
-        Desktop Leader windows keep the fixed-display contract and do not scroll. A
-        genuinely narrow view may scroll rather than clip a song that cannot fit even
-        at the minimum size.
+        Fitting remains the first choice on every screen. If no allowed column layout
+        can hold the song at the selected minimum, Reader is interactive and may scroll
+        rather than clipping the end of the song.
       */}
       <main
         id="main"
         ref={container}
-        className={`min-h-0 flex-1 px-3 py-3 print:overflow-visible sm:px-4 ${
-          fit.phone && !fit.fits ? 'overflow-y-auto' : 'overflow-hidden'
-        }`}
+        className={`min-h-0 flex-1 px-3 py-3 print:overflow-visible sm:px-4 ${fittedSongOverflowClass(
+          fit.fits,
+          true,
+        )}`}
       >
         <div
           key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}

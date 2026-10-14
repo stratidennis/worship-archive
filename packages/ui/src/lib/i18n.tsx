@@ -121,6 +121,8 @@ const ro = {
   'song.chords': 'Acorduri',
   'song.edit': 'Editează',
   'song.doesNotFit': 'Nu încape pe un ecran — derulează, sau ascunde acordurile.',
+  'stage.doesNotFit':
+    'Cântarea nu încape la mărimea minimă selectată. Micșorează mărimea minimă a textului pentru acest ecran Stage.',
   'song.transposeDown': 'Coboară cu un semiton',
   'song.transposeUp': 'Urcă cu un semiton',
   'song.transposeReset': 'Înapoi la tonalitatea cântării',
@@ -620,6 +622,8 @@ const en: Record<TranslationKey, Entry> = {
   'song.chords': 'Chords',
   'song.edit': 'Edit',
   'song.doesNotFit': 'Will not fit one screen — scroll, or hide the chords.',
+  'stage.doesNotFit':
+    'This song cannot fit at the selected minimum text size. Lower the minimum text size for this Stage screen.',
   'song.transposeDown': 'Down a semitone',
   'song.transposeUp': 'Up a semitone',
   'song.transposeReset': "Back to the song's own key",

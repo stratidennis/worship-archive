@@ -3,6 +3,7 @@ import {
   chooseFit,
   columnCandidates,
   exceedsAvailableSpace,
+  fittedSongOverflowClass,
   fittedSongStyle,
   isPhoneScreen,
   NARROW_SCREEN_WIDTH,
@@ -93,6 +94,12 @@ describe('phone font-size control', () => {
 });
 
 describe('fit overflow measurement', () => {
+  it('scrolls an unfitted interactive song on any device but keeps Stage clipped', () => {
+    expect(fittedSongOverflowClass(false, true)).toContain('overflow-y-auto');
+    expect(fittedSongOverflowClass(false, false)).toContain('overflow-hidden');
+    expect(fittedSongOverflowClass(true, true)).toContain('overflow-hidden');
+  });
+
   it('rejects content that a mobile column layout flows beyond the right edge', () => {
     expect(
       exceedsAvailableSpace({ scrollHeight: 560, scrollWidth: 1940, clientWidth: 960 }, 560),

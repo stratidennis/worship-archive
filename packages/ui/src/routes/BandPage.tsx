@@ -12,7 +12,11 @@ import {
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
-import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
+import {
+  fittedSongOverflowClass,
+  fittedSongStyle,
+  useFitToScreen,
+} from '../lib/useFitToScreen.js';
 import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
@@ -450,11 +454,10 @@ export function BandPage() {
         <main
           id="main"
           ref={container}
-          className={`min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
-            fit.phone && !fit.fits
-              ? 'touch-pan-y overflow-y-auto'
-              : 'touch-none overflow-hidden'
-          }`}
+          className={`min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${fittedSongOverflowClass(
+            fit.fits,
+            true,
+          )}`}
         >
           {viewing ? (
             <div

@@ -112,6 +112,13 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
   };
 }
 
+/** Interactive song screens may scroll only after every readable fit has failed. */
+export function fittedSongOverflowClass(fits: boolean, allowFallbackScroll: boolean): string {
+  return !fits && allowFallbackScroll
+    ? 'touch-pan-y overflow-y-auto'
+    : 'touch-none overflow-hidden';
+}
+
 /**
  * Column counts worth trying at a given width. Columns are useless on a phone.
  *
