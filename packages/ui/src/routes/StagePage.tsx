@@ -176,7 +176,11 @@ export function StagePage() {
         } ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
       >
         {state.output === 'cleared' ? null : song ? (
-          <div ref={content} style={fittedSongStyle(fit)}>
+          <div
+            key={`${song.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+            ref={content}
+            style={fittedSongStyle(fit)}
+          >
             {showChords && (
               <PerformanceInfo
                 performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}

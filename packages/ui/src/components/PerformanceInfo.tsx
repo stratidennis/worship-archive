@@ -39,15 +39,24 @@ export function PerformanceInfo({
   if (leader.length === 0 && mine.length === 0) return null;
   return (
     <section
+      data-song-font-scale={1}
       className="mb-[0.9em] rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.65em] py-[0.4em]"
       style={{ breakInside: 'avoid' }}
     >
-      <h2 className="text-[0.58em] font-semibold uppercase tracking-wider text-(--color-muted)">
+      <h2
+        data-song-font-scale={0.58}
+        className="text-[0.58em] font-semibold uppercase tracking-wider text-(--color-muted)"
+      >
         {t('performance.title')}
       </h2>
-      <p className="text-[0.78em] font-semibold leading-snug">{leader.join(' · ')}</p>
+      <p data-song-font-scale={0.78} className="text-[0.78em] font-semibold leading-snug">
+        {leader.join(' · ')}
+      </p>
       {mine.length > 0 && (
-        <p className="mt-[0.18em] text-[0.68em] leading-snug text-(--color-muted)">
+        <p
+          data-song-font-scale={0.68}
+          className="mt-[0.18em] text-[0.68em] leading-snug text-(--color-muted)"
+        >
           {mine.join(' · ')}
         </p>
       )}

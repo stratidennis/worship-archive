@@ -147,11 +147,13 @@ function LineView({
   options,
   semitones,
   targetKey,
+  fontScale,
 }: {
   line: Line;
   options: RenderOptions;
   semitones: number;
   targetKey: string | null;
+  fontScale: number;
 }) {
   const chunks = useMemo(
     () => chunksOf(line, options, semitones, targetKey),
@@ -177,12 +179,16 @@ function LineView({
           {chunk.map((part, i) => (
             <span key={i} className="whitespace-pre">
               {showChordRow && (
-                <span className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord-ink)">
+                <span
+                  data-song-font-scale={fontScale * 0.72}
+                  className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord-ink)"
+                >
                   {part.chord ?? ' '}
                   {part.bass && <span className="ml-1 text-(--color-bass)">{part.bass}</span>}
                 </span>
               )}
               <span
+                data-song-font-scale={fontScale}
                 className="block"
                 style={{ lineHeight: options.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT }}
               >
@@ -225,6 +231,7 @@ function BlockView({
 
   return (
     <section
+      data-song-font-scale={cue?.fontScale ?? 1}
       className={`mb-[0.9em] ${
         isCue ? 'rounded-md border-l-2 py-[0.3em] pl-[0.6em]' : isIndented ? 'ml-[1.3em]' : ''
       }`}
@@ -241,7 +248,10 @@ function BlockView({
       }}
     >
       {options.showBlockTitles !== false && (
-        <h2 className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)">
+        <h2
+          data-song-font-scale={(cue?.fontScale ?? 1) * 0.62}
+          className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)"
+        >
           {label}
         </h2>
       )}
@@ -252,6 +262,7 @@ function BlockView({
           options={options}
           semitones={semitones}
           targetKey={targetKey}
+          fontScale={cue?.fontScale ?? 1}
         />
       ))}
     </section>

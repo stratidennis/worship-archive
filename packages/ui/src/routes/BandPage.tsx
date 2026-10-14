@@ -458,7 +458,11 @@ export function BandPage() {
           }`}
         >
           {viewing ? (
-            <div ref={content} style={fittedSongStyle(fit)}>
+            <div
+              key={`${viewing.song.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+              ref={content}
+              style={fittedSongStyle(fit)}
+            >
               {prefs.showChords && (
                 <PerformanceInfo
                   performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}

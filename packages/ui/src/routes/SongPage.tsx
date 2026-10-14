@@ -197,7 +197,12 @@ export function SongPage() {
           fit.phone && !fit.fits ? 'overflow-y-auto' : 'overflow-hidden'
         }`}
       >
-        <div ref={content} className="w-full" style={fittedSongStyle(fit)}>
+        <div
+          key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+          ref={content}
+          className="w-full"
+          style={fittedSongStyle(fit)}
+        >
           <SongBody
             song={song}
             options={{
