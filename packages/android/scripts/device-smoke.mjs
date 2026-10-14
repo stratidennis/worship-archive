@@ -68,7 +68,9 @@ const set = {
   updatedAt: song.updatedAt,
 };
 const state = { ...INITIAL_SESSION, active: true, setId: set.id, rev: 1 };
+const requests = [];
 const backend = createServer((request, response) => {
+  requests.push({ method: request.method, url: request.url });
   response.setHeader('content-type', 'application/json');
   const path = new URL(request.url, 'http://localhost').pathname;
   response.end(
@@ -112,7 +114,7 @@ const center = (node) => {
 };
 const tap = (node) => adb('shell', 'input', 'tap', ...center(node).map(String));
 const waitFor = async (read, label) => {
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for (let attempt = 0; attempt < 60; attempt++) {
     const result = read();
     if (result) return result;
     await pause();
@@ -140,7 +142,13 @@ try {
   assert.ok(currentInputs?.length >= 2, 'Leader address field available');
   tap(currentInputs[1]);
   adb('shell', 'input', 'text', `10.0.2.2:${backend.address().port}`);
-  const positive = hierarchy().match(/<node\b[^>]*resource-id="android:id\/button1"[^>]*>/);
+  const completedForm = hierarchy();
+  assert.ok(completedForm.includes('Android-CI'), 'Device name entered in native setup');
+  assert.ok(
+    completedForm.includes(`10.0.2.2:${backend.address().port}`),
+    'Leader address entered in native setup',
+  );
+  const positive = completedForm.match(/<node\b[^>]*resource-id="android:id\/button1"[^>]*>/);
   assert.ok(positive, 'Connect button available');
   tap(positive[0]);
   await waitFor(
@@ -151,6 +159,7 @@ try {
       ),
     'real APK connected to the test Leader',
   );
+  await waitFor(() => hierarchy().includes(song.title), 'Band song rendered in WebView');
   const pid = adb('shell', 'pidof', 'com.worshiparchive.band').trim();
   assert.ok(pid, 'Band process running');
   mkdirSync(join(root, 'build/smoke'), { recursive: true });
@@ -180,6 +189,21 @@ try {
   console.log(
     'Android emulator smoke passed: signed APK installed, native setup completed, real Band WebSocket connected, rotation preserved the process, no runtime crash.',
   );
+} catch (error) {
+  mkdirSync(join(root, 'build/smoke'), { recursive: true });
+  for (const [filename, capture] of [
+    ['failure.xml', hierarchy],
+    ['logcat.txt', () => adb('logcat', '-d')],
+    ['failure.png', () => execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p'])],
+  ]) {
+    try {
+      writeFileSync(join(root, 'build/smoke', filename), capture());
+    } catch {
+      /* Retain any diagnostics still available if the emulator is failing. */
+    }
+  }
+  console.log(JSON.stringify({ requests, hellos }));
+  throw error;
 } finally {
   try {
     adb('shell', 'am', 'force-stop', 'com.worshiparchive.band');

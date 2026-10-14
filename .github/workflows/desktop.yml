@@ -184,7 +184,7 @@ jobs:
         if: always()
         with:
           name: worship-archive-band-Android-smoke
-          path: packages/android/build/smoke/*.png
+          path: packages/android/build/smoke/*
           if-no-files-found: ignore
           retention-days: 7
 
