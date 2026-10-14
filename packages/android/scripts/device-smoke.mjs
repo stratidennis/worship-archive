@@ -12,6 +12,7 @@ import {
   center,
   createHierarchyReader,
   enterNativeInput,
+  hierarchyRotation,
   nativeInputs,
   textInsideScreen,
   waitFor,
@@ -120,6 +121,16 @@ const screenshot = (name) =>
     join(root, 'build/smoke', name + '.png'),
     execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p']),
   );
+const rotate = async (rotation) => {
+  // `settings put system user_rotation` is advisory on newer Android images and
+  // occasionally leaves CI in portrait. Lock through WindowManager, then wait for
+  // accessibility to report the requested orientation before measuring the song.
+  adb('shell', 'wm', 'user-rotation', 'lock', String(rotation));
+  await waitFor(
+    () => (hierarchyRotation(hierarchy()) === rotation ? true : null),
+    `screen rotation ${rotation}`,
+  );
+};
 const verifySongEnd = async (name, width, height) => {
   await waitFor(
     () => {
@@ -138,7 +149,7 @@ try {
   adb('shell', 'wm', 'size', '1200x2000');
   adb('shell', 'wm', 'density', '320');
   adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
-  adb('shell', 'settings', 'put', 'system', 'user_rotation', '0');
+  adb('shell', 'wm', 'user-rotation', 'lock', '0');
   await pause();
   adb('install', '-r', join(root, 'release/worship-archive-band-Android.apk'));
   adb('logcat', '-c');
@@ -176,14 +187,14 @@ try {
   assert.ok(pid, 'Band process running');
   mkdirSync(join(root, 'build/smoke'), { recursive: true });
   await verifySongEnd('portrait', 1200, 2000);
-  adb('shell', 'settings', 'put', 'system', 'user_rotation', '1');
+  await rotate(1);
   await verifySongEnd('landscape', 2000, 1200);
   assert.equal(
     adb('shell', 'pidof', 'com.worshiparchive.band').trim(),
     pid,
     'rotation did not restart the app',
   );
-  adb('shell', 'settings', 'put', 'system', 'user_rotation', '0');
+  await rotate(0);
   await verifySongEnd('portrait-return', 1200, 2000);
   assert.equal(
     adb('shell', 'pidof', 'com.worshiparchive.band').trim(),
@@ -192,11 +203,11 @@ try {
   );
 
   adb('shell', 'am', 'force-stop', 'com.worshiparchive.band');
-  adb('shell', 'settings', 'put', 'system', 'user_rotation', '1');
+  await rotate(1);
   await pause();
   adb('shell', 'am', 'start', '-W', '-n', 'com.worshiparchive.band/.BandActivity');
   await verifySongEnd('landscape-cold-start', 2000, 1200);
-  adb('shell', 'settings', 'put', 'system', 'user_rotation', '0');
+  await rotate(0);
   await verifySongEnd('portrait-after-landscape-start', 1200, 2000);
 
   // The same universal APK must still permit one-column scrolling on real phones.

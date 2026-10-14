@@ -5,6 +5,7 @@ import {
   createHierarchyReader,
   enterNativeInput,
   focusInput,
+  hierarchyRotation,
   textInsideScreen,
   UiNotReadyError,
   waitFor,
@@ -88,6 +89,16 @@ test('rotation checks reject song endings outside the screen or with empty/clipp
     assert.equal(textInsideScreen(node(bounds), 'ANDROID-END-OF-SONG', 1200, 1200), false);
   }
 });
+
+test('reads the orientation reported by Android accessibility', () => {
+  expectRotation('<hierarchy rotation="0" />', 0);
+  expectRotation('<hierarchy rotation="1"><node /></hierarchy>', 1);
+  assert.equal(hierarchyRotation('<hierarchy />'), null);
+});
+
+function expectRotation(xml, expected) {
+  assert.equal(hierarchyRotation(xml), expected);
+}
 
 test('real assertions are never swallowed by startup retries', async () => {
   await assert.rejects(

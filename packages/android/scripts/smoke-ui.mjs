@@ -72,6 +72,11 @@ export function nativeInputs(xml) {
   return xml.match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g) ?? [];
 }
 
+export function hierarchyRotation(xml) {
+  const rotation = xml.match(/<hierarchy\b[^>]*rotation="(\d+)"/)?.[1];
+  return rotation === undefined ? null : Number(rotation);
+}
+
 export async function focusInput(hierarchy, tap, index, options = {}) {
   let tapped = false;
   return waitFor(
