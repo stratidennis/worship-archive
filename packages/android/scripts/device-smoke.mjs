@@ -101,8 +101,19 @@ hub.on('connection', (socket) => {
   });
 });
 const hierarchy = () => {
-  adb('shell', 'uiautomator', 'dump', '/sdcard/worship-band-smoke.xml');
-  return adb('shell', 'cat', '/sdcard/worship-band-smoke.xml');
+  const read = () => {
+    adb('shell', 'uiautomator', 'dump', '/sdcard/worship-band-smoke.xml');
+    return adb('shell', 'cat', '/sdcard/worship-band-smoke.xml');
+  };
+  let xml = read();
+  // A fresh Android installation shows its own fullscreen tutorial over the
+  // Activity. Its taps must not be mistaken for taps on our connection form.
+  const tutorial = xml.match(/<node\b[^>]*resource-id="com.android.systemui:id\/ok"[^>]*>/);
+  if (tutorial && xml.includes('immersive_cling')) {
+    tap(tutorial[0]);
+    xml = read();
+  }
+  return xml;
 };
 const center = (node) => {
   const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
@@ -193,7 +204,7 @@ try {
   mkdirSync(join(root, 'build/smoke'), { recursive: true });
   for (const [filename, capture] of [
     ['failure.xml', hierarchy],
-    ['logcat.txt', () => adb('logcat', '-d')],
+    ['logcat.txt', () => adb('logcat', '-d', '-t', '2000')],
     ['failure.png', () => execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p'])],
   ]) {
     try {
