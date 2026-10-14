@@ -231,7 +231,7 @@ export function StagePage() {
           !fit.fits && state.output !== 'cleared' && song ? 'bottom-10' : 'bottom-3'
         }`}
       >
-        <BeatLed state={state} clockOffset={clockOffset} />
+        {showChords && <BeatLed state={state} clockOffset={clockOffset} />}
         {status !== 'live' && (
           <span
             className="rounded-full px-2 py-0.5 text-xs"

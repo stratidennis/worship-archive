@@ -477,9 +477,11 @@ export function SettingsPage() {
                   <p className="mt-2 text-xs text-(--color-muted)">
                     {t('settings.cloudChooseHint')}
                   </p>
-                  <Button onClick={() => void chooseCloudFolder()}>
-                    {t('settings.cloudChooseFolder')}
-                  </Button>
+                  <div className="mt-3">
+                    <Button onClick={() => void chooseCloudFolder()}>
+                      {t('settings.cloudChooseFolder')}
+                    </Button>
+                  </div>
                 </>
               )}
             </Section>

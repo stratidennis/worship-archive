@@ -14,7 +14,8 @@ import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
  * readable than silently shrinking the text.
  *
  * Strategy, in order of preference:
- *   1. one continuous column, shrinking only as far as the chosen minimum
+ *   1. one continuous column, enlarged to use its available space and never reduced
+ *      past the chosen minimum
  *   2. only when one column would have to cross that floor, allow more columns
  *   3. within the allowed multi-column alternatives, keep the text as large as possible
  *   4. if nothing fits even at the minimum, report `fits: false` so the caller can
@@ -26,8 +27,10 @@ import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
 
 export interface FitOptions {
   minFontPx?: number;
-  /** A practical automatic starting size, not a user-facing maximum setting. */
+  /** The fixed comfortable size used by phone scrolling. */
   preferredFontPx?: number;
+  /** Safety ceiling for automatic fit-to-screen enlargement. */
+  maxFittedFontPx?: number;
   /**
    * On a phone, keep the chosen size and scroll instead of silently shrinking it.
    * Desktop displays keep fitting because they may have no practical scroll input.
@@ -52,6 +55,8 @@ export interface FitResult {
 
 const MIN_DEFAULT = 12;
 const PREFERRED_DEFAULT = 26;
+/** Large enough to fill a short song without producing display-sized novelty text. */
+export const MAX_FITTED_FONT_DEFAULT = 72;
 /*
  * A screen breakpoint describes CSS pixels, not the panel's physical resolution.
  *
@@ -138,6 +143,17 @@ export interface FitChoice {
   fits: boolean;
 }
 
+/** A failed browser measurement must still honour the selected readability floor. */
+export function failedFit(previous: FitResult, minFontPx: number): FitResult {
+  return {
+    ...previous,
+    fontPx: Math.max(previous.fontPx, minFontPx),
+    columns: 1,
+    fits: false,
+    measuring: false,
+  };
+}
+
 /**
  * Pick a layout without knowing anything about the DOM.
  *
@@ -148,17 +164,19 @@ export interface FitChoice {
 export async function chooseFit({
   minFontPx,
   preferredFontPx,
+  maxFittedFontPx = Math.max(preferredFontPx, MAX_FITTED_FONT_DEFAULT),
   columns,
   overflows,
 }: {
   minFontPx: number;
   preferredFontPx: number;
+  maxFittedFontPx?: number;
   columns: number[];
   overflows: (fontPx: number, columns: number) => Promise<boolean>;
 }): Promise<FitChoice> {
   const largestFit = async (columnCount: number): Promise<number> => {
     let low = minFontPx;
-    let high = Math.max(minFontPx, preferredFontPx);
+    let high = Math.max(minFontPx, preferredFontPx, maxFittedFontPx);
     let found = 0;
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
@@ -191,6 +209,10 @@ export function useFitToScreen(
 ): FitResult {
   const minFont = options.minFontPx ?? MIN_DEFAULT;
   const preferredFont = Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT);
+  const maxFittedFont = Math.max(
+    preferredFont,
+    options.maxFittedFontPx ?? MAX_FITTED_FONT_DEFAULT,
+  );
   const narrowScrollAtPreferredSize = options.narrowScrollAtPreferredSize ?? false;
   const [result, setResult] = useState<FitResult>({
     fontPx: preferredFont,
@@ -390,6 +412,7 @@ export function useFitToScreen(
         best = await chooseFit({
           minFontPx: minFont,
           preferredFontPx: preferredFont,
+          maxFittedFontPx: maxFittedFont,
           columns: candidates,
           overflows,
         });
@@ -439,7 +462,11 @@ export function useFitToScreen(
             activeProbe?.remove();
             activeProbe = null;
             fittedKey.current = options.key;
-            setResult((previous) => ({ ...previous, fits: false, measuring: false }));
+            // The old layout may belong to the previous setting or song. Keeping its
+            // font here allowed a 26px result to survive after the Stage floor moved
+            // to 32px whenever a browser rejected one of the new measurement trials.
+            // The warning/scroll fallback may remain, but readability is non-negotiable.
+            setResult((previous) => failedFit(previous, minFont));
           })
           .finally(() => {
             running = false;
@@ -495,6 +522,7 @@ export function useFitToScreen(
     contentRef,
     minFont,
     preferredFont,
+    maxFittedFont,
     narrowScrollAtPreferredSize,
     options.key,
   ]);
