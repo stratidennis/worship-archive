@@ -11,7 +11,7 @@ import { INITIAL_SESSION } from '../../core/src/session.ts';
 import {
   center,
   createHierarchyReader,
-  focusInput,
+  enterNativeInput,
   nativeInputs,
   textInsideScreen,
   waitFor,
@@ -152,18 +152,8 @@ try {
     !initial.xml.includes('could not start'),
     'Native Activity and loopback server launched',
   );
-  await focusInput(hierarchy, tap, 0);
-  adb('shell', 'input', 'text', 'Android-CI');
-  await waitFor(
-    () => nativeInputs(hierarchy())[0]?.includes('text="Android-CI"'),
-    'device name entered in native setup',
-  );
-  await focusInput(hierarchy, tap, 1);
-  adb('shell', 'input', 'text', `10.0.2.2:${backend.address().port}`);
-  await waitFor(
-    () => nativeInputs(hierarchy())[1]?.includes(`text="10.0.2.2:${backend.address().port}"`),
-    'Leader address entered in native setup',
-  );
+  await enterNativeInput(hierarchy, tap, adb, 0, 'Android-CI');
+  await enterNativeInput(hierarchy, tap, adb, 1, `10.0.2.2:${backend.address().port}`);
   // The software keyboard can cover the dialog's buttons even though Android's
   // accessibility dump still lists them. Back hides the IME before tapping Connect.
   const keyboard = adb('shell', 'dumpsys', 'input_method');

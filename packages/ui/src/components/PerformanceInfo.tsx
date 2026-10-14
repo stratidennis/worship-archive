@@ -41,8 +41,8 @@ export function PerformanceInfo({
 
   if (leader.length === 0 && mine.length === 0) return null;
   const coloured = cueStyle !== 'minimal';
-  const leaderScale = cueStyle === 'full' ? 0.75 : cueStyle === 'compact' ? 0.6 : 0.45;
-  const mineScale = cueStyle === 'full' ? 0.65 : cueStyle === 'compact' ? 0.52 : 0.39;
+  const leaderScale = cueStyle === 'full' ? 0.8 : cueStyle === 'compact' ? 0.7 : 0.6;
+  const mineScale = cueStyle === 'full' ? 0.69 : cueStyle === 'compact' ? 0.61 : 0.52;
   return (
     <section
       data-song-font-scale={leaderScale}

@@ -91,3 +91,38 @@ export async function focusInput(hierarchy, tap, index, options = {}) {
     options,
   );
 }
+
+export async function enterNativeInput(hierarchy, tap, adb, index, value, options = {}) {
+  await focusInput(hierarchy, tap, index, options);
+  adb('shell', 'input', 'text', value);
+  let previousText;
+  let repeatedReads = 0;
+  let repairs = 0;
+  return waitFor(
+    () => {
+      const input = nativeInputs(hierarchy())[index];
+      if (!input) return null;
+      const typed = input.match(/\btext="([^"]*)"/)?.[1] ?? '';
+      if (typed === value) return input;
+      if (typed === previousText) repeatedReads++;
+      else {
+        previousText = typed;
+        repeatedReads = 1;
+      }
+      // Headless Android keyboards occasionally discard the first injected
+      // character while their input connection is settling. Once the same
+      // suffix is observed twice, insert only the missing prefix at the start.
+      if (repeatedReads >= 2 && repairs < 2 && value.endsWith(typed)) {
+        const missingPrefix = value.slice(0, value.length - typed.length);
+        if (typed) adb('shell', 'input', 'keyevent', 'KEYCODE_MOVE_HOME');
+        adb('shell', 'input', 'text', missingPrefix);
+        previousText = undefined;
+        repeatedReads = 0;
+        repairs++;
+      }
+      return null;
+    },
+    `native input ${index} contains its full value`,
+    options,
+  );
+}

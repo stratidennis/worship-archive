@@ -23,7 +23,7 @@ describe('song line chord spacing', () => {
 describe('song cue blocks', () => {
   it('gives every cue type its own colour in the full style', () => {
     const appearances = ['Intro', 'Instrumental', 'Solo', 'Note'].map(cueAppearance);
-    expect(appearances.every((appearance) => appearance?.fontScale === 0.75)).toBe(true);
+    expect(appearances.every((appearance) => appearance?.fontScale === 0.8)).toBe(true);
     expect(appearances.every((appearance) => appearance?.coloured)).toBe(true);
     expect(new Set(appearances.map((appearance) => appearance?.background)).size).toBe(4);
     expect(cueAppearance('Verse')).toBeNull();
@@ -31,12 +31,12 @@ describe('song cue blocks', () => {
 
   it('makes compact cues smaller and keeps minimal cues colour-coded through text', () => {
     expect(cueAppearance('Note', 'compact')).toMatchObject({
-      fontScale: 0.6,
+      fontScale: 0.7,
       coloured: true,
       text: null,
     });
     expect(cueAppearance('Note', 'minimal')).toMatchObject({
-      fontScale: 0.45,
+      fontScale: 0.6,
       coloured: false,
       text: 'var(--color-cue-note)',
     });

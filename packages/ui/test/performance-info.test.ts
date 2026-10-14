@@ -40,7 +40,7 @@ describe('Song setup cue styles', () => {
     const html = render('minimal');
     expect(html).not.toContain('Song setup');
     expect(html).not.toContain('bg-(--color-chord)/8');
-    expect(html).toContain('data-song-font-scale="0.45"');
+    expect(html).toContain('data-song-font-scale="0.6"');
     expect(html).toContain('color:var(--color-chord)');
     expect(html).toContain('Performance key G');
   });

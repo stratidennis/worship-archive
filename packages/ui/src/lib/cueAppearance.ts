@@ -26,11 +26,11 @@ export function cueAppearance(
   if (style === 'minimal') {
     // Keep the cue's semantic colour after removing its background. The border colour
     // is the readable foreground counterpart of that background in both themes.
-    return { ...colours, fontScale: 0.45, coloured: false, text: colours.border };
+    return { ...colours, fontScale: 0.6, coloured: false, text: colours.border };
   }
   return {
     ...colours,
-    fontScale: style === 'compact' ? 0.6 : 0.75,
+    fontScale: style === 'compact' ? 0.7 : 0.8,
     coloured: true,
     text: null,
   };

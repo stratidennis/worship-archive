@@ -380,13 +380,13 @@ const ro = {
   'settings.cueStyle': 'Stilul secțiunilor și indicațiilor',
   'settings.cueStyle.full': 'Complet',
   'settings.cueStyle.fullHint':
-    'Arată titlurile, fundalurile colorate și textul indicațiilor la 75% din mărimea versurilor.',
+    'Arată titlurile, fundalurile colorate și textul indicațiilor la 80% din mărimea versurilor.',
   'settings.cueStyle.compact': 'Compact',
   'settings.cueStyle.compactHint':
-    'Ascunde titlurile, păstrează fundalurile colorate și micșorează textul indicațiilor la 60%.',
+    'Ascunde titlurile, păstrează fundalurile colorate și micșorează textul indicațiilor la 70%.',
   'settings.cueStyle.minimal': 'Minimal',
   'settings.cueStyle.minimalHint':
-    'Ascunde titlurile și fundalurile, păstrează codul de culoare în text și folosește 45% din mărimea versurilor.',
+    'Ascunde titlurile și fundalurile, păstrează codul de culoare în text și folosește 60% din mărimea versurilor.',
   'settings.chordsShown': 'Cu acorduri',
   'settings.chordsHidden': 'Doar versuri',
   'settings.accidentals': 'Scrierea diezurilor și bemolilor',
@@ -862,13 +862,13 @@ const en: Record<TranslationKey, Entry> = {
   'settings.cueStyle': 'Section and cue style',
   'settings.cueStyle.full': 'Full',
   'settings.cueStyle.fullHint':
-    'Shows titles and coloured backgrounds, with cue text at 75% of normal lyrics.',
+    'Shows titles and coloured backgrounds, with cue text at 80% of normal lyrics.',
   'settings.cueStyle.compact': 'Compact',
   'settings.cueStyle.compactHint':
-    'Hides titles, keeps coloured backgrounds, and reduces cue text to 60%.',
+    'Hides titles, keeps coloured backgrounds, and reduces cue text to 70%.',
   'settings.cueStyle.minimal': 'Minimal',
   'settings.cueStyle.minimalHint':
-    'Hides titles and backgrounds, keeps colour coding in the text, and reduces it to 45%.',
+    'Hides titles and backgrounds, keeps colour coding in the text, and reduces it to 60%.',
   'settings.chordsShown': 'With chords',
   'settings.chordsHidden': 'Words only',
   'settings.accidentals': 'Sharp and flat notation',

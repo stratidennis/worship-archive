@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   center,
   createHierarchyReader,
+  enterNativeInput,
   focusInput,
   textInsideScreen,
   UiNotReadyError,
@@ -133,4 +134,35 @@ test('an auto-focused field is explicitly activated before typing', async () => 
   );
   assert.equal(reads, 2);
   assert.deepEqual(taps, [[50, 30]]);
+});
+
+test('typing repairs a first character dropped by the emulator keyboard', async () => {
+  let reads = 0;
+  let text = '';
+  const commands = [];
+  const node = () =>
+    `<node class="android.widget.EditText" text="${text}" focused="true" bounds="[0,10][100,50]" />`;
+  const adb = (...args) => {
+    commands.push(args);
+    if (args.at(-1) === 'Android-CI') text = 'ndroid-CI';
+    if (args.at(-1) === 'A') text = 'A' + text;
+  };
+  const input = await enterNativeInput(
+    () => {
+      reads++;
+      return node();
+    },
+    () => {},
+    adb,
+    0,
+    'Android-CI',
+    { attempts: 6, pause: async () => {} },
+  );
+  assert.ok(input.includes('text="Android-CI"'));
+  assert.ok(reads >= 5);
+  assert.deepEqual(commands, [
+    ['shell', 'input', 'text', 'Android-CI'],
+    ['shell', 'input', 'keyevent', 'KEYCODE_MOVE_HOME'],
+    ['shell', 'input', 'text', 'A'],
+  ]);
 });
