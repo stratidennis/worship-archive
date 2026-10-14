@@ -9,6 +9,7 @@ import {
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
 import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
+import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { setLanguageOverride, useT } from '../lib/i18n.js';
 import { applyChordColor, applyTheme } from '../lib/theme.js';
 import { usePrefs } from '../lib/settings.js';
@@ -37,6 +38,8 @@ export const STAGE_DEFAULT_FONT = 72;
  * something is wrong, because anything else is a distraction on a platform.
  */
 export function StagePage() {
+  const screenFrame = useRef<HTMLDivElement>(null);
+  useStablePerformanceHeight(screenFrame);
   const { t } = useT();
   const [params] = useSearchParams();
   const native = useMemo(() => clientDesktop(), []);
@@ -161,12 +164,15 @@ export function StagePage() {
   }, []);
 
   return (
-    <div className="relative flex h-dvh flex-col bg-(--color-stage-bg)">
+    <div
+      ref={screenFrame}
+      className="stable-screen-height relative flex touch-pan-y flex-col overscroll-none bg-(--color-stage-bg)"
+    >
       <div
         id="main"
         ref={container}
-        className={`min-h-0 flex-1 touch-pan-y px-4 py-3 sm:px-5 ${
-          fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
+        className={`min-h-0 flex-1 px-4 py-3 sm:px-5 ${
+          fit.phone && !fit.fits ? 'touch-pan-y overflow-y-auto' : 'touch-none overflow-hidden'
         } ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
       >
         {state.output === 'cleared' ? null : song ? (

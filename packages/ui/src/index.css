@@ -160,6 +160,19 @@ body {
   background: var(--color-stage-bg);
   color: var(--color-stage-fg);
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/*
+  Performance screens must not resize when a mobile browser hides its address bar.
+
+  `svh` starts with the space available while browser chrome is present; `vh` is the
+  fallback on older engines. useStablePerformanceHeight locks the measured size in
+  pixels so height-only browser chrome events cannot change the song's font size.
+*/
+.stable-screen-height {
+  height: 100vh;
+  height: 100svh;
 }
 
 /* A calm, continuous sign of life without the visual weight of bouncing dots. */

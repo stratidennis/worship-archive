@@ -40,6 +40,10 @@ export interface FitOptions {
 export interface FitResult {
   fontPx: number;
   columns: number;
+  /** Stable measured content height used by deterministic multi-column flow. */
+  heightPx: number;
+  /** Phone behavior is based on the device screen, not transient browser chrome. */
+  phone: boolean;
   /** False when the song overflows even at the minimum size — the honest failure. */
   fits: boolean;
   /** True while measuring, so the caller can avoid showing a flash of wrong sizes. */
@@ -49,34 +53,41 @@ export interface FitResult {
 const MIN_DEFAULT = 11;
 const MAX_DEFAULT = 40;
 /*
- * A viewport breakpoint describes CSS pixels, not the panel's physical resolution.
+ * A screen breakpoint describes CSS pixels, not the panel's physical resolution.
  *
  * The 10.4-inch Huawei MatePad has a 1200px-wide panel but exposes about 600 CSS px
- * on its short side. Treating a narrow song pane as a phone therefore disabled fitting
- * on real tablets and on laptop set previews. The viewport's short side distinguishes
- * those cases and also keeps the phone fallback when a phone is rotated to landscape.
+ * on its short side. The visible browser viewport can fall below that when its address
+ * and navigation bars are showing, so it is not a stable device signal: scrolling can
+ * otherwise turn the same tablet into and out of "phone mode". `screen.width/height`
+ * stay stable as browser chrome moves and still identify a phone in either orientation.
  */
 export const NARROW_SCREEN_WIDTH = 520;
 
-export function isPhoneViewport(viewportWidth: number, viewportHeight: number): boolean {
-  return Math.min(viewportWidth, viewportHeight) < NARROW_SCREEN_WIDTH;
+export function isPhoneScreen(
+  screenWidth: number,
+  screenHeight: number,
+  touchBrowser = true,
+): boolean {
+  return touchBrowser && Math.min(screenWidth, screenHeight) < NARROW_SCREEN_WIDTH;
 }
 
 export function usesPreferredSizeScrolling(
-  viewportWidth: number,
-  viewportHeight: number,
+  screenWidth: number,
+  screenHeight: number,
   enabled: boolean,
+  touchBrowser = true,
 ): boolean {
-  return enabled && isPhoneViewport(viewportWidth, viewportHeight);
+  return enabled && isPhoneScreen(screenWidth, screenHeight, touchBrowser);
 }
 
-export function minimumFontForViewport(
-  viewportWidth: number,
-  viewportHeight: number,
+export function minimumFontForScreen(
+  screenWidth: number,
+  screenHeight: number,
   minFontPx: number,
   narrowMinFontPx = minFontPx,
+  touchBrowser = true,
 ): number {
-  return isPhoneViewport(viewportWidth, viewportHeight) ? narrowMinFontPx : minFontPx;
+  return isPhoneScreen(screenWidth, screenHeight, touchBrowser) ? narrowMinFontPx : minFontPx;
 }
 
 export function exceedsAvailableSpace(
@@ -105,7 +116,7 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
     fontSize: `${fit.fontPx}px`,
     columnCount: fit.columns,
     columnGap: '2.5em',
-    height: constrained ? '100%' : undefined,
+    height: constrained ? `${fit.heightPx}px` : undefined,
     columnFill: constrained ? 'auto' : undefined,
     visibility: fit.measuring ? 'hidden' : 'visible',
   };
@@ -137,6 +148,8 @@ export function useFitToScreen(
   const [result, setResult] = useState<FitResult>({
     fontPx: maxFont,
     columns: 1,
+    heightPx: 0,
+    phone: false,
     fits: true,
     measuring: true,
   });
@@ -163,8 +176,14 @@ export function useFitToScreen(
         (parseFloat(box.paddingTop) || 0) -
         (parseFloat(box.paddingBottom) || 0);
       const width = container.clientWidth;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      // `innerHeight` changes as mobile browser chrome hides and returns. The CSSOM
+      // screen size is stable, and is expressed in CSS pixels on browsers and Electron.
+      const screenWidth = window.screen?.width || window.innerWidth;
+      const screenHeight = window.screen?.height || window.innerHeight;
+      const touchBrowser =
+        !window.worship &&
+        !window.worshipClient &&
+        window.matchMedia('(pointer: coarse)').matches;
       if (available <= 0 || width <= 0) {
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the
         // content at the preferred size rather than leaving it invisible — an
@@ -181,12 +200,13 @@ export function useFitToScreen(
         height: content.style.height,
         columnFill: content.style.columnFill,
       };
-      const phoneViewport = isPhoneViewport(viewportWidth, viewportHeight);
-      const effectiveMinFont = minimumFontForViewport(
-        viewportWidth,
-        viewportHeight,
+      const phoneScreen = isPhoneScreen(screenWidth, screenHeight, touchBrowser);
+      const effectiveMinFont = minimumFontForScreen(
+        screenWidth,
+        screenHeight,
         minFont,
         narrowMinFont,
+        touchBrowser,
       );
 
       const overflows = (fontPx: number, columns: number): boolean => {
@@ -220,11 +240,16 @@ export function useFitToScreen(
       let best = { fontPx: effectiveMinFont, columns: 1, fits: false };
 
       if (
-        usesPreferredSizeScrolling(viewportWidth, viewportHeight, narrowScrollAtPreferredSize)
+        usesPreferredSizeScrolling(
+          screenWidth,
+          screenHeight,
+          narrowScrollAtPreferredSize,
+          touchBrowser,
+        )
       ) {
         best = { fontPx: maxFont, columns: 1, fits: !overflows(maxFont, 1) };
       } else {
-        for (const columns of columnCandidates(width, phoneViewport)) {
+        for (const columns of columnCandidates(width, phoneScreen)) {
           if (!overflows(maxFont, columns)) {
             best = { fontPx: maxFont, columns, fits: true };
             break; // Fewer columns is always preferable at the same size.
@@ -257,9 +282,11 @@ export function useFitToScreen(
         previous.fontPx === best.fontPx &&
         previous.columns === best.columns &&
         previous.fits === best.fits &&
+        previous.heightPx === available &&
+        previous.phone === phoneScreen &&
         !previous.measuring
           ? previous
-          : { ...best, measuring: false },
+          : { ...best, heightPx: available, phone: phoneScreen, measuring: false },
       );
     };
 

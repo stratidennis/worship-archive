@@ -13,6 +13,7 @@ import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
 import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
+import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
@@ -60,6 +61,8 @@ const NAME_KEY = 'worship-archive:device-name';
  * view diverges, so nobody is ever confused about why they are seeing a different verse.
  */
 export function BandPage() {
+  const screen = useRef<HTMLDivElement>(null);
+  useStablePerformanceHeight(screen);
   const { t, lang, setLang } = useT();
   const [params] = useSearchParams();
   const [name, setName] = useState(() => {
@@ -266,7 +269,10 @@ export function BandPage() {
   });
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div
+      ref={screen}
+      className="stable-screen-height flex touch-pan-y flex-col overscroll-none"
+    >
       <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-(--color-line) bg-(--color-surface) px-3 py-1.5">
         {/*
           The mark, and nothing behind it.
@@ -445,18 +451,11 @@ export function BandPage() {
         <main
           id="main"
           ref={container}
-          className={`min-h-0 flex-1 touch-pan-y px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
-            fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
+          className={`min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${
+            fit.phone && !fit.fits
+              ? 'touch-pan-y overflow-y-auto'
+              : 'touch-none overflow-hidden'
           }`}
-          onTouchStart={(e) => {
-            const x = e.touches[0]?.clientX ?? 0;
-            const handler = (end: TouchEvent): void => {
-              const dx = (end.changedTouches[0]?.clientX ?? 0) - x;
-              if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
-              window.removeEventListener('touchend', handler);
-            };
-            window.addEventListener('touchend', handler);
-          }}
         >
           {viewing ? (
             <div ref={content} style={fittedSongStyle(fit)}>

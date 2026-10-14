@@ -194,7 +194,7 @@ export function SongPage() {
         id="main"
         ref={container}
         className={`min-h-0 flex-1 px-3 py-3 print:overflow-visible sm:px-4 ${
-          fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
+          fit.phone && !fit.fits ? 'overflow-y-auto' : 'overflow-hidden'
         }`}
       >
         <div ref={content} className="w-full" style={fittedSongStyle(fit)}>
