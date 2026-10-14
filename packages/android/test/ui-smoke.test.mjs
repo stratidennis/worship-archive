@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   center,
   createHierarchyReader,
+  focusInput,
   UiNotReadyError,
   waitFor,
 } from '../scripts/smoke-ui.mjs';
@@ -76,4 +77,22 @@ test('real assertions are never swallowed by startup retries', async () => {
     /bad APK/,
   );
   assert.deepEqual(center('<node bounds="[0,10][100,50]" />'), [50, 30]);
+});
+
+test('typing waits for the intended field to focus after Android moves the dialog', async () => {
+  let reads = 0;
+  const taps = [];
+  const hierarchy = () => {
+    reads++;
+    return `<node class="android.widget.EditText" focused="${reads >= 3}" bounds="[36,${reads === 1 ? 211 : 152}][284,${reads === 1 ? 257 : 198}]" />`;
+  };
+  const input = await focusInput(hierarchy, (node) => taps.push(center(node)), 0, {
+    attempts: 3,
+    pause: async () => {},
+  });
+  assert.ok(input.includes('focused="true"'));
+  assert.deepEqual(taps, [
+    [160, 234],
+    [160, 175],
+  ]);
 });

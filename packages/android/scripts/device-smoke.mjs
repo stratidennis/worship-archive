@@ -8,7 +8,13 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { INITIAL_SESSION } from '../../core/src/session.ts';
-import { center, createHierarchyReader, waitFor } from './smoke-ui.mjs';
+import {
+  center,
+  createHierarchyReader,
+  focusInput,
+  nativeInputs,
+  waitFor,
+} from './smoke-ui.mjs';
 
 if (!process.argv.includes('--emulator'))
   throw new Error(
@@ -110,29 +116,31 @@ try {
   adb('shell', 'am', 'start', '-W', '-n', 'com.worshiparchive.band/.BandActivity');
   const initial = await waitFor(() => {
     const xml = hierarchy();
-    const inputs = xml.match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g);
+    const inputs = nativeInputs(xml);
     return inputs?.length >= 2 ? { xml, inputs } : null;
   }, 'first-run native setup');
   assert.ok(
     !initial.xml.includes('could not start'),
     'Native Activity and loopback server launched',
   );
-  tap(initial.inputs[0]);
+  await focusInput(hierarchy, tap, 0);
   adb('shell', 'input', 'text', 'Android-CI');
-  // The keyboard can move the dialog; don't reuse pre-keyboard coordinates.
-  const currentInputs = await waitFor(() => {
-    const inputs = hierarchy().match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g);
-    return inputs?.length >= 2 ? inputs : null;
-  }, 'Leader address field after name entry');
-  assert.ok(currentInputs?.length >= 2, 'Leader address field available');
-  tap(currentInputs[1]);
+  await waitFor(
+    () => nativeInputs(hierarchy())[0]?.includes('text="Android-CI"'),
+    'device name entered in native setup',
+  );
+  await focusInput(hierarchy, tap, 1);
   adb('shell', 'input', 'text', `10.0.2.2:${backend.address().port}`);
-  const completedForm = await waitFor(hierarchy, 'completed connection form');
-  assert.ok(completedForm.includes('Android-CI'), 'Device name entered in native setup');
-  assert.ok(
-    completedForm.includes(`10.0.2.2:${backend.address().port}`),
+  await waitFor(
+    () => nativeInputs(hierarchy())[1]?.includes(`text="10.0.2.2:${backend.address().port}"`),
     'Leader address entered in native setup',
   );
+  // The software keyboard can cover the dialog's buttons even though Android's
+  // accessibility dump still lists them. Back hides the IME before tapping Connect.
+  const keyboard = adb('shell', 'dumpsys', 'input_method');
+  if (/mInputShown=true|mIsInputViewShown=true/.test(keyboard))
+    adb('shell', 'input', 'keyevent', '4');
+  const completedForm = await waitFor(hierarchy, 'completed connection form');
   const positive = completedForm.match(/<node\b[^>]*resource-id="android:id\/button1"[^>]*>/);
   assert.ok(positive, 'Connect button available');
   tap(positive[0]);

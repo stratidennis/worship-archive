@@ -50,3 +50,23 @@ export async function waitFor(read, label, options = {}) {
   }
   throw new Error(`Timed out: ${label}`, { cause: lastError });
 }
+
+export function nativeInputs(xml) {
+  return xml.match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g) ?? [];
+}
+
+export async function focusInput(hierarchy, tap, index, options = {}) {
+  return waitFor(
+    () => {
+      const input = nativeInputs(hierarchy())[index];
+      if (!input) return null;
+      if (input.includes('focused="true"')) return input;
+      // Re-read coordinates on every attempt: Android can reposition the dialog
+      // after fullscreen confirmation or opening its on-screen keyboard.
+      tap(input);
+      return null;
+    },
+    `native input ${index} focused`,
+    options,
+  );
+}
