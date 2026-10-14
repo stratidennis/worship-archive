@@ -48,10 +48,19 @@ export interface FitResult {
 
 const MIN_DEFAULT = 11;
 const MAX_DEFAULT = 40;
-const NARROW_WIDTH = 620;
+/*
+ * A width breakpoint describes CSS pixels, not the panel's physical resolution.
+ *
+ * The 10.4-inch Huawei MatePad has a 1200px-wide panel but exposes about 600 CSS px
+ * in portrait. Treating everything below 620px as a phone therefore disabled columns
+ * and enabled preferred-size scrolling on a real tablet. Contemporary phones are
+ * normally well below 500 CSS px in portrait, so this keeps the phone fallback while
+ * allowing compact Android tablets to use the fit-to-screen layout.
+ */
+export const NARROW_SCREEN_WIDTH = 520;
 
 export function usesPreferredSizeScrolling(width: number, enabled: boolean): boolean {
-  return enabled && width < NARROW_WIDTH;
+  return enabled && width < NARROW_SCREEN_WIDTH;
 }
 
 export function minimumFontForWidth(
@@ -59,7 +68,26 @@ export function minimumFontForWidth(
   minFontPx: number,
   narrowMinFontPx = minFontPx,
 ): number {
-  return width < NARROW_WIDTH ? narrowMinFontPx : minFontPx;
+  return width < NARROW_SCREEN_WIDTH ? narrowMinFontPx : minFontPx;
+}
+
+export function exceedsAvailableSpace(
+  dimensions: {
+    scrollHeight: number;
+    scrollWidth: number;
+    clientWidth: number;
+  },
+  availableHeight: number,
+): boolean {
+  return (
+    dimensions.scrollHeight > availableHeight + 1 ||
+    dimensions.scrollWidth > dimensions.clientWidth + 1
+  );
+}
+
+/** Multi-column songs use a fixed-height flow instead of browser-specific balancing. */
+export function usesConstrainedColumnFlow(columns: number): boolean {
+  return columns > 1;
 }
 
 /**
@@ -70,7 +98,7 @@ export function minimumFontForWidth(
  * is what makes the text bigger.
  */
 function columnCandidates(width: number): number[] {
-  if (width < NARROW_WIDTH) return [1];
+  if (width < NARROW_SCREEN_WIDTH) return [1];
   if (width < 1100) return [1, 2];
   if (width < 1800) return [1, 2, 3];
   return [1, 2, 3, 4];
@@ -124,14 +152,40 @@ export function useFitToScreen(
         return;
       }
 
-      const original = { fontSize: content.style.fontSize, columns: content.style.columnCount };
+      const original = {
+        fontSize: content.style.fontSize,
+        columns: content.style.columnCount,
+        height: content.style.height,
+        columnFill: content.style.columnFill,
+      };
       const effectiveMinFont = minimumFontForWidth(width, minFont, narrowMinFont);
 
       const overflows = (fontPx: number, columns: number): boolean => {
         content.style.fontSize = `${fontPx}px`;
         content.style.columnCount = String(columns);
-        // A column layout can also overflow horizontally if a single block is too wide.
-        return content.scrollHeight > available + 1;
+        /*
+          Do not rely on `column-fill: balance` with an automatically sized element.
+          Huawei Browser's mobile Chromium build can leave all content in one column,
+          so the fitter concludes that only tiny text fits. A known height plus `auto`
+          gives every engine the simpler instruction: fill downward to this height,
+          then continue in the next column.
+        */
+        if (usesConstrainedColumnFlow(columns)) {
+          content.style.height = `${available}px`;
+          content.style.columnFill = 'auto';
+        } else {
+          content.style.height = '';
+          content.style.columnFill = '';
+        }
+        /*
+          Some mobile Chromium variants flow excess multi-column content sideways
+          instead of increasing `scrollHeight`. Looking only at height made those
+          browsers report a song as fitting while one or more columns sat outside the
+          clipped viewport. Measure both axes against the content's own width: its
+          parent has horizontal padding, so comparing with the container width would
+          incorrectly grant that padding as usable song space.
+        */
+        return exceedsAvailableSpace(content, available);
       };
 
       let best = { fontPx: effectiveMinFont, columns: 1, fits: false };
@@ -165,6 +219,8 @@ export function useFitToScreen(
 
       content.style.fontSize = original.fontSize;
       content.style.columnCount = original.columns;
+      content.style.height = original.height;
+      content.style.columnFill = original.columnFill;
 
       setResult((previous) =>
         previous.fontPx === best.fontPx &&

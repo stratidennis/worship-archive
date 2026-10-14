@@ -176,6 +176,8 @@ export function StagePage() {
               fontSize: `${fit.fontPx}px`,
               columnCount: fit.columns,
               columnGap: '2.5em',
+              height: fit.columns > 1 ? '100%' : undefined,
+              columnFill: fit.columns > 1 ? 'auto' : undefined,
               visibility: fit.measuring ? 'hidden' : 'visible',
             }}
           >

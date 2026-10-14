@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { minimumFontForWidth, usesPreferredSizeScrolling } from '../src/lib/useFitToScreen.js';
+import {
+  exceedsAvailableSpace,
+  minimumFontForWidth,
+  NARROW_SCREEN_WIDTH,
+  usesConstrainedColumnFlow,
+  usesPreferredSizeScrolling,
+} from '../src/lib/useFitToScreen.js';
 
 describe('fit-to-screen font floor', () => {
   it('allows a smaller readable size on a narrow phone before requiring scrolling', () => {
@@ -8,6 +14,12 @@ describe('fit-to-screen font floor', () => {
 
   it('keeps the normal minimum on wider screens', () => {
     expect(minimumFontForWidth(768, 14, 10)).toBe(14);
+  });
+
+  it('treats a compact Android tablet as a fit-to-screen display', () => {
+    expect(NARROW_SCREEN_WIDTH).toBeLessThan(600);
+    expect(minimumFontForWidth(600, 8, 12)).toBe(8);
+    expect(usesPreferredSizeScrolling(600, true)).toBe(false);
   });
 
   it('can keep a more readable floor on phones than on non-scrollable stage displays', () => {
@@ -27,5 +39,24 @@ describe('phone font-size control', () => {
   it('keeps the desktop Band floor separate from its phone floor', () => {
     expect(minimumFontForWidth(1280, 8, 10)).toBe(8);
     expect(minimumFontForWidth(390, 8, 10)).toBe(10);
+  });
+});
+
+describe('fit overflow measurement', () => {
+  it('rejects content that a mobile column layout flows beyond the right edge', () => {
+    expect(
+      exceedsAvailableSpace({ scrollHeight: 560, scrollWidth: 1940, clientWidth: 960 }, 560),
+    ).toBe(true);
+  });
+
+  it('accepts content only when it stays inside both viewport axes', () => {
+    expect(
+      exceedsAvailableSpace({ scrollHeight: 560, scrollWidth: 960, clientWidth: 960 }, 560),
+    ).toBe(false);
+  });
+
+  it('constrains multi-column flow so mobile browsers do not need to balance it', () => {
+    expect(usesConstrainedColumnFlow(1)).toBe(false);
+    expect(usesConstrainedColumnFlow(2)).toBe(true);
   });
 });
