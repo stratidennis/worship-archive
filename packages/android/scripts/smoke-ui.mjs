@@ -73,14 +73,18 @@ export function nativeInputs(xml) {
 }
 
 export async function focusInput(hierarchy, tap, index, options = {}) {
+  let tapped = false;
   return waitFor(
     () => {
       const input = nativeInputs(hierarchy())[index];
       if (!input) return null;
-      if (input.includes('focused="true"')) return input;
+      // Auto-focus can be reported before the dialog's input connection is ready.
+      // Explicitly activate it once, then confirm focus on a later reading.
+      if (tapped && input.includes('focused="true"')) return input;
       // Re-read coordinates on every attempt: Android can reposition the dialog
       // after fullscreen confirmation or opening its on-screen keyboard.
       tap(input);
+      tapped = true;
       return null;
     },
     `native input ${index} focused`,

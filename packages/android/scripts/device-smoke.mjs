@@ -59,7 +59,12 @@ const song = {
       'Rotate without losing the song',
       'Settings remain on this device',
     ].map((text, line) => ({
-      text: i === 7 && line === 3 ? 'ANDROID-END-OF-SONG' : `${text} ${i + 1}`,
+      text:
+        i === 0 && line === 0
+          ? 'ANDROID-START-OF-SONG'
+          : i === 7 && line === 3
+            ? 'ANDROID-END-OF-SONG'
+            : `${text} ${i + 1}`,
       chords: [{ at: 0, raw: 'G' }],
       bass: [],
       indent: 0,
@@ -116,10 +121,14 @@ const screenshot = (name) =>
     execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p']),
   );
 const verifySongEnd = async (name, width, height) => {
-  await waitFor(() => {
-    const xml = hierarchy();
-    return textInsideScreen(xml, 'ANDROID-END-OF-SONG', width, height) ? xml : null;
-  }, `whole song visible: ${name}`);
+  await waitFor(
+    () => {
+      const xml = hierarchy();
+      return textInsideScreen(xml, 'ANDROID-END-OF-SONG', width, height) ? xml : null;
+    },
+    `whole song visible: ${name}`,
+    { attempts: 20 },
+  );
   screenshot(name);
 };
 
@@ -206,16 +215,20 @@ try {
   await pause();
   adb('shell', 'am', 'start', '-W', '-n', 'com.worshiparchive.band/.BandActivity');
   await waitFor(() => hierarchy().includes(song.title), 'phone view loaded');
-  const firstLyric = 'Android live connection works 1';
+  // A unique, unbroken token survives accessibility's word-level splitting when
+  // lyrics wrap. The check still requires real on-screen bounds, not DOM presence.
+  const firstLyric = 'ANDROID-START-OF-SONG';
   await waitFor(
     () => textInsideScreen(hierarchy(), firstLyric, 780, 1688),
     'phone song visible',
+    { attempts: 20 },
   );
   screenshot('phone-before-scroll');
   adb('shell', 'input', 'swipe', '390', '1400', '390', '300', '400');
   await waitFor(
     () => !textInsideScreen(hierarchy(), firstLyric, 780, 1688),
     'phone scrolling moved the song',
+    { attempts: 20 },
   );
   screenshot('phone-scrolling');
   const logs = adb(

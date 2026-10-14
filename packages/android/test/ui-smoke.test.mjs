@@ -113,3 +113,24 @@ test('typing waits for the intended field to focus after Android moves the dialo
     [160, 175],
   ]);
 });
+
+test('an auto-focused field is explicitly activated before typing', async () => {
+  let reads = 0;
+  const taps = [];
+  const node =
+    '<node class="android.widget.EditText" focused="true" bounds="[0,10][100,50]" />';
+  await focusInput(
+    () => {
+      reads++;
+      return node;
+    },
+    (input) => taps.push(center(input)),
+    0,
+    {
+      attempts: 2,
+      pause: async () => {},
+    },
+  );
+  assert.equal(reads, 2);
+  assert.deepEqual(taps, [[50, 30]]);
+});
