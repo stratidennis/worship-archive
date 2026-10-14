@@ -1465,7 +1465,8 @@ function Preview({
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
     minFontPx: prefs.minFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    maxFittedFontPx: prefs.maxFontPx,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;

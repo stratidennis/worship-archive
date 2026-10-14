@@ -66,7 +66,7 @@ export function PerformanceInfo({
           {t('performance.title')}
         </h2>
       )}
-      <p data-song-font-scale={leaderScale} className="font-semibold leading-snug">
+      <p data-song-font-scale={leaderScale} className="font-normal leading-snug">
         {leader.join(' · ')}
       </p>
       {mine.length > 0 && (

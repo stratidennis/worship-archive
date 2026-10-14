@@ -35,6 +35,7 @@ import {
   CueStyleChoice,
   LanguageChoice,
   LineSpacing,
+  MaximumFontSize,
   MinimumFontSize,
 } from '../components/DisplaySettings.js';
 import { IconMusic, IconPresentation, IconSets, IconSettings } from '../components/icons.js';
@@ -264,11 +265,12 @@ export function BandPage() {
 
   const fit = useFitToScreen(container, content, {
     minFontPx: prefs.minFontPx,
+    maxFittedFontPx: prefs.maxFontPx,
     // A desktop Band window follows the same one-column-first rule as Leader and
     // Stage. A phone instead keeps a comfortable reading size in one column and
     // scrolls, because scrolling is practical there and tiny lyrics are not.
     narrowScrollAtPreferredSize: true,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (
@@ -640,7 +642,14 @@ export function BandPage() {
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
           <MinimumFontSize
             value={prefs.minFontPx}
-            onChange={(minFontPx) => setPrefs({ minFontPx })}
+            onChange={(minFontPx) =>
+              setPrefs({ minFontPx, maxFontPx: Math.max(minFontPx, prefs.maxFontPx) })
+            }
+          />
+          <MaximumFontSize
+            value={prefs.maxFontPx}
+            minimum={prefs.minFontPx}
+            onChange={(maxFontPx) => setPrefs({ maxFontPx })}
           />
           <LineSpacing
             value={prefs.lineHeight}

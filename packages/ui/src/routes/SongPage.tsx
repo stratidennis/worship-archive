@@ -85,7 +85,8 @@ export function SongPage() {
   // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
     minFontPx: prefs.minFontPx,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    maxFittedFontPx: prefs.maxFontPx,
+    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (error) {

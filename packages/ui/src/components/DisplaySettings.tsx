@@ -1,6 +1,7 @@
 import {
   DEFAULT_SONG_LINE_HEIGHT,
   ENHARMONIC_PAIRS,
+  MAX_FITTED_SONG_FONT_SIZE,
   MAX_SONG_FONT_SIZE,
   MAX_SONG_LINE_HEIGHT,
   MIN_SONG_FONT_SIZE,
@@ -204,6 +205,57 @@ export function MinimumFontSize({
       />
       <span className="mt-1 block text-xs text-(--color-muted)">
         {t('settings.minFontHint')}
+      </span>
+    </label>
+  );
+}
+
+export function MaximumFontSize({
+  value,
+  onChange,
+  onClear,
+  clearLabel,
+  fallback,
+  minimum = MIN_SONG_FONT_SIZE,
+}: {
+  value: number | null;
+  onChange: (value: number) => void;
+  onClear?: (() => void) | undefined;
+  clearLabel?: string | undefined;
+  fallback?: number;
+  /** Keep the ceiling from crossing the currently selected floor. */
+  minimum?: number;
+}) {
+  const { t } = useT();
+  const shown = Math.max(minimum, value ?? fallback ?? MAX_FITTED_SONG_FONT_SIZE);
+  return (
+    <label className="mt-4 block">
+      <span className="flex items-baseline justify-between gap-2 text-sm">
+        {t('settings.maxFont')}
+        <span className="flex items-baseline gap-2">
+          {onClear && clearLabel && value !== null && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded text-xs text-(--color-chord) hover:underline"
+            >
+              {clearLabel}
+            </button>
+          )}
+          <span className="font-mono text-xs text-(--color-muted)">{shown}px</span>
+        </span>
+      </span>
+      <input
+        type="range"
+        min={minimum}
+        max={MAX_FITTED_SONG_FONT_SIZE}
+        step={1}
+        value={shown}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-1 w-full cursor-pointer accent-(--color-chord)"
+      />
+      <span className="mt-1 block text-xs text-(--color-muted)">
+        {t('settings.maxFontHint')}
       </span>
     </label>
   );

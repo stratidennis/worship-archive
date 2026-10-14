@@ -25,8 +25,26 @@ describe('fit-to-screen font floor', () => {
           measuring: true,
         },
         32,
+        40,
       ),
     ).toMatchObject({ fontPx: 32, columns: 1, fits: false, measuring: false });
+  });
+
+  it('never preserves an old font above a newly selected ceiling after measurement fails', () => {
+    expect(
+      failedFit(
+        {
+          fontPx: 60,
+          columns: 2,
+          heightPx: 700,
+          phone: false,
+          fits: true,
+          measuring: true,
+        },
+        12,
+        34,
+      ),
+    ).toMatchObject({ fontPx: 34, columns: 1, fits: false, measuring: false });
   });
 
   it('treats a compact Android tablet as a fit-to-screen display', () => {
@@ -63,7 +81,6 @@ describe('one-column-first fitting', () => {
     const tried: number[] = [];
     const result = await chooseFit({
       minFontPx: 12,
-      preferredFontPx: 26,
       maxFittedFontPx: 72,
       columns: [1, 2, 3],
       overflows: async (font, columns) => {
@@ -80,7 +97,6 @@ describe('one-column-first fitting', () => {
     const tried: number[] = [];
     const result = await chooseFit({
       minFontPx: 32,
-      preferredFontPx: 32,
       maxFittedFontPx: 72,
       columns: [1, 2, 3],
       overflows: async (font, columns) => {
@@ -93,21 +109,24 @@ describe('one-column-first fitting', () => {
     expect(tried).not.toContain(3);
   });
 
-  it('allows columns only when one column would cross the minimum, then enlarges again', async () => {
+  it('uses the first column count that preserves the minimum, then enlarges within it', async () => {
+    const tried: number[] = [];
     const result = await chooseFit({
       minFontPx: 12,
-      preferredFontPx: 26,
       maxFittedFontPx: 72,
       columns: [1, 2, 3],
-      overflows: async (font, columns) => font > (columns === 1 ? 11 : columns === 2 ? 34 : 39),
+      overflows: async (font, columns) => {
+        tried.push(columns);
+        return font > (columns === 1 ? 11 : columns === 2 ? 34 : 39);
+      },
     });
-    expect(result).toEqual({ fontPx: 39, columns: 3, fits: true });
+    expect(result).toEqual({ fontPx: 34, columns: 2, fits: true });
+    expect(tried).not.toContain(3);
   });
 
   it('uses fewer columns when they fit at the same largest font', async () => {
     const result = await chooseFit({
       minFontPx: 12,
-      preferredFontPx: 26,
       maxFittedFontPx: 72,
       columns: [1, 2, 3],
       overflows: async (font, columns) => font > (columns === 1 ? 11 : 38),
@@ -115,10 +134,29 @@ describe('one-column-first fitting', () => {
     expect(result).toEqual({ fontPx: 38, columns: 2, fits: true });
   });
 
+  it('uses three columns only when two cannot preserve the minimum', async () => {
+    const result = await chooseFit({
+      minFontPx: 23,
+      maxFittedFontPx: 72,
+      columns: [1, 2, 3],
+      overflows: async (font, columns) => font > (columns === 1 ? 22 : columns === 2 ? 22 : 31),
+    });
+    expect(result).toEqual({ fontPx: 31, columns: 3, fits: true });
+  });
+
+  it('never enlarges text beyond the selected maximum', async () => {
+    const result = await chooseFit({
+      minFontPx: 12,
+      maxFittedFontPx: 28,
+      columns: [1, 2, 3],
+      overflows: async () => false,
+    });
+    expect(result).toEqual({ fontPx: 28, columns: 1, fits: true });
+  });
+
   it('reports an honest failure at the minimum when no allowed layout fits', async () => {
     const result = await chooseFit({
       minFontPx: 12,
-      preferredFontPx: 26,
       columns: [1, 2],
       overflows: async () => true,
     });

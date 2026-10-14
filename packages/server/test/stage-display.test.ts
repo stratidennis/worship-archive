@@ -88,6 +88,15 @@ describe('the stage screens’ appearance', () => {
     expect(hub.getState().stage.minFontPx).toBeNull();
   });
 
+  it('accepts a maximum text size and rejects values outside its supported range', async () => {
+    expect((await put({ maxFontPx: 7 })).statusCode).toBe(400);
+    expect((await put({ maxFontPx: 73 })).statusCode).toBe(400);
+    expect(hub.getState().stage.maxFontPx).toBeNull();
+
+    expect((await put({ maxFontPx: 48 })).statusCode).toBe(200);
+    expect(hub.getState().stage.maxFontPx).toBe(48);
+  });
+
   it('sets cue styles for all screens or one screen', async () => {
     await put({ cueStyle: 'compact' });
     await put({ screen: 'Drums', cueStyle: 'minimal' });

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   DEFAULT_SONG_FONT_SIZE,
   DEFAULT_SONG_LINE_HEIGHT,
+  MAX_FITTED_SONG_FONT_SIZE,
   preferredKeyName,
   resolveStageDisplay,
   semitonesBetween,
@@ -140,7 +141,8 @@ export function StagePage() {
     // long as it can stay above this screen's readability floor.
     preferredFontPx: STAGE_PREFERRED_FONT,
     minFontPx: stage.minFontPx ?? DEFAULT_SONG_FONT_SIZE,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${stage.cueStyle}:${extraTranspose}:${capo}:${stage.minFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    maxFittedFontPx: stage.maxFontPx ?? MAX_FITTED_SONG_FONT_SIZE,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${stage.cueStyle}:${extraTranspose}:${capo}:${stage.minFontPx}:${stage.maxFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.

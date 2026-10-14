@@ -15,6 +15,7 @@ import { hostname, networkInterfaces } from 'node:os';
 import {
   DEFAULT_STAGE_DISPLAY,
   DEFAULT_ACCIDENTAL_PREFERENCES,
+  MAX_FITTED_SONG_FONT_SIZE,
   MAX_SONG_FONT_SIZE,
   MAX_SONG_LINE_HEIGHT,
   MIN_SONG_FONT_SIZE,
@@ -591,6 +592,16 @@ export function createServer(options: ApiOptions): FastifyInstance {
         body.minFontPx > MAX_SONG_FONT_SIZE)
     ) {
       return reply.code(400).send({ error: 'bad minimum font size' });
+    }
+    if (
+      body.maxFontPx !== undefined &&
+      body.maxFontPx !== null &&
+      (typeof body.maxFontPx !== 'number' ||
+        !Number.isFinite(body.maxFontPx) ||
+        body.maxFontPx < MIN_SONG_FONT_SIZE ||
+        body.maxFontPx > MAX_FITTED_SONG_FONT_SIZE)
+    ) {
+      return reply.code(400).send({ error: 'bad maximum font size' });
     }
     if (
       body.lineHeight !== undefined &&

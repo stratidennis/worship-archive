@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { settleSongLayout, songFontsApplied } from './settleSongLayout.js';
 import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
+import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
 
 /**
  * Fit a whole song onto one screen.
@@ -17,7 +18,7 @@ import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
  *   1. one continuous column, enlarged to use its available space and never reduced
  *      past the chosen minimum
  *   2. only when one column would have to cross that floor, allow more columns
- *   3. within the allowed multi-column alternatives, keep the text as large as possible
+ *   3. use the first column count that preserves the minimum, then enlarge within it
  *   4. if nothing fits even at the minimum, report `fits: false` so the caller can
  *      offer block mode rather than rendering something illegible
  *
@@ -56,7 +57,7 @@ export interface FitResult {
 const MIN_DEFAULT = 12;
 const PREFERRED_DEFAULT = 26;
 /** Large enough to fill a short song without producing display-sized novelty text. */
-export const MAX_FITTED_FONT_DEFAULT = 72;
+export const MAX_FITTED_FONT_DEFAULT = MAX_FITTED_SONG_FONT_SIZE;
 /*
  * A screen breakpoint describes CSS pixels, not the panel's physical resolution.
  *
@@ -144,10 +145,14 @@ export interface FitChoice {
 }
 
 /** A failed browser measurement must still honour the selected readability floor. */
-export function failedFit(previous: FitResult, minFontPx: number): FitResult {
+export function failedFit(
+  previous: FitResult,
+  minFontPx: number,
+  maxFontPx = MAX_FITTED_FONT_DEFAULT,
+): FitResult {
   return {
     ...previous,
-    fontPx: Math.max(previous.fontPx, minFontPx),
+    fontPx: Math.min(maxFontPx, Math.max(previous.fontPx, minFontPx)),
     columns: 1,
     fits: false,
     measuring: false,
@@ -163,20 +168,18 @@ export function failedFit(previous: FitResult, minFontPx: number): FitResult {
  */
 export async function chooseFit({
   minFontPx,
-  preferredFontPx,
-  maxFittedFontPx = Math.max(preferredFontPx, MAX_FITTED_FONT_DEFAULT),
+  maxFittedFontPx = MAX_FITTED_FONT_DEFAULT,
   columns,
   overflows,
 }: {
   minFontPx: number;
-  preferredFontPx: number;
   maxFittedFontPx?: number;
   columns: number[];
   overflows: (fontPx: number, columns: number) => Promise<boolean>;
 }): Promise<FitChoice> {
   const largestFit = async (columnCount: number): Promise<number> => {
     let low = minFontPx;
-    let high = Math.max(minFontPx, preferredFontPx, maxFittedFontPx);
+    let high = Math.max(minFontPx, maxFittedFontPx);
     let found = 0;
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
@@ -192,14 +195,13 @@ export async function chooseFit({
   const oneColumn = await largestFit(1);
   if (oneColumn > 0) return { fontPx: oneColumn, columns: 1, fits: true };
 
-  let best: FitChoice = { fontPx: minFontPx, columns: 1, fits: false };
   for (const columnCount of columns.filter((candidate) => candidate > 1)) {
     const found = await largestFit(columnCount);
-    if (found > best.fontPx || (found === minFontPx && !best.fits)) {
-      best = { fontPx: found, columns: columnCount, fits: true };
-    }
+    // Column count is a fallback, not a way to chase ever-larger text. Stop at the
+    // first layout that preserves the selected minimum, then enlarge within it.
+    if (found > 0) return { fontPx: found, columns: columnCount, fits: true };
   }
-  return best;
+  return { fontPx: minFontPx, columns: 1, fits: false };
 }
 
 export function useFitToScreen(
@@ -208,10 +210,10 @@ export function useFitToScreen(
   options: FitOptions = {},
 ): FitResult {
   const minFont = options.minFontPx ?? MIN_DEFAULT;
-  const preferredFont = Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT);
-  const maxFittedFont = Math.max(
-    preferredFont,
-    options.maxFittedFontPx ?? MAX_FITTED_FONT_DEFAULT,
+  const maxFittedFont = Math.max(minFont, options.maxFittedFontPx ?? MAX_FITTED_FONT_DEFAULT);
+  const preferredFont = Math.min(
+    maxFittedFont,
+    Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT),
   );
   const narrowScrollAtPreferredSize = options.narrowScrollAtPreferredSize ?? false;
   const [result, setResult] = useState<FitResult>({
@@ -281,10 +283,13 @@ export function useFitToScreen(
         fittedKey.current = options.key;
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the
         // content at the preferred size rather than leaving it invisible — an
-        // unmeasured song is far better than a blank screen.
-        setResult((previous) =>
-          previous.measuring ? { ...previous, measuring: false } : previous,
-        );
+        // unmeasured song is far better than a blank screen. Still clamp an older
+        // result so changing the ceiling can never leave oversized text behind.
+        setResult((previous) => ({
+          ...previous,
+          fontPx: Math.min(maxFittedFont, Math.max(previous.fontPx, minFont)),
+          measuring: false,
+        }));
         return;
       }
 
@@ -411,7 +416,6 @@ export function useFitToScreen(
         const candidates = columnCandidates(width, phoneScreen);
         best = await chooseFit({
           minFontPx: minFont,
-          preferredFontPx: preferredFont,
           maxFittedFontPx: maxFittedFont,
           columns: candidates,
           overflows,
@@ -466,7 +470,7 @@ export function useFitToScreen(
             // font here allowed a 26px result to survive after the Stage floor moved
             // to 32px whenever a browser rejected one of the new measurement trials.
             // The warning/scroll fallback may remain, but readability is non-negotiable.
-            setResult((previous) => failedFit(previous, minFont));
+            setResult((previous) => failedFit(previous, minFont, maxFittedFont));
           })
           .finally(() => {
             running = false;

@@ -31,6 +31,8 @@ export const MAX_SONG_LINE_HEIGHT = 2;
 export const MIN_SONG_FONT_SIZE = 8;
 export const DEFAULT_SONG_FONT_SIZE = 12;
 export const MAX_SONG_FONT_SIZE = 32;
+/** Upper bound offered for automatic song enlargement. */
+export const MAX_FITTED_SONG_FONT_SIZE = 72;
 
 /**
  * Increment only when a released client can no longer speak to a released host.
@@ -69,6 +71,8 @@ export interface StageDisplay {
   language: LanguageName | null;
   /** The smallest automatic fit may make the lyrics. */
   minFontPx: number | null;
+  /** The largest automatic fit may make the lyrics. */
+  maxFontPx: number | null;
   /** Unitless lyric line height. Null leaves the stage's own default. */
   lineHeight: number | null;
   /** Any CSS colour, or null for the theme's own accent. */
@@ -77,8 +81,6 @@ export interface StageDisplay {
   showChords: boolean | null;
   /** Full, compact or minimal treatment for cues and section labels. */
   cueStyle: CueStyle | null;
-  /** @deprecated Kept on the wire so already-installed screens can still reconnect. */
-  maxFontPx: number | null;
   /** @deprecated Replaced by cueStyle; accepted while older clients remain in use. */
   showBlockTitles: boolean | null;
 }

@@ -22,9 +22,11 @@ function render(cueStyle?: CueStyle): string {
 
 describe('Song setup cue styles', () => {
   it('uses the complete treatment by default', () => {
-    expect(render()).toContain('Song setup');
-    expect(render('full')).toContain('<h2');
-    expect(render('full')).toContain('bg-(--color-chord)/8');
+    const html = render('full');
+    expect(html).toContain('Song setup');
+    expect(html).toContain('<h2');
+    expect(html).toContain('bg-(--color-chord)/8');
+    expect(html).toContain('class="font-normal leading-snug"');
   });
 
   it('keeps the colour but hides the title in compact mode', () => {

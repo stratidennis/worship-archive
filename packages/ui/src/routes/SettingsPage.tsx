@@ -13,6 +13,7 @@ import {
   CueStyleChoice,
   LanguageChoice,
   LineSpacing,
+  MaximumFontSize,
   MinimumFontSize,
   ThemeChoice,
 } from '../components/DisplaySettings.js';
@@ -20,6 +21,7 @@ import { useStageDisplay } from '../lib/stageDisplay.js';
 import {
   DEFAULT_SONG_LINE_HEIGHT,
   DEFAULT_SONG_FONT_SIZE,
+  MAX_FITTED_SONG_FONT_SIZE,
   DEFAULT_STAGE_DISPLAY,
   type StageDisplay,
 } from '@worship/core';
@@ -81,6 +83,12 @@ export function SettingsPage() {
    */
   const inherit = selected ? t('settings.asAllScreens') : t('settings.asThisDevice');
   const setStage = (patch: Partial<StageDisplay>): void => saveStage(selected, patch);
+  const stageMinFont =
+    stage.minFontPx ?? (selected ? shared.minFontPx : null) ?? DEFAULT_SONG_FONT_SIZE;
+  const stageMaxFont = Math.max(
+    stageMinFont,
+    stage.maxFontPx ?? (selected ? shared.maxFontPx : null) ?? MAX_FITTED_SONG_FONT_SIZE,
+  );
 
   const revealPowerpointsDir = async (): Promise<void> => {
     if (!native) return;
@@ -258,7 +266,14 @@ export function SettingsPage() {
               <>
                 <MinimumFontSize
                   value={prefs.minFontPx}
-                  onChange={(minFontPx) => setPrefs({ minFontPx })}
+                  onChange={(minFontPx) =>
+                    setPrefs({ minFontPx, maxFontPx: Math.max(minFontPx, prefs.maxFontPx) })
+                  }
+                />
+                <MaximumFontSize
+                  value={prefs.maxFontPx}
+                  minimum={prefs.minFontPx}
+                  onChange={(maxFontPx) => setPrefs({ maxFontPx })}
                 />
                 <LineSpacing
                   value={prefs.lineHeight}
@@ -355,10 +370,23 @@ export function SettingsPage() {
                     Cleared, it follows all screens or the built-in safe default. */}
                 <MinimumFontSize
                   value={stage.minFontPx}
-                  onChange={(minFontPx) => setStage({ minFontPx })}
+                  onChange={(minFontPx) =>
+                    setStage({
+                      minFontPx,
+                      ...(minFontPx > stageMaxFont ? { maxFontPx: minFontPx } : {}),
+                    })
+                  }
                   onClear={() => setStage({ minFontPx: null })}
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.minFontPx : null) ?? DEFAULT_SONG_FONT_SIZE}
+                />
+                <MaximumFontSize
+                  value={stage.maxFontPx}
+                  minimum={stageMinFont}
+                  onChange={(maxFontPx) => setStage({ maxFontPx })}
+                  onClear={() => setStage({ maxFontPx: null })}
+                  clearLabel={selected ? inherit : t('settings.chordColorDefault')}
+                  fallback={stageMaxFont}
                 />
                 <LineSpacing
                   value={stage.lineHeight}

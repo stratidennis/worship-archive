@@ -3,6 +3,7 @@ import {
   DEFAULT_ACCIDENTAL_PREFERENCES,
   DEFAULT_SONG_FONT_SIZE,
   DEFAULT_SONG_LINE_HEIGHT,
+  MAX_FITTED_SONG_FONT_SIZE,
   MAX_SONG_FONT_SIZE,
   MAX_SONG_LINE_HEIGHT,
   MIN_SONG_FONT_SIZE,
@@ -34,6 +35,8 @@ export interface Prefs {
   transpose: number;
   /** The automatic fitter may never make normal lyrics smaller than this. */
   minFontPx: number;
+  /** The automatic fitter may never make normal lyrics larger than this. */
+  maxFontPx: number;
   /** Lyric line height as a unitless multiplier. */
   lineHeight: number;
   /**
@@ -69,6 +72,7 @@ export const DEFAULT_PREFS: Prefs = {
   capo: 0,
   transpose: 0,
   minFontPx: DEFAULT_SONG_FONT_SIZE,
+  maxFontPx: MAX_FITTED_SONG_FONT_SIZE,
   lineHeight: DEFAULT_SONG_LINE_HEIGHT,
   chordColor: null,
   accidentalPreferences: DEFAULT_ACCIDENTAL_PREFERENCES,
@@ -84,8 +88,8 @@ const KEY = 'worship-archive:prefs';
 type StoredPrefs = Partial<Prefs> & {
   /** Preferences written before the three cue styles were introduced. */
   showBlockTitles?: boolean;
-  /** Retired: text size is now a floor rather than an adjustable ceiling. */
-  maxFontPx?: number;
+  /** Distinguishes the new ceiling from the retired pre-floor maxFontPx setting. */
+  fontSizingVersion?: 2;
 };
 
 export function normalisePrefs(value: unknown): Prefs {
@@ -94,7 +98,7 @@ export function normalisePrefs(value: unknown): Prefs {
   const legacyShowBlockTitles = saved.showBlockTitles;
   const currentSaved = { ...saved };
   delete currentSaved.showBlockTitles;
-  delete currentSaved.maxFontPx;
+  delete currentSaved.fontSizingVersion;
   const theme =
     saved.theme === 'light' || saved.theme === 'dark' || saved.theme === 'auto'
       ? saved.theme
@@ -107,6 +111,12 @@ export function normalisePrefs(value: unknown): Prefs {
     typeof saved.minFontPx === 'number' && Number.isFinite(saved.minFontPx)
       ? Math.min(MAX_SONG_FONT_SIZE, Math.max(MIN_SONG_FONT_SIZE, saved.minFontPx))
       : DEFAULT_PREFS.minFontPx;
+  const maxFontPx =
+    saved.fontSizingVersion === 2 &&
+    typeof saved.maxFontPx === 'number' &&
+    Number.isFinite(saved.maxFontPx)
+      ? Math.min(MAX_FITTED_SONG_FONT_SIZE, Math.max(minFontPx, saved.maxFontPx))
+      : DEFAULT_PREFS.maxFontPx;
   const cueStyle: CueStyle =
     saved.cueStyle === 'full' || saved.cueStyle === 'compact' || saved.cueStyle === 'minimal'
       ? saved.cueStyle
@@ -121,6 +131,7 @@ export function normalisePrefs(value: unknown): Prefs {
     theme,
     lineHeight,
     minFontPx,
+    maxFontPx,
     cueStyle,
     accidentalPreferences: {
       ...DEFAULT_ACCIDENTAL_PREFERENCES,
@@ -141,7 +152,7 @@ function read(): Prefs {
 
 function write(prefs: Prefs): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(prefs));
+    localStorage.setItem(KEY, JSON.stringify({ ...prefs, fontSizingVersion: 2 }));
   } catch {
     // Private window, blocked storage, quota — the app works fine without persistence.
   }

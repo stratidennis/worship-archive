@@ -375,6 +375,9 @@ const ro = {
   'settings.minFont': 'Mărimea minimă a textului',
   'settings.minFontHint':
     'Textul rămâne într-o singură coloană cât timp încape fără să treacă sub această mărime. Numai apoi poate folosi mai multe coloane.',
+  'settings.maxFont': 'Mărimea maximă a textului',
+  'settings.maxFontHint':
+    'Textul se mărește pentru a folosi spațiul disponibil, dar nu va trece peste această mărime.',
   'settings.lineSpacing': 'Spațierea rândurilor',
   'settings.lineSpacingHint':
     'Mai strâns lasă loc pentru text mai mare; mai aerisit separă mai clar rândurile.',
@@ -875,6 +878,9 @@ const en: Record<TranslationKey, Entry> = {
   'settings.minFont': 'Minimum text size',
   'settings.minFontHint':
     'The song stays in one column while it can fit without crossing this size. Only then may it use more columns.',
+  'settings.maxFont': 'Maximum text size',
+  'settings.maxFontHint':
+    'Text grows to use the available space, but will not grow beyond this size.',
   'settings.lineSpacing': 'Line spacing',
   'settings.lineSpacingHint':
     'Tighter spacing leaves room for larger text; looser spacing separates the lines more clearly.',
