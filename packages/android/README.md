@@ -57,8 +57,9 @@ existing installation. Local builds default to version code 1; set
   not a desktop-width overview or browser zoom. Existing phone scrolling is retained.
 - Fullscreen and keep-awake settings. Discovery stops while the activity is in the
   background and resumes without reloading the song UI.
-- The JavaScript bridge can only open connection settings. It is not a desktop bridge
-  and cannot change phone/tablet classification or expose native files/commands.
+- The JavaScript bridge opens connection settings and reports the actual native
+  window bounds. Its stable device-size report keeps tablets in tablet mode during
+  rotation; real phones retain scrolling. It exposes no native files or commands.
 - The proxy binds to `127.0.0.1`, checks Host/Origin, and denies deletion requests.
   Wi-Fi is a trusted network, as in the existing app; the Leader's HTTP service does
   not provide transport encryption. Do not use an untrusted public network.
@@ -69,6 +70,8 @@ The existing `desktop.yml` workflow is now named **App builds**. Its nine deskto
 jobs remain intact and one Android Band job is added. Manual runs create download
 artifacts; `v*` tags additionally gather the APK into the draft release.
 The Android job also installs the signed APK into a disposable GitHub emulator,
-completes native setup, connects to an isolated test Leader, and checks rotation and
-startup errors. Its screenshots are a separate short-lived diagnostic artifact;
+completes native setup, connects to an isolated test Leader, and checks that the last
+lyric remains inside the tablet screen after portrait/landscape/return rotations and
+a landscape cold start. It also opens the phone layout and captures screenshots.
+The screenshots are a separate short-lived diagnostic artifact;
 `worship-archive-band-Android` remains the installable APK download.

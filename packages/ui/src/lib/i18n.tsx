@@ -379,7 +379,7 @@ const ro = {
   'settings.showChords': 'Arată acordurile',
   'settings.showBlockTitles': 'Arată titlurile secțiunilor',
   'settings.showBlockTitlesHint':
-    'Ascunde etichetele precum Strofă, Refren și Notă pentru a lăsa mai mult loc textului.',
+    'Ascunde etichetele precum Strofă, Refren, Notă și Configurația cântării pentru a lăsa mai mult loc textului.',
   'settings.chordsShown': 'Cu acorduri',
   'settings.chordsHidden': 'Doar versuri',
   'settings.accidentals': 'Scrierea diezurilor și bemolilor',
@@ -854,7 +854,7 @@ const en: Record<TranslationKey, Entry> = {
   'settings.showChords': 'Show chords',
   'settings.showBlockTitles': 'Show section titles',
   'settings.showBlockTitlesHint':
-    'Hide labels such as Verse, Chorus and Note to leave more room for the song text.',
+    'Hide labels such as Verse, Chorus, Note and Song setup to leave more room for the song text.',
   'settings.chordsShown': 'With chords',
   'settings.chordsHidden': 'Words only',
   'settings.accidentals': 'Sharp and flat notation',

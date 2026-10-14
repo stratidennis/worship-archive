@@ -466,6 +466,7 @@ export function BandPage() {
             >
               {prefs.showChords && (
                 <PerformanceInfo
+                  showBlockTitles={prefs.showBlockTitles}
                   performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                   transpose={leaderTranspose}
                   capo={leaderCapo}

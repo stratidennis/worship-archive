@@ -1,5 +1,5 @@
 import { useLayoutEffect, type RefObject } from 'react';
-import { androidBand } from './androidBand.js';
+import { androidBand, androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
 
 interface DisplaySize {
   width: number;
@@ -44,6 +44,14 @@ export function useStablePerformanceHeight(ref: RefObject<HTMLElement | null>): 
     let frame: number | null = null;
 
     const lockHeight = (): void => {
+      const native = androidViewport();
+      if (native) {
+        // An installed WebView has no address bar. Use the space actually allocated
+        // by Android, even while its CSS viewport units are stale during rotation.
+        element.style.height = `${native.height}px`;
+        previous = size();
+        return;
+      }
       // Read the small viewport CSS height when available. Older engines only know
       // `vh`, which can include hidden browser bars, so cap that to the visible area.
       element.style.height = '';
@@ -66,11 +74,13 @@ export function useStablePerformanceHeight(ref: RefObject<HTMLElement | null>): 
     lockHeight();
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onOrientationChange);
+    window.addEventListener(ANDROID_VIEWPORT_EVENT, lockHeight);
     document.addEventListener('fullscreenchange', onFullscreenChange);
     window.screen.orientation?.addEventListener('change', onOrientationChange);
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onOrientationChange);
+      window.removeEventListener(ANDROID_VIEWPORT_EVENT, lockHeight);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       window.screen.orientation?.removeEventListener('change', onOrientationChange);
       if (frame !== null) cancelAnimationFrame(frame);

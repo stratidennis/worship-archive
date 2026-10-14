@@ -13,6 +13,7 @@ import {
   createHierarchyReader,
   focusInput,
   nativeInputs,
+  textInsideScreen,
   waitFor,
 } from './smoke-ui.mjs';
 
@@ -45,7 +46,7 @@ const song = {
   createdAt: '2026-10-14T00:00:00Z',
   updatedAt: '2026-10-14T00:00:00Z',
   rev: 1,
-  blocks: Array.from({ length: 4 }, (_, i) => ({
+  blocks: Array.from({ length: 8 }, (_, i) => ({
     id: `V${i}`,
     type: 'Verse',
     label: null,
@@ -57,8 +58,8 @@ const song = {
       'The whole Band screen is available',
       'Rotate without losing the song',
       'Settings remain on this device',
-    ].map((text) => ({
-      text,
+    ].map((text, line) => ({
+      text: i === 7 && line === 3 ? 'ANDROID-END-OF-SONG' : `${text} ${i + 1}`,
       chords: [{ at: 0, raw: 'G' }],
       bass: [],
       indent: 0,
@@ -109,8 +110,27 @@ hub.on('connection', (socket) => {
 });
 const hierarchy = createHierarchyReader(adb);
 const tap = (node) => adb('shell', 'input', 'tap', ...center(node).map(String));
+const screenshot = (name) =>
+  writeFileSync(
+    join(root, 'build/smoke', name + '.png'),
+    execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p']),
+  );
+const verifySongEnd = async (name, width, height) => {
+  await waitFor(() => {
+    const xml = hierarchy();
+    return textInsideScreen(xml, 'ANDROID-END-OF-SONG', width, height) ? xml : null;
+  }, `whole song visible: ${name}`);
+  screenshot(name);
+};
 
 try {
+  // Match the MatePad panel and its ~600dp short side, rather than only testing
+  // the emulator's default small phone. These overrides affect this emulator only.
+  adb('shell', 'wm', 'size', '1200x2000');
+  adb('shell', 'wm', 'density', '320');
+  adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
+  adb('shell', 'settings', 'put', 'system', 'user_rotation', '0');
+  await pause();
   adb('install', '-r', join(root, 'release/worship-archive-band-Android.apk'));
   adb('logcat', '-c');
   adb('shell', 'am', 'start', '-W', '-n', 'com.worshiparchive.band/.BandActivity');
@@ -156,31 +176,60 @@ try {
   const pid = adb('shell', 'pidof', 'com.worshiparchive.band').trim();
   assert.ok(pid, 'Band process running');
   mkdirSync(join(root, 'build/smoke'), { recursive: true });
-  writeFileSync(
-    join(root, 'build/smoke/portrait.png'),
-    execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p']),
-  );
-  adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
+  await verifySongEnd('portrait', 1200, 2000);
   adb('shell', 'settings', 'put', 'system', 'user_rotation', '1');
-  await pause();
-  await pause();
+  await verifySongEnd('landscape', 2000, 1200);
   assert.equal(
     adb('shell', 'pidof', 'com.worshiparchive.band').trim(),
     pid,
     'rotation did not restart the app',
   );
-  writeFileSync(
-    join(root, 'build/smoke/landscape.png'),
-    execFileSync('adb', ['-e', 'exec-out', 'screencap', '-p']),
+  adb('shell', 'settings', 'put', 'system', 'user_rotation', '0');
+  await verifySongEnd('portrait-return', 1200, 2000);
+  assert.equal(
+    adb('shell', 'pidof', 'com.worshiparchive.band').trim(),
+    pid,
+    'round-trip rotation preserved the app',
   );
-  const logs = adb('logcat', '-d', '--pid=' + pid);
+
+  adb('shell', 'am', 'force-stop', 'com.worshiparchive.band');
+  adb('shell', 'settings', 'put', 'system', 'user_rotation', '1');
+  await pause();
+  adb('shell', 'am', 'start', '-W', '-n', 'com.worshiparchive.band/.BandActivity');
+  await verifySongEnd('landscape-cold-start', 2000, 1200);
+  adb('shell', 'settings', 'put', 'system', 'user_rotation', '0');
+  await verifySongEnd('portrait-after-landscape-start', 1200, 2000);
+
+  // The same universal APK must still permit one-column scrolling on real phones.
+  adb('shell', 'am', 'force-stop', 'com.worshiparchive.band');
+  adb('shell', 'wm', 'size', '780x1688');
+  await pause();
+  adb('shell', 'am', 'start', '-W', '-n', 'com.worshiparchive.band/.BandActivity');
+  await waitFor(() => hierarchy().includes(song.title), 'phone view loaded');
+  const firstLyric = 'Android live connection works 1';
+  await waitFor(
+    () => textInsideScreen(hierarchy(), firstLyric, 780, 1688),
+    'phone song visible',
+  );
+  screenshot('phone-before-scroll');
+  adb('shell', 'input', 'swipe', '390', '1400', '390', '300', '400');
+  await waitFor(
+    () => !textInsideScreen(hierarchy(), firstLyric, 780, 1688),
+    'phone scrolling moved the song',
+  );
+  screenshot('phone-scrolling');
+  const logs = adb(
+    'logcat',
+    '-d',
+    '--pid=' + adb('shell', 'pidof', 'com.worshiparchive.band').trim(),
+  );
   assert.ok(!logs.includes('FATAL EXCEPTION'), 'No Android runtime crash');
   assert.ok(
     !(await waitFor(hierarchy, 'rotated Android screen')).includes('WebView is too old'),
     'Emulator WebView supports the packaged UI',
   );
   console.log(
-    'Android emulator smoke passed: signed APK installed, native setup completed, real Band WebSocket connected, rotation preserved the process, no runtime crash.',
+    'Android emulator smoke passed: signed APK installed, connected, last lyric visible in tablet portrait/landscape/return rotation and landscape cold start, phone song scrolled, no runtime crash.',
   );
 } catch (error) {
   mkdirSync(join(root, 'build/smoke'), { recursive: true });

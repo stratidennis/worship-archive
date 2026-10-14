@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { settleSongLayout, songFontsApplied } from './settleSongLayout.js';
+import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
 
 /**
  * Fit a whole song onto one screen.
@@ -199,12 +200,16 @@ export function useFitToScreen(
       const width = container.clientWidth;
       // `innerHeight` changes as mobile browser chrome hides and returns. The CSSOM
       // screen size is stable, and is expressed in CSS pixels on browsers and Electron.
-      const screenWidth = window.screen?.width || window.innerWidth;
-      const screenHeight = window.screen?.height || window.innerHeight;
+      const native = androidViewport();
+      // Android's stable smallest-screen dp size does not shrink when landscape
+      // bars or a keyboard reduce the WebView's visible height. Tablets stay tablets.
+      const screenWidth = native?.shortSide ?? (window.screen?.width || window.innerWidth);
+      const screenHeight = native?.shortSide ?? (window.screen?.height || window.innerHeight);
       const touchBrowser =
-        !window.worship &&
-        !window.worshipClient &&
-        window.matchMedia('(pointer: coarse)').matches;
+        native !== null ||
+        (!window.worship &&
+          !window.worshipClient &&
+          window.matchMedia('(pointer: coarse)').matches);
       if (available <= 0 || width <= 0) {
         fittedKey.current = options.key;
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the
@@ -408,10 +413,18 @@ export function useFitToScreen(
       schedule();
     });
     observer.observe(container);
+    const onNativeViewport = (): void => {
+      setResult((previous) =>
+        previous.measuring ? previous : { ...previous, measuring: true },
+      );
+      schedule();
+    };
+    window.addEventListener(ANDROID_VIEWPORT_EVENT, onNativeViewport);
 
     return () => {
       disposed = true;
       observer.disconnect();
+      window.removeEventListener(ANDROID_VIEWPORT_EVENT, onNativeViewport);
       if (frame.current !== null) cancelAnimationFrame(frame.current);
       frame.current = null;
       for (const [id, resolve] of pendingFrames) {

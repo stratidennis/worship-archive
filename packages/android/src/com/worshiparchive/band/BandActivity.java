@@ -2,6 +2,7 @@ package com.worshiparchive.band;
 
 import android.app.*;
 import android.content.*;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.*;
@@ -27,6 +28,7 @@ public final class BandActivity extends Activity {
     private String preferred = "";
     private boolean stopping;
     private boolean hadLeader;
+    private volatile String viewport = "{}";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -65,10 +67,12 @@ public final class BandActivity extends Activity {
             settings.setUseWideViewPort(true);
             settings.setLoadWithOverviewMode(false);
             web.addJavascriptInterface(new ConnectionBridge(), "worshipAndroid");
+            web.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> publishViewport(false));
             web.setWebViewClient(new WebViewClient() {
                 @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return rejectNavigation(request.getUrl()); }
                 @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return rejectNavigation(Uri.parse(url)); }
                 @Override public void onPageFinished(WebView view, String url) {
+                    publishViewport(true);
                     // Check the actual Android WebView rather than assuming the
                     // separately installed browser and WebView have the same engine.
                     web.evaluateJavascript("!!(window.CSS && CSS.supports('color','oklch(50% 0.1 100)') && Array.prototype.at)", value -> {
@@ -96,6 +100,30 @@ public final class BandActivity extends Activity {
     }
 
     private int dp(int size) { return Math.round(size * getResources().getDisplayMetrics().density); }
+
+    private void publishViewport(boolean force) {
+        if (web == null || stopping || web.getWidth() <= 0 || web.getHeight() <= 0) return;
+        float density = getResources().getDisplayMetrics().density;
+        String next = "{\"width\":" + (web.getWidth() / density) + ",\"height\":" + (web.getHeight() / density)
+                + ",\"shortSide\":" + getResources().getConfiguration().smallestScreenWidthDp + "}";
+        if (!force && next.equals(viewport)) return;
+        viewport = next;
+        // A native layout callback is authoritative even if an older WebView misses
+        // its browser resize event. No reload: the song, connection and settings survive.
+        web.post(() -> {
+            if (!stopping && web != null) web.evaluateJavascript("window.dispatchEvent(new Event('worship-android-viewport'))", null);
+        });
+    }
+
+    @Override public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        applyDisplaySettings();
+        if (web != null) {
+            web.requestLayout();
+            web.invalidate();
+            web.post(() -> publishViewport(true));
+        }
+    }
 
     private boolean rejectNavigation(Uri url) {
         boolean local = server != null && "http".equals(url.getScheme()) && "127.0.0.1".equals(url.getHost()) && url.getPort() == 17375;
@@ -251,7 +279,7 @@ public final class BandActivity extends Activity {
     @Override public void onBackPressed() { back(); }
     @Override public void onResume() {
         super.onResume();
-        if (web != null) web.onResume();
+        if (web != null) { web.onResume(); web.post(() -> publishViewport(true)); }
         if (!stopping && web != null && server != null && discovery == null) startDiscovery();
     }
     @Override public void onStop() {
@@ -269,8 +297,9 @@ public final class BandActivity extends Activity {
         super.onDestroy();
     }
 
-    /** Only a settings dialog is exposed; never files, arbitrary URLs, or commands. */
+    /** Only connection settings and read-only window bounds; never files, URLs or commands. */
     public final class ConnectionBridge {
         @JavascriptInterface public void openConnectionSettings() { runOnUiThread(BandActivity.this::showConnectionSettings); }
+        @JavascriptInterface public String getViewport() { return viewport; }
     }
 }

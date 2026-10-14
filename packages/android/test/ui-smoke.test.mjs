@@ -4,6 +4,7 @@ import {
   center,
   createHierarchyReader,
   focusInput,
+  textInsideScreen,
   UiNotReadyError,
   waitFor,
 } from '../scripts/smoke-ui.mjs';
@@ -69,6 +70,22 @@ test('unavailable screens still fail after bounded retries', async () => {
     ),
     /Timed out: setup/,
   );
+});
+
+test('rotation checks reject song endings outside the screen or with empty/clipped bounds', () => {
+  const node = (bounds) => `<node text="ANDROID-END-OF-SONG" bounds="${bounds}" />`;
+  assert.equal(
+    textInsideScreen(node('[800,900][1100,940]'), 'ANDROID-END-OF-SONG', 1200, 2000),
+    true,
+  );
+  for (const bounds of [
+    '[800,1900][1100,2050]',
+    '[1100,900][1300,940]',
+    '[0,0][0,0]',
+    '[800,1195][1100,1200]',
+  ]) {
+    assert.equal(textInsideScreen(node(bounds), 'ANDROID-END-OF-SONG', 1200, 1200), false);
+  }
 });
 
 test('real assertions are never swallowed by startup retries', async () => {

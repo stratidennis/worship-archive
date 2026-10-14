@@ -12,6 +12,7 @@ export function PerformanceInfo({
   displayedKey,
   instrumentTranspose,
   instrumentCapo,
+  showBlockTitles = true,
 }: {
   performanceKey: string | null;
   transpose: number;
@@ -19,6 +20,7 @@ export function PerformanceInfo({
   displayedKey?: string | null;
   instrumentTranspose?: number | null;
   instrumentCapo?: number | null;
+  showBlockTitles?: boolean;
 }) {
   const { t } = useT();
   const leader = [
@@ -43,12 +45,14 @@ export function PerformanceInfo({
       className="mb-[0.9em] rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.65em] py-[0.4em]"
       style={{ breakInside: 'avoid' }}
     >
-      <h2
-        data-song-font-scale={0.58}
-        className="text-[0.58em] font-semibold uppercase tracking-wider text-(--color-muted)"
-      >
-        {t('performance.title')}
-      </h2>
+      {showBlockTitles && (
+        <h2
+          data-song-font-scale={0.58}
+          className="text-[0.58em] font-semibold uppercase tracking-wider text-(--color-muted)"
+        >
+          {t('performance.title')}
+        </h2>
+      )}
       <p data-song-font-scale={0.78} className="text-[0.78em] font-semibold leading-snug">
         {leader.join(' · ')}
       </p>

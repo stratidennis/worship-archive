@@ -51,6 +51,23 @@ export async function waitFor(read, label, options = {}) {
   throw new Error(`Timed out: ${label}`, { cause: lastError });
 }
 
+export function textInsideScreen(xml, text, width, height) {
+  return [...xml.matchAll(/<node\b[^>]*>/g)].some(([node]) => {
+    if (!node.includes(`text="${text}"`)) return false;
+    const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (!bounds) return false;
+    const [left, top, right, bottom] = bounds.slice(1).map(Number);
+    return (
+      left >= 0 &&
+      top >= 0 &&
+      right <= width &&
+      bottom <= height &&
+      right > left &&
+      bottom - top >= 12
+    );
+  });
+}
+
 export function nativeInputs(xml) {
   return xml.match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g) ?? [];
 }

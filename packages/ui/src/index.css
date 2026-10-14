@@ -188,9 +188,10 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .waiting-spinner {
-    animation: none;
-    border-right-color: currentColor;
-    opacity: 0.55;
+    /* This small status cue still moves, as requested, but gently when the
+       device asks for reduced motion. Keep the gap so it never becomes an empty ring. */
+    animation-duration: 3s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

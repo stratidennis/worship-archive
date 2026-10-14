@@ -183,6 +183,7 @@ export function StagePage() {
           >
             {showChords && (
               <PerformanceInfo
+                showBlockTitles={stage.showBlockTitles ?? true}
                 performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                 transpose={state.transpose}
                 capo={capo}
