@@ -12,7 +12,7 @@ import {
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
-import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
@@ -459,17 +459,7 @@ export function BandPage() {
           }}
         >
           {viewing ? (
-            <div
-              ref={content}
-              style={{
-                fontSize: `${fit.fontPx}px`,
-                columnCount: fit.columns,
-                columnGap: '2.5em',
-                height: fit.columns > 1 ? '100%' : undefined,
-                columnFill: fit.columns > 1 ? 'auto' : undefined,
-                visibility: fit.measuring ? 'hidden' : 'visible',
-              }}
-            >
+            <div ref={content} style={fittedSongStyle(fit)}>
               {prefs.showChords && (
                 <PerformanceInfo
                   performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}

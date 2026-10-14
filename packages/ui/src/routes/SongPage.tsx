@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { preferredKeyName, type Song } from '@worship/core';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
-import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
 import { adjacentSong } from '../lib/songNavigation.js';
 import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -197,16 +197,7 @@ export function SongPage() {
           fit.fits ? 'overflow-hidden' : 'overflow-y-auto sm:overflow-hidden'
         }`}
       >
-        <div
-          ref={content}
-          className="w-full"
-          style={{
-            fontSize: `${fit.fontPx}px`,
-            columnCount: fit.columns,
-            columnGap: '2.5em',
-            visibility: fit.measuring ? 'hidden' : 'visible',
-          }}
-        >
+        <div ref={content} className="w-full" style={fittedSongStyle(fit)}>
           <SongBody
             song={song}
             options={{

@@ -8,7 +8,7 @@ import {
 } from '@worship/core';
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt } from '../lib/useLiveSet.js';
-import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
 import { setLanguageOverride, useT } from '../lib/i18n.js';
 import { applyChordColor, applyTheme } from '../lib/theme.js';
 import { usePrefs } from '../lib/settings.js';
@@ -170,17 +170,7 @@ export function StagePage() {
         } ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}
       >
         {state.output === 'cleared' ? null : song ? (
-          <div
-            ref={content}
-            style={{
-              fontSize: `${fit.fontPx}px`,
-              columnCount: fit.columns,
-              columnGap: '2.5em',
-              height: fit.columns > 1 ? '100%' : undefined,
-              columnFill: fit.columns > 1 ? 'auto' : undefined,
-              visibility: fit.measuring ? 'hidden' : 'visible',
-            }}
-          >
+          <div ref={content} style={fittedSongStyle(fit)}>
             {showChords && (
               <PerformanceInfo
                 performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}

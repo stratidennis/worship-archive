@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 
 /**
  * Fit a whole song onto one screen.
@@ -49,26 +49,34 @@ export interface FitResult {
 const MIN_DEFAULT = 11;
 const MAX_DEFAULT = 40;
 /*
- * A width breakpoint describes CSS pixels, not the panel's physical resolution.
+ * A viewport breakpoint describes CSS pixels, not the panel's physical resolution.
  *
  * The 10.4-inch Huawei MatePad has a 1200px-wide panel but exposes about 600 CSS px
- * in portrait. Treating everything below 620px as a phone therefore disabled columns
- * and enabled preferred-size scrolling on a real tablet. Contemporary phones are
- * normally well below 500 CSS px in portrait, so this keeps the phone fallback while
- * allowing compact Android tablets to use the fit-to-screen layout.
+ * on its short side. Treating a narrow song pane as a phone therefore disabled fitting
+ * on real tablets and on laptop set previews. The viewport's short side distinguishes
+ * those cases and also keeps the phone fallback when a phone is rotated to landscape.
  */
 export const NARROW_SCREEN_WIDTH = 520;
 
-export function usesPreferredSizeScrolling(width: number, enabled: boolean): boolean {
-  return enabled && width < NARROW_SCREEN_WIDTH;
+export function isPhoneViewport(viewportWidth: number, viewportHeight: number): boolean {
+  return Math.min(viewportWidth, viewportHeight) < NARROW_SCREEN_WIDTH;
 }
 
-export function minimumFontForWidth(
-  width: number,
+export function usesPreferredSizeScrolling(
+  viewportWidth: number,
+  viewportHeight: number,
+  enabled: boolean,
+): boolean {
+  return enabled && isPhoneViewport(viewportWidth, viewportHeight);
+}
+
+export function minimumFontForViewport(
+  viewportWidth: number,
+  viewportHeight: number,
   minFontPx: number,
   narrowMinFontPx = minFontPx,
 ): number {
-  return width < NARROW_SCREEN_WIDTH ? narrowMinFontPx : minFontPx;
+  return isPhoneViewport(viewportWidth, viewportHeight) ? narrowMinFontPx : minFontPx;
 }
 
 export function exceedsAvailableSpace(
@@ -90,6 +98,19 @@ export function usesConstrainedColumnFlow(columns: number): boolean {
   return columns > 1;
 }
 
+/** The shared final style for every fitted song surface. */
+export function fittedSongStyle(fit: FitResult): CSSProperties {
+  const constrained = usesConstrainedColumnFlow(fit.columns);
+  return {
+    fontSize: `${fit.fontPx}px`,
+    columnCount: fit.columns,
+    columnGap: '2.5em',
+    height: constrained ? '100%' : undefined,
+    columnFill: constrained ? 'auto' : undefined,
+    visibility: fit.measuring ? 'hidden' : 'visible',
+  };
+}
+
 /**
  * Column counts worth trying at a given width. Columns are useless on a phone.
  *
@@ -97,8 +118,8 @@ export function usesConstrainedColumnFlow(columns: number): boolean {
  * columns that still allow the largest type, so a wide screen only splits when splitting
  * is what makes the text bigger.
  */
-function columnCandidates(width: number): number[] {
-  if (width < NARROW_SCREEN_WIDTH) return [1];
+function columnCandidates(width: number, phoneViewport: boolean): number[] {
+  if (phoneViewport || width < NARROW_SCREEN_WIDTH) return [1];
   if (width < 1100) return [1, 2];
   if (width < 1800) return [1, 2, 3];
   return [1, 2, 3, 4];
@@ -142,6 +163,8 @@ export function useFitToScreen(
         (parseFloat(box.paddingTop) || 0) -
         (parseFloat(box.paddingBottom) || 0);
       const width = container.clientWidth;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       if (available <= 0 || width <= 0) {
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the
         // content at the preferred size rather than leaving it invisible — an
@@ -158,7 +181,13 @@ export function useFitToScreen(
         height: content.style.height,
         columnFill: content.style.columnFill,
       };
-      const effectiveMinFont = minimumFontForWidth(width, minFont, narrowMinFont);
+      const phoneViewport = isPhoneViewport(viewportWidth, viewportHeight);
+      const effectiveMinFont = minimumFontForViewport(
+        viewportWidth,
+        viewportHeight,
+        minFont,
+        narrowMinFont,
+      );
 
       const overflows = (fontPx: number, columns: number): boolean => {
         content.style.fontSize = `${fontPx}px`;
@@ -190,10 +219,12 @@ export function useFitToScreen(
 
       let best = { fontPx: effectiveMinFont, columns: 1, fits: false };
 
-      if (usesPreferredSizeScrolling(width, narrowScrollAtPreferredSize)) {
+      if (
+        usesPreferredSizeScrolling(viewportWidth, viewportHeight, narrowScrollAtPreferredSize)
+      ) {
         best = { fontPx: maxFont, columns: 1, fits: !overflows(maxFont, 1) };
       } else {
-        for (const columns of columnCandidates(width)) {
+        for (const columns of columnCandidates(width, phoneViewport)) {
           if (!overflows(maxFont, columns)) {
             best = { fontPx: maxFont, columns, fits: true };
             break; // Fewer columns is always preferable at the same size.

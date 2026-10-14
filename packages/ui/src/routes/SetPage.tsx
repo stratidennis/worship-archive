@@ -25,7 +25,7 @@ import {
 import { moveItem } from '../lib/reorder.js';
 import { useDragList } from '../lib/useDragList.js';
 import { usePrefs } from '../lib/settings.js';
-import { useFitToScreen } from '../lib/useFitToScreen.js';
+import { fittedSongStyle, useFitToScreen } from '../lib/useFitToScreen.js';
 import { adjacentSong } from '../lib/songNavigation.js';
 import { useSongArrows } from '../lib/useSongArrows.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
@@ -1507,16 +1507,7 @@ function Preview({
           fit.fits ? 'overflow-hidden' : 'overflow-y-auto'
         }`}
       >
-        <div
-          ref={content}
-          className="w-full"
-          style={{
-            fontSize: `${fit.fontPx}px`,
-            columnCount: fit.columns,
-            columnGap: '2.5em',
-            visibility: fit.measuring ? 'hidden' : 'visible',
-          }}
-        >
+        <div ref={content} className="w-full" style={fittedSongStyle(fit)}>
           <SongBody
             song={song}
             options={{
