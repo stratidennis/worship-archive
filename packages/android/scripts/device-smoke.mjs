@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { INITIAL_SESSION } from '../../core/src/session.ts';
+import { center, createHierarchyReader, waitFor } from './smoke-ui.mjs';
 
 if (!process.argv.includes('--emulator'))
   throw new Error(
@@ -100,38 +101,8 @@ hub.on('connection', (socket) => {
       );
   });
 });
-const hierarchy = () => {
-  const read = () => {
-    adb('shell', 'uiautomator', 'dump', '/sdcard/worship-band-smoke.xml');
-    return adb('shell', 'cat', '/sdcard/worship-band-smoke.xml');
-  };
-  let xml = read();
-  // A fresh Android installation shows its own fullscreen tutorial over the
-  // Activity. Its taps must not be mistaken for taps on our connection form.
-  const tutorial = xml.match(/<node\b[^>]*resource-id="com.android.systemui:id\/ok"[^>]*>/);
-  if (tutorial && xml.includes('immersive_cling')) {
-    tap(tutorial[0]);
-    xml = read();
-  }
-  return xml;
-};
-const center = (node) => {
-  const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-  assert.ok(bounds, 'UI bounds available');
-  return [
-    Math.round((Number(bounds[1]) + Number(bounds[3])) / 2),
-    Math.round((Number(bounds[2]) + Number(bounds[4])) / 2),
-  ];
-};
+const hierarchy = createHierarchyReader(adb);
 const tap = (node) => adb('shell', 'input', 'tap', ...center(node).map(String));
-const waitFor = async (read, label) => {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const result = read();
-    if (result) return result;
-    await pause();
-  }
-  throw new Error(`Timed out: ${label}`);
-};
 
 try {
   adb('install', '-r', join(root, 'release/worship-archive-band-Android.apk'));
@@ -149,11 +120,14 @@ try {
   tap(initial.inputs[0]);
   adb('shell', 'input', 'text', 'Android-CI');
   // The keyboard can move the dialog; don't reuse pre-keyboard coordinates.
-  const currentInputs = hierarchy().match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g);
+  const currentInputs = await waitFor(() => {
+    const inputs = hierarchy().match(/<node\b[^>]*class="android.widget.EditText"[^>]*>/g);
+    return inputs?.length >= 2 ? inputs : null;
+  }, 'Leader address field after name entry');
   assert.ok(currentInputs?.length >= 2, 'Leader address field available');
   tap(currentInputs[1]);
   adb('shell', 'input', 'text', `10.0.2.2:${backend.address().port}`);
-  const completedForm = hierarchy();
+  const completedForm = await waitFor(hierarchy, 'completed connection form');
   assert.ok(completedForm.includes('Android-CI'), 'Device name entered in native setup');
   assert.ok(
     completedForm.includes(`10.0.2.2:${backend.address().port}`),
@@ -194,7 +168,7 @@ try {
   const logs = adb('logcat', '-d', '--pid=' + pid);
   assert.ok(!logs.includes('FATAL EXCEPTION'), 'No Android runtime crash');
   assert.ok(
-    !hierarchy().includes('WebView is too old'),
+    !(await waitFor(hierarchy, 'rotated Android screen')).includes('WebView is too old'),
     'Emulator WebView supports the packaged UI',
   );
   console.log(

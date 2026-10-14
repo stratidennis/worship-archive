@@ -154,6 +154,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Test the native connection layer
         run: pnpm --filter @worship/android test:native
+      - name: Test emulator startup handling
+        run: pnpm --filter @worship/android test:smoke
       - name: Build the shared UI
         run: pnpm --filter @worship/ui build
       - name: Build and verify signed Band APK
@@ -178,6 +180,7 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
+          enable-hw-keyboard: true
           script: node packages/android/scripts/device-smoke.mjs --emulator
 
       - uses: actions/upload-artifact@v7
