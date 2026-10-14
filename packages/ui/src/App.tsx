@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { I18nProvider, useT } from './lib/i18n.js';
 import { useTheme } from './lib/theme.js';
@@ -17,6 +18,26 @@ import { ImportPage } from './routes/ImportPage.js';
 import { SettingsPage } from './routes/SettingsPage.js';
 import { CleanupPage } from './routes/CleanupPage.js';
 import { ClientSetupPage } from './routes/ClientSetupPage.js';
+import { api } from './lib/api.js';
+import { desktop } from './lib/desktop.js';
+
+/** Reconcile the desktop library when connectivity returns, without periodic polling. */
+function DesktopReconnectSync() {
+  useEffect(() => {
+    if (!desktop() || ['/band', '/stage', '/device-setup'].includes(window.location.pathname)) {
+      return;
+    }
+    const sync = (): void => {
+      void api
+        .cloudSyncStatus()
+        .then((status) => (status.configured ? api.syncCloud() : undefined))
+        .catch(() => undefined);
+    };
+    window.addEventListener('online', sync);
+    return () => window.removeEventListener('online', sync);
+  }, []);
+  return null;
+}
 
 /**
  * The skip link.
@@ -83,6 +104,7 @@ export function App() {
       {/* Above the router: leading survives navigating, and only ends when it is
           switched off. */}
       <LeaderSessionProvider>
+        <DesktopReconnectSync />
         <SkipLink />
         <RouterProvider router={router} />
         {/* One dialog for the whole app, so any page can ask a question by awaiting one. */}

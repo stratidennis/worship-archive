@@ -7,6 +7,8 @@
  * version is nicer, never the only one.
  */
 
+import { androidLeader } from './androidBand.js';
+
 export interface DesktopState {
   installationId: string;
   deviceName: string;
@@ -14,6 +16,7 @@ export interface DesktopState {
   songsDir: string;
   setsDir: string;
   powerpointsDir: string;
+  cloudSyncDir: string | null;
   port: number;
   addresses: string[];
   hostname: string;
@@ -38,6 +41,9 @@ interface DesktopApi {
   retryServer: () => Promise<boolean>;
   chooseDataDir: () => Promise<string | null>;
   revealDataDir: () => Promise<void>;
+  chooseCloudSyncDir: () => Promise<string | null>;
+  revealCloudSyncDir: () => Promise<void>;
+  disconnectCloudSync: () => Promise<boolean>;
   choosePowerpointsDir: () => Promise<string | null>;
   revealPowerpointsDir: () => Promise<void>;
   openPowerPoints: (paths: string[]) => Promise<string[]>;
@@ -75,6 +81,11 @@ export async function saveTextFile(
 ): Promise<string | null> {
   const native = desktop();
   if (native) return native.saveFile(name, contents);
+  const android = androidLeader();
+  if (android?.saveTextFile) {
+    android.saveTextFile(name, contents);
+    return name;
+  }
 
   const url = URL.createObjectURL(new Blob([contents], { type }));
   const link = document.createElement('a');

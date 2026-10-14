@@ -3,6 +3,13 @@ interface AndroidBandBridge {
   openConnectionSettings: () => void;
   /** Actual WebView bounds in Android density-independent (CSS) pixels. */
   getViewport?: () => string;
+  /** Present only in the Android Leader product. */
+  isLeader?: () => boolean;
+  chooseCloudSyncDir?: () => void;
+  revealCloudSyncDir?: () => void;
+  disconnectCloudSync?: () => void;
+  /** Save a generated backup through Android's system document picker. */
+  saveTextFile?: (name: string, contents: string) => void;
 }
 
 export interface AndroidViewport {
@@ -22,6 +29,11 @@ declare global {
 
 export function androidBand(): AndroidBandBridge | null {
   return typeof window === 'undefined' ? null : (window.worshipAndroid ?? null);
+}
+
+export function androidLeader(): AndroidBandBridge | null {
+  const bridge = androidBand();
+  return bridge?.isLeader?.() ? bridge : null;
 }
 
 export function androidViewport(): AndroidViewport | null {

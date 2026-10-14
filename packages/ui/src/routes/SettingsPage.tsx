@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminApi, type Backup } from '../lib/api.js';
+import { adminApi, api, type Backup, type CloudSyncStatus } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
 import { useT } from '../lib/i18n.js';
@@ -26,6 +26,7 @@ import {
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
 import { desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
+import { androidLeader } from '../lib/androidBand.js';
 
 /**
  * Everything that is a setting, in one place.
@@ -40,8 +41,10 @@ export function SettingsPage() {
   const { t, lang, setLang } = useT();
   const [prefs, setPrefs] = usePrefs();
   const [native] = useState(() => desktop());
+  const [android] = useState(() => androidLeader());
   const [state, setState] = useState<DesktopState | null>(null);
   const [mirror, setMirror] = useState<{ songs: number; lastSync: string | null } | null>(null);
+  const [cloud, setCloud] = useState<CloudSyncStatus | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -104,7 +107,58 @@ export function SettingsPage() {
   useEffect(() => {
     void native?.state().then(setState);
     void repo.status().then(setMirror);
+    void api.cloudSyncStatus().then(setCloud);
+    const refreshCloud = (): void => {
+      void api.cloudSyncStatus().then(setCloud);
+    };
+    window.addEventListener('worship-cloud-changed', refreshCloud);
+    return () => {
+      window.removeEventListener('worship-cloud-changed', refreshCloud);
+    };
   }, [native]);
+
+  const chooseCloudFolder = async (): Promise<void> => {
+    if (native) {
+      const cloudSyncDir = await native.chooseCloudSyncDir();
+      if (cloudSyncDir) {
+        setState((current) => (current ? { ...current, cloudSyncDir } : current));
+        setCloud(await api.cloudSyncStatus());
+      }
+    } else android?.chooseCloudSyncDir?.();
+  };
+
+  const disconnectCloud = async (): Promise<void> => {
+    if (native) {
+      await native.disconnectCloudSync();
+      setState((current) => (current ? { ...current, cloudSyncDir: null } : current));
+      setCloud(await api.cloudSyncStatus());
+    } else android?.disconnectCloudSync?.();
+  };
+
+  const revealCloudFolder = (): void => {
+    if (native) void native.revealCloudSyncDir();
+    else android?.revealCloudSyncDir?.();
+  };
+
+  const syncCloud = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.syncCloud();
+      await repo.sync();
+      setMirror(await repo.status());
+      setCloud(await api.cloudSyncStatus());
+      setMessage(
+        result.conflicts.length > 0
+          ? t('settings.cloudConflicts', { count: result.conflicts.length })
+          : t('settings.cloudSynced', { pushed: result.pushed, pulled: result.pulled }),
+      );
+    } catch (reason: unknown) {
+      setError(t('settings.cloudFailed', { error: String(reason) }));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const downloadBackup = async (): Promise<void> => {
     setBusy(true);
@@ -390,6 +444,47 @@ export function SettingsPage() {
             </Button>
           </Section>
 
+          {(native || android) && (android || state) && (
+            <Section title={t('settings.cloudSync')}>
+              <p className="text-sm text-(--color-muted)">{t('settings.cloudSyncHint')}</p>
+              {cloud?.configured ? (
+                <>
+                  <code className="mt-2 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
+                    {cloud.remoteRoot}
+                  </code>
+                  <p className="mt-2 text-xs text-(--color-muted)">
+                    {cloud?.lastSync
+                      ? t('settings.cloudLastSync', {
+                          when: new Date(cloud.lastSync).toLocaleString(),
+                        })
+                      : t('settings.cloudNeverSynced')}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button onClick={() => void syncCloud()} disabled={busy}>
+                      {t('settings.cloudSyncNow')}
+                    </Button>
+                    <Button onClick={revealCloudFolder}>{t('settings.cloudOpenFolder')}</Button>
+                    <Button onClick={() => void chooseCloudFolder()}>
+                      {t('settings.cloudChangeFolder')}
+                    </Button>
+                    <Button onClick={() => void disconnectCloud()} danger>
+                      {t('settings.cloudDisconnect')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 text-xs text-(--color-muted)">
+                    {t('settings.cloudChooseHint')}
+                  </p>
+                  <Button onClick={() => void chooseCloudFolder()}>
+                    {t('settings.cloudChooseFolder')}
+                  </Button>
+                </>
+              )}
+            </Section>
+          )}
+
           {native && state && (
             <Section title={t('settings.powerpoints')}>
               <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
@@ -437,15 +532,17 @@ export function SettingsPage() {
             </div>
           </Section>
 
-          <Section title={t('settings.cleanup')}>
-            <p className="text-xs text-(--color-muted)">{t('settings.cleanupHint')}</p>
-            <Link
-              to="/cleanup"
-              className="mt-2 inline-block rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
-            >
-              {t('settings.openCleanup')}
-            </Link>
-          </Section>
+          {!android && (
+            <Section title={t('settings.cleanup')}>
+              <p className="text-xs text-(--color-muted)">{t('settings.cleanupHint')}</p>
+              <Link
+                to="/cleanup"
+                className="mt-2 inline-block rounded-md border border-(--color-line) px-2.5 py-1.5 text-sm hover:bg-(--color-line)"
+              >
+                {t('settings.openCleanup')}
+              </Link>
+            </Section>
+          )}
 
           {native && state && (
             <Section title={t('settings.desktop')}>

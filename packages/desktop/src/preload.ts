@@ -18,6 +18,7 @@ export interface DesktopState {
   songsDir: string;
   setsDir: string;
   powerpointsDir: string;
+  cloudSyncDir: string | null;
   port: number;
   addresses: string[];
   hostname: string;
@@ -49,6 +50,11 @@ const api = {
   /** Returns the chosen folder; the app restarts immediately afterwards. */
   chooseDataDir: (): Promise<string | null> => ipcRenderer.invoke('worship:choose-data-dir'),
   revealDataDir: (): Promise<void> => ipcRenderer.invoke('worship:reveal-data-dir'),
+  chooseCloudSyncDir: (): Promise<string | null> =>
+    ipcRenderer.invoke('worship:choose-cloud-sync-dir'),
+  revealCloudSyncDir: (): Promise<void> => ipcRenderer.invoke('worship:reveal-cloud-sync-dir'),
+  disconnectCloudSync: (): Promise<boolean> =>
+    ipcRenderer.invoke('worship:disconnect-cloud-sync'),
   choosePowerpointsDir: (): Promise<string | null> =>
     ipcRenderer.invoke('worship:choose-powerpoints-dir'),
   revealPowerpointsDir: (): Promise<void> =>

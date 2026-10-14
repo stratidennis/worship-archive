@@ -7,3 +7,4 @@ export * from './backup.js';
 export * from './network.js';
 export * from './data-directory.js';
 export * from './powerpoints.js';
+export * from './cloud-sync.js';

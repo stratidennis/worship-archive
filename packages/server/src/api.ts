@@ -40,6 +40,7 @@ import {
   findPowerPoints,
   resolvePowerPointFile,
 } from './powerpoints.js';
+import { cloudSyncStatus, syncCloudFolder } from './cloud-sync.js';
 
 export interface ApiOptions {
   library: Library;
@@ -52,6 +53,8 @@ export interface ApiOptions {
   networkStatus?: NetworkRuntimeStatus | undefined;
   /** Recursively searched for presentation files and used for generated decks. */
   powerpointsDir?: string | undefined;
+  /** Provider-managed folder containing a mirror of Songs and Sets. */
+  cloudSyncDir?: string | undefined;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
@@ -118,6 +121,24 @@ export function createServer(options: ApiOptions): FastifyInstance {
     reply.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   });
   app.options('/api/*', async (_req, reply) => reply.code(204).send());
+
+  /**
+   * Mirror an intentional library change immediately, without making a cloud outage
+   * capable of losing the local save that triggered it. Sync may also pull unrelated
+   * remote edits, so refresh both indexes before notifying connected screens.
+   */
+  const libraryChanged = (): void => {
+    if (options.cloudSyncDir) {
+      try {
+        syncCloudFolder(library.dataDir, options.cloudSyncDir);
+        library.reindex();
+        sets.reindex();
+      } catch (error) {
+        app.log.warn({ error }, 'Cloud sync after a library change failed');
+      }
+    }
+    options.hub?.notifyLibraryChanged();
+  };
 
   app.get('/api/stats', async () => ({
     ...library.stats(),
@@ -213,7 +234,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
       song's key on the set page and watching nothing happen on the stage is exactly
       the failure that buys.
     */
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return saved;
   });
 
@@ -247,9 +268,11 @@ export function createServer(options: ApiOptions): FastifyInstance {
     };
     const q = request.query as Record<string, string | undefined>;
     try {
-      return reply
-        .code(201)
-        .send(q['location'] ? library.saveInLocation(song, q['location']) : library.save(song));
+      const saved = q['location']
+        ? library.saveInLocation(song, q['location'])
+        : library.save(song);
+      libraryChanged();
+      return reply.code(201).send(saved);
     } catch (error) {
       return reply.code(422).send({
         error: error instanceof Error ? error.message : String(error),
@@ -260,7 +283,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
   app.delete('/api/songs/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     if (!library.delete(id)) return reply.code(404).send({ error: 'not found' });
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return reply.code(204).send();
   });
 
@@ -280,7 +303,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const { id, rev } = request.params as { id: string; rev: string };
     const song = library.revert(id, Number(rev));
     if (!song) return reply.code(404).send({ error: 'not found' });
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return song;
   });
 
@@ -298,17 +321,17 @@ export function createServer(options: ApiOptions): FastifyInstance {
   app.post('/api/sets', async (request, reply) => {
     const incoming = (request.body ?? {}) as Partial<ServiceSet>;
     const now = new Date().toISOString();
-    return reply.code(201).send(
-      sets.save({
-        id: randomUUID(),
-        title: incoming.title ?? '',
-        date: incoming.date ?? null,
-        items: incoming.items ?? [],
-        createdAt: now,
-        updatedAt: now,
-        rev: 0,
-      }),
-    );
+    const saved = sets.save({
+      id: randomUUID(),
+      title: incoming.title ?? '',
+      date: incoming.date ?? null,
+      items: incoming.items ?? [],
+      createdAt: now,
+      updatedAt: now,
+      rev: 0,
+    });
+    libraryChanged();
+    return reply.code(201).send(saved);
   });
 
   app.put('/api/sets/:id', async (request, reply) => {
@@ -318,7 +341,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
       return reply.code(400).send({ error: 'expected a set document' });
     }
     const saved = sets.save({ ...incoming, id });
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return saved;
   });
 
@@ -327,13 +350,14 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const body = (request.body ?? {}) as { title?: string; date?: string | null };
     const copy = sets.duplicate(id, body);
     if (!copy) return reply.code(404).send({ error: 'not found' });
+    libraryChanged();
     return reply.code(201).send(copy);
   });
 
   app.delete('/api/sets/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     if (!sets.delete(id)) return reply.code(404).send({ error: 'not found' });
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return reply.code(204).send();
   });
 
@@ -410,6 +434,29 @@ export function createServer(options: ApiOptions): FastifyInstance {
       protocol: SESSION_PROTOCOL_VERSION,
       at: new Date().toISOString(),
     };
+  });
+
+  // ---- cloud folder synchronization --------------------------------------
+
+  app.get('/api/cloud-sync', async () =>
+    cloudSyncStatus(library.dataDir, options.cloudSyncDir),
+  );
+
+  app.post('/api/cloud-sync', async (_request, reply) => {
+    if (!options.cloudSyncDir) {
+      return reply.code(409).send({ error: 'Cloud synchronization is not configured' });
+    }
+    try {
+      const result = syncCloudFolder(library.dataDir, options.cloudSyncDir);
+      const songs = library.reindex();
+      const serviceSets = sets.reindex();
+      options.hub?.notifyLibraryChanged();
+      return { ...result, reindexed: { songs, sets: serviceSets } };
+    } catch (error) {
+      return reply.code(422).send({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   });
 
   // ---- PowerPoint ----------------------------------------------------------
@@ -496,7 +543,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const result = restoreBackup(library, sets, candidate, {
       mode: body?.mode === 'replace' ? 'replace' : 'merge',
     });
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return result;
   });
 
@@ -509,7 +556,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
       return reply.code(400).send({ error: 'expected { fixes: [...] }' });
     }
     const result = applyFixes(library, body.fixes);
-    options.hub?.notifyLibraryChanged();
+    libraryChanged();
     return result;
   });
 

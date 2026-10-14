@@ -8,7 +8,7 @@
  */
 
 import { hostname, networkInterfaces } from 'node:os';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { createSocket, type Socket as DgramSocket } from 'node:dgram';
 import {
   LAN_DISCOVERY_PORT,
@@ -21,6 +21,7 @@ import { createServer, type NetworkRuntimeStatus } from './api.js';
 import { Library } from './library.js';
 import { SetStore } from './sets.js';
 import { SessionHub } from './hub.js';
+import { syncCloudFolder } from './cloud-sync.js';
 
 export interface StartOptions {
   /** Where the `.chopro` files live. Created if missing. */
@@ -43,6 +44,8 @@ export interface StartOptions {
   friendlyHostname?: string;
   /** Folder recursively searched for audience PowerPoint files. */
   powerpointsDir?: string;
+  /** Provider-managed folder used as the bidirectional cloud mirror. */
+  cloudSyncDir?: string;
   /** Watch the library folder and reindex on change. */
   watch?: boolean;
   log?: (message: string) => void;
@@ -334,6 +337,20 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
   const log = options.log ?? ((message: string): void => console.log(message));
   const dataDir = resolve(options.dataDir);
 
+  if (options.cloudSyncDir) {
+    try {
+      const synced = syncCloudFolder(dataDir, resolve(options.cloudSyncDir));
+      log(
+        `Cloud sync: uploaded ${synced.pushed}, downloaded ${synced.pulled}, ` +
+          `conflicts ${synced.conflicts.length}`,
+      );
+    } catch (error) {
+      // A disconnected cloud drive must not prevent the Leader from opening. The
+      // working library is local precisely so a service never depends on the internet.
+      log(`Cloud sync unavailable at startup: ${String(error)}`);
+    }
+  }
+
   const library = new Library(dataDir);
   const sets = new SetStore(dataDir, library.db);
   const initial = library.reindex();
@@ -356,6 +373,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
     library,
     sets,
     powerpointsDir: resolve(options.powerpointsDir ?? resolve(dataDir, 'PowerPoints')),
+    ...(options.cloudSyncDir ? { cloudSyncDir: resolve(options.cloudSyncDir) } : {}),
     port: options.port ?? 7374,
     mdnsName: `${MDNS_TYPE}.local`,
     networkStatus,
@@ -407,6 +425,46 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
       .on('unlink', scheduleReindex);
   }
 
+  // A desktop cloud client may download remote edits some time after the computer
+  // regains internet access. Watching the mirror reacts when those files actually
+  // arrive, rather than guessing with a timer or syncing too early on an online event.
+  let cloudWatcher: FSWatcher | null = null;
+  if (options.cloudSyncDir) {
+    const remoteRoot = resolve(options.cloudSyncDir);
+    cloudWatcher = chokidar.watch([join(remoteRoot, 'Songs'), join(remoteRoot, 'Sets')], {
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 75 },
+    });
+    let pending: NodeJS.Timeout | null = null;
+    const scheduleCloudSync = (): void => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => {
+        try {
+          const synced = syncCloudFolder(dataDir, remoteRoot);
+          if (
+            synced.pushed ||
+            synced.pulled ||
+            synced.deletedLocally ||
+            synced.deletedRemotely
+          ) {
+            library.reindex();
+            sets.reindex();
+            hub.notifyLibraryChanged();
+          }
+          if (synced.conflicts.length > 0) {
+            log(`Cloud sync preserved ${synced.conflicts.length} conflict(s).`);
+          }
+        } catch (error) {
+          log(`Cloud sync unavailable after a cloud-folder change: ${String(error)}`);
+        }
+      }, 250);
+    };
+    cloudWatcher
+      .on('add', scheduleCloudSync)
+      .on('change', scheduleCloudSync)
+      .on('unlink', scheduleCloudSync);
+  }
+
   const bonjour =
     (options.mdns ?? true)
       ? await publishMdns(
@@ -444,6 +502,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
       discoveryResponder?.close();
       await hub.close();
       await watcher?.close();
+      await cloudWatcher?.close();
       await app.close();
       library.close();
     },

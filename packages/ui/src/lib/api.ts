@@ -63,6 +63,23 @@ export interface PowerPointReport {
   results: PowerPointSongResult[];
 }
 
+export interface CloudSyncStatus {
+  configured: boolean;
+  remoteRoot: string | null;
+  lastSync: string | null;
+  trackedFiles: number;
+}
+
+export interface CloudSyncResult {
+  pushed: number;
+  pulled: number;
+  deletedLocally: number;
+  deletedRemotely: number;
+  unchanged: number;
+  conflicts: { path: string; folder: string }[];
+  syncedAt: string;
+}
+
 /**
  * The host answered, and the thing is not there.
  *
@@ -159,6 +176,8 @@ export const api = {
   },
 
   host: () => get<HostInfo>('/api/host'),
+  cloudSyncStatus: () => get<CloudSyncStatus>('/api/cloud-sync'),
+  syncCloud: () => send<CloudSyncResult>('/api/cloud-sync', 'POST'),
 
   songLocations: () => get<{ locations: string[] }>('/api/song-locations'),
   songLocation: (id: string) =>

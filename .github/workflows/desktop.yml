@@ -129,7 +129,7 @@ jobs:
           retention-days: 30
 
   android-band:
-    name: Android · Band · universal APK
+    name: Android · Band + Leader · universal APKs
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -158,8 +158,8 @@ jobs:
         run: pnpm --filter @worship/android test:smoke
       - name: Build the shared UI
         run: pnpm --filter @worship/ui build
-      - name: Build and verify signed Band APK
-        run: pnpm --filter @worship/android apk
+      - name: Build and verify signed Band and Leader APKs
+        run: pnpm --filter @worship/android apk:all
         env:
           ANDROID_VERSION_CODE: ${{ github.run_number }}
           ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
@@ -181,12 +181,16 @@ jobs:
           arch: x86_64
           disable-animations: true
           enable-hw-keyboard: true
-          script: node packages/android/scripts/device-smoke.mjs --emulator
+          script: |
+            node packages/android/scripts/device-smoke.mjs --emulator
+            adb -e shell wm size 1200x2000
+            adb -e shell wm density 320
+            node packages/android/scripts/leader-device-smoke.mjs --emulator
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: worship-archive-band-Android-smoke
+          name: worship-archive-Android-smoke
           path: packages/android/build/smoke/*
           if-no-files-found: ignore
           retention-days: 7
@@ -194,7 +198,14 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: worship-archive-band-Android
-          path: packages/android/release/*.apk
+          path: packages/android/release/worship-archive-band-Android.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: worship-archive-leader-Android
+          path: packages/android/release/worship-archive-leader-Android.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -237,7 +248,7 @@ jobs:
             integrity, but is not Apple-notarised, so macOS asks you to approve its first
             launch.
 
-            **Android (Band only)** — download the `.apk` on your tablet or phone,
+            **Android (Band or Leader)** — download the role's `.apk` on your tablet or phone,
             allow installation from the app used to open the download, and install it.
             Join the same Wi-Fi as the Leader. Android 8 or newer and a current Android
             System WebView are required. Future APKs use the same signing key and can

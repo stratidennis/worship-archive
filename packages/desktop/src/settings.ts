@@ -21,6 +21,8 @@ export interface DesktopSettings {
   dataDir: string;
   /** Where existing and generated audience presentations live. */
   powerpointsDir: string;
+  /** Folder managed by Google Drive, Dropbox, OneDrive or another sync client. */
+  cloudSyncDir: string | null;
   port: number;
   /** Keep the screen awake while the app is running. On by default — see `main.ts`. */
   preventSleep: boolean;
@@ -36,6 +38,7 @@ function defaults(): DesktopSettings {
     deviceName: 'Worship Archive',
     dataDir: join(app.getPath('userData'), 'library'),
     powerpointsDir: join(app.getPath('documents'), 'Worship Archive Leader PowerPoints'),
+    cloudSyncDir: null,
     port: 7373,
     preventSleep: true,
     autoStart: false,

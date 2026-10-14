@@ -1,4 +1,4 @@
-/** Build one universal Band APK using the installed SDK; no Gradle/npm downloads. */
+/** Build one universal Android APK using the installed SDK; no Gradle/npm downloads. */
 import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -17,6 +17,8 @@ import { homedir } from 'node:os';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workspace = resolve(root, '../..');
+const role = process.argv[2] ?? 'band';
+if (role !== 'band' && role !== 'leader') throw new Error(`Unknown Android role: ${role}`);
 const sdk =
   process.env.ANDROID_HOME ??
   process.env.ANDROID_SDK_ROOT ??
@@ -65,7 +67,7 @@ if (!Number.isInteger(versionCode) || versionCode < 1 || versionCode > 210000000
   throw new Error('Invalid Android version code');
 const unsigned = join(work, 'unsigned.apk');
 const resourceZip = join(work, 'resources.zip');
-console.log('Compiling Android resources and packaging the shared Band screen…');
+console.log(`Compiling Android resources and packaging the shared ${role} app…`);
 run(join(tools, 'aapt2'), ['compile', '--dir', res, '-o', resourceZip]);
 run(join(tools, 'aapt2'), [
   'link',
@@ -74,7 +76,7 @@ run(join(tools, 'aapt2'), [
   '-I',
   platform,
   '--manifest',
-  join(root, 'AndroidManifest.xml'),
+  join(root, role === 'leader' ? 'AndroidManifest-leader.xml' : 'AndroidManifest.xml'),
   '--java',
   generated,
   '-A',
@@ -110,7 +112,28 @@ const javaFiles = (directory) =>
         ? [join(directory, entry.name)]
         : [],
   );
-console.log('Compiling the native connection and discovery shell…');
+const roleExcludedSources =
+  role === 'leader'
+    ? new Set([
+        'BandActivity.java',
+        'LeaderDiscovery.java',
+        'LeaderEndpoint.java',
+        'LocalBandServer.java',
+      ])
+    : new Set([
+        'AndroidCloudSync.java',
+        'ChordPro.java',
+        'LeaderActivity.java',
+        'LeaderAdvertisement.java',
+        'LeaderKeepAliveService.java',
+        'LeaderRepository.java',
+        'LeaderSessionHub.java',
+        'LocalLeaderServer.java',
+      ]);
+const roleSources = javaFiles(join(root, 'src')).filter(
+  (path) => !roleExcludedSources.has(path.slice(path.lastIndexOf('/') + 1)),
+);
+console.log(`Compiling the native ${role} shell…`);
 run(javaTool('javac'), [
   '--release',
   '8',
@@ -120,7 +143,7 @@ run(javaTool('javac'), [
   platform,
   '-d',
   classes,
-  ...javaFiles(join(root, 'src')),
+  ...roleSources,
   ...javaFiles(generated),
 ]);
 const jar = join(work, 'classes.jar');
@@ -160,8 +183,8 @@ if (process.env.ANDROID_SIGNING_KEYSTORE) {
 }
 if (!password || !existsSync(keystore))
   throw new Error('Missing permanent Android signing key or password');
-const output = join(root, 'release/worship-archive-band-Android.apk');
-console.log('Signing the installable APK with the permanent Band key…');
+const output = join(root, `release/worship-archive-${role}-Android.apk`);
+console.log(`Signing the installable Android ${role} APK with the permanent key…`);
 try {
   run(
     join(tools, 'apksigner'),
@@ -187,4 +210,4 @@ try {
 }
 run(join(tools, 'apksigner'), ['verify', '--verbose', output]);
 run(join(tools, 'zipalign'), ['-c', '-P', '16', '4', output]);
-console.log(`Android Band APK ready: ${output}`);
+console.log(`Android ${role} APK ready: ${output}`);

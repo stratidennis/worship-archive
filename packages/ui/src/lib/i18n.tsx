@@ -434,6 +434,22 @@ const ro = {
   'settings.revealDataDir': 'Deschide dosarul',
   'settings.chooseDataDirHint':
     'Conține subdosarele Songs și Sets. Dacă alegi un dosar gol, poți copia arhiva actuală în el. Aplicația repornește după schimbare.',
+  'settings.cloudSync': 'Sincronizare în cloud',
+  'settings.cloudSyncHint':
+    'Păstrează o copie sigură a dosarelor Songs și Sets într-un dosar sincronizat de Google Drive, Dropbox, OneDrive sau alt serviciu.',
+  'settings.cloudChooseHint':
+    'Alege un dosar oferit de aplicația cloud instalată pe acest dispozitiv. Arhiva de lucru rămâne locală și continuă să funcționeze fără internet.',
+  'settings.cloudChooseFolder': 'Alege dosarul cloud…',
+  'settings.cloudChangeFolder': 'Schimbă dosarul…',
+  'settings.cloudOpenFolder': 'Deschide dosarul',
+  'settings.cloudDisconnect': 'Deconectează',
+  'settings.cloudSyncNow': 'Sincronizează acum',
+  'settings.cloudLastSync': 'Ultima sincronizare: {when}',
+  'settings.cloudNeverSynced': 'Nu a fost sincronizat încă.',
+  'settings.cloudSynced': 'Sincronizare terminată: {pushed} trimise, {pulled} primite.',
+  'settings.cloudConflicts':
+    '{count} conflicte au fost păstrate separat; niciun fișier nu a fost suprascris.',
+  'settings.cloudFailed': 'Sincronizarea nu a reușit: {error}',
   'settings.backup': 'Copie de siguranță',
   'settings.backupHint':
     'Un singur fișier cu textul tuturor cântărilor și programelor. Se poate deschide în orice editor de text.',
@@ -918,6 +934,22 @@ const en: Record<TranslationKey, Entry> = {
   'settings.revealDataDir': 'Open the folder',
   'settings.chooseDataDirHint':
     'Contains the Songs and Sets subfolders. When you choose an empty folder, you can copy the current library into it. The app restarts after changing it.',
+  'settings.cloudSync': 'Cloud synchronization',
+  'settings.cloudSyncHint':
+    'Keeps a safe copy of Songs and Sets in a folder synchronized by Google Drive, Dropbox, OneDrive, or another provider.',
+  'settings.cloudChooseHint':
+    'Choose a folder offered by a cloud application installed on this device. The working library remains local and keeps working without internet.',
+  'settings.cloudChooseFolder': 'Choose cloud folder…',
+  'settings.cloudChangeFolder': 'Change folder…',
+  'settings.cloudOpenFolder': 'Open folder',
+  'settings.cloudDisconnect': 'Disconnect',
+  'settings.cloudSyncNow': 'Sync now',
+  'settings.cloudLastSync': 'Last synchronized: {when}',
+  'settings.cloudNeverSynced': 'Not synchronized yet.',
+  'settings.cloudSynced': 'Synchronization complete: {pushed} uploaded, {pulled} downloaded.',
+  'settings.cloudConflicts':
+    '{count} conflicts were preserved separately; no file was overwritten.',
+  'settings.cloudFailed': 'Synchronization failed: {error}',
   'settings.backup': 'Backup',
   'settings.backupHint':
     'One file holding the text of every song and set. It opens in any text editor.',

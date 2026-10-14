@@ -437,6 +437,7 @@ function registerIpc(): void {
     songsDir: server?.library.songsDir ?? inspectLibraryDirectory(settings.dataDir).songsDir,
     setsDir: server?.sets.setsDir ?? inspectLibraryDirectory(settings.dataDir).setsDir,
     powerpointsDir: settings.powerpointsDir,
+    cloudSyncDir: settings.cloudSyncDir,
     port: server?.port ?? settings.port,
     addresses: server?.addresses ?? [],
     hostname: server?.hostname ?? '',
@@ -538,6 +539,53 @@ function registerIpc(): void {
 
   ipcMain.handle('worship:reveal-data-dir', async () => {
     await shell.openPath(settings.dataDir);
+  });
+
+  ipcMain.handle('worship:choose-cloud-sync-dir', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Choose a cloud-synchronized folder',
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: settings.cloudSyncDir ?? app.getPath('documents'),
+    });
+    const chosen = result.filePaths[0];
+    if (result.canceled || !chosen) return null;
+    if (
+      libraryDirectoriesOverlap(
+        inspectLibraryDirectory(settings.dataDir),
+        inspectLibraryDirectory(chosen),
+      )
+    ) {
+      dialog.showErrorBox(
+        'Choose a separate folder',
+        'The cloud mirror must be separate from the working library folder.',
+      );
+      return null;
+    }
+    prepareLibraryDirectory(chosen);
+    settings.cloudSyncDir = chosen;
+    saveSettings(settings);
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 100);
+    return chosen;
+  });
+
+  ipcMain.handle('worship:reveal-cloud-sync-dir', async () => {
+    if (!settings.cloudSyncDir) return;
+    mkdirSync(settings.cloudSyncDir, { recursive: true });
+    const error = await shell.openPath(settings.cloudSyncDir);
+    if (error) throw new Error(error);
+  });
+
+  ipcMain.handle('worship:disconnect-cloud-sync', () => {
+    settings.cloudSyncDir = null;
+    saveSettings(settings);
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 100);
+    return true;
   });
 
   ipcMain.handle('worship:choose-powerpoints-dir', async () => {
@@ -655,6 +703,7 @@ async function startLeaderServer(): Promise<boolean> {
       server = await startServer({
         dataDir: settings.dataDir,
         powerpointsDir: settings.powerpointsDir,
+        ...(settings.cloudSyncDir ? { cloudSyncDir: settings.cloudSyncDir } : {}),
         port: settings.port,
         uiDir: join(RESOURCES, 'ui'),
         leaderId: settings.installationId,
