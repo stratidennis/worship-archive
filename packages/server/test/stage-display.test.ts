@@ -52,9 +52,9 @@ describe('the stage screens’ appearance', () => {
   });
 
   it('takes a setting and hands it back', async () => {
-    const response = await put({ theme: 'dark', maxFontPx: 48 });
+    const response = await put({ theme: 'dark', minFontPx: 16 });
     expect(response.statusCode).toBe(200);
-    expect(response.json().stage).toMatchObject({ theme: 'dark', maxFontPx: 48 });
+    expect(response.json().stage).toMatchObject({ theme: 'dark', minFontPx: 16 });
     expect(hub.getState().stage.theme).toBe('dark');
   });
 
@@ -79,26 +79,39 @@ describe('the stage screens’ appearance', () => {
     expect(hub.getState().stage.lineHeight).toBeNull();
   });
 
-  it('sets block-title visibility for all screens or one screen', async () => {
-    await put({ showBlockTitles: false });
-    await put({ screen: 'Drums', showBlockTitles: true });
+  it('rejects a minimum text size outside the supported readable range', async () => {
+    expect((await put({ minFontPx: 7 })).statusCode).toBe(400);
+    expect((await put({ minFontPx: 33 })).statusCode).toBe(400);
+    expect(hub.getState().stage.minFontPx).toBeNull();
+  });
+
+  it('sets cue styles for all screens or one screen', async () => {
+    await put({ cueStyle: 'compact' });
+    await put({ screen: 'Drums', cueStyle: 'minimal' });
 
     const state = hub.getState();
-    expect(resolveStageDisplay(state, 'Drums').showBlockTitles).toBe(true);
-    expect(resolveStageDisplay(state, 'Back').showBlockTitles).toBe(false);
-    expect((await put({ showBlockTitles: 'sometimes' })).statusCode).toBe(400);
+    expect(resolveStageDisplay(state, 'Drums').cueStyle).toBe('minimal');
+    expect(resolveStageDisplay(state, 'Back').cueStyle).toBe('compact');
+    expect((await put({ cueStyle: 'sometimes' })).statusCode).toBe(400);
+  });
+
+  it('accepts the retired title toggle from an older Leader', async () => {
+    await put({ showBlockTitles: false });
+    expect(resolveStageDisplay(hub.getState(), 'Back').cueStyle).toBe('compact');
   });
 
   it('leaves alone what the request did not mention', async () => {
     await put({ theme: 'dark', chordColor: '#ef4444' });
-    await put({ maxFontPx: 40 });
+    await put({ minFontPx: 14 });
     expect(hub.getState().stage).toEqual({
       theme: 'dark',
       language: null,
-      maxFontPx: 40,
+      minFontPx: 14,
+      maxFontPx: null,
       lineHeight: null,
       chordColor: '#ef4444',
       showChords: null,
+      cueStyle: null,
       showBlockTitles: null,
     });
   });
@@ -117,7 +130,7 @@ describe('the stage screens’ appearance', () => {
 
   it('reaches every connected screen, because the hub pushes the whole state', async () => {
     const before = hub.getState().rev;
-    await put({ maxFontPx: 52 });
+    await put({ minFontPx: 18 });
     expect(hub.getState().rev).toBeGreaterThan(before);
   });
 
@@ -137,26 +150,26 @@ describe('the stage screens’ appearance', () => {
 */
 describe('one screen at a time', () => {
   it('keys installed screens by stable device id rather than editable name', async () => {
-    await put({ deviceId: 'stage-1', screen: 'Left', maxFontPx: 32 });
+    await put({ deviceId: 'stage-1', screen: 'Left', minFontPx: 16 });
     await put({ deviceId: 'stage-1', screen: 'Stage left', theme: 'dark' });
 
     const remembered = hub.getState().stageByDevice['stage-1'];
     expect(remembered?.name).toBe('Stage left');
-    expect(remembered?.display).toMatchObject({ maxFontPx: 32, theme: 'dark' });
-    expect(resolveStageDisplay(hub.getState(), 'Anything', 'stage-1').maxFontPx).toBe(32);
+    expect(remembered?.display).toMatchObject({ minFontPx: 16, theme: 'dark' });
+    expect(resolveStageDisplay(hub.getState(), 'Anything', 'stage-1').minFontPx).toBe(16);
   });
 
   it('sets a screen without touching the rest', async () => {
-    await put({ maxFontPx: 60 });
-    const response = await put({ screen: 'Drums', maxFontPx: 28 });
+    await put({ minFontPx: 18 });
+    const response = await put({ screen: 'Drums', minFontPx: 12 });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ screen: 'Drums', stage: { maxFontPx: 28 } });
+    expect(response.json()).toMatchObject({ screen: 'Drums', stage: { minFontPx: 12 } });
 
     const state = hub.getState();
-    expect(state.stage.maxFontPx).toBe(60);
-    expect(state.stageBy['Drums']?.maxFontPx).toBe(28);
-    expect(resolveStageDisplay(state, 'Drums').maxFontPx).toBe(28);
-    expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
+    expect(state.stage.minFontPx).toBe(18);
+    expect(state.stageBy['Drums']?.minFontPx).toBe(12);
+    expect(resolveStageDisplay(state, 'Drums').minFontPx).toBe(12);
+    expect(resolveStageDisplay(state, 'Back').minFontPx).toBe(18);
   });
 
   it('sets line spacing for all screens or one screen', async () => {
@@ -177,14 +190,16 @@ describe('one screen at a time', () => {
 
   it('leaves alone what a screen\u2019s patch did not mention', async () => {
     await put({ screen: 'Drums', theme: 'dark', chordColor: '#ef4444' });
-    await put({ screen: 'Drums', maxFontPx: 30 });
+    await put({ screen: 'Drums', minFontPx: 14 });
     expect(hub.getState().stageBy['Drums']).toEqual({
       theme: 'dark',
       language: null,
-      maxFontPx: 30,
+      minFontPx: 14,
+      maxFontPx: null,
       lineHeight: null,
       chordColor: '#ef4444',
       showChords: null,
+      cueStyle: null,
       showBlockTitles: null,
     });
   });
@@ -202,8 +217,8 @@ describe('one screen at a time', () => {
   });
 
   it('treats a blank name as meaning all of them', async () => {
-    await put({ screen: '   ', maxFontPx: 44 });
-    expect(hub.getState().stage.maxFontPx).toBe(44);
+    await put({ screen: '   ', minFontPx: 15 });
+    expect(hub.getState().stage.minFontPx).toBe(15);
     expect(hub.getState().stageBy).toEqual({});
   });
 

@@ -15,7 +15,9 @@ import { hostname, networkInterfaces } from 'node:os';
 import {
   DEFAULT_STAGE_DISPLAY,
   DEFAULT_ACCIDENTAL_PREFERENCES,
+  MAX_SONG_FONT_SIZE,
   MAX_SONG_LINE_HEIGHT,
+  MIN_SONG_FONT_SIZE,
   MIN_SONG_LINE_HEIGHT,
   SESSION_PROTOCOL_VERSION,
   emptyBlock,
@@ -534,6 +536,16 @@ export function createServer(options: ApiOptions): FastifyInstance {
       return reply.code(400).send({ error: 'bad theme' });
     }
     if (
+      body.minFontPx !== undefined &&
+      body.minFontPx !== null &&
+      (typeof body.minFontPx !== 'number' ||
+        !Number.isFinite(body.minFontPx) ||
+        body.minFontPx < MIN_SONG_FONT_SIZE ||
+        body.minFontPx > MAX_SONG_FONT_SIZE)
+    ) {
+      return reply.code(400).send({ error: 'bad minimum font size' });
+    }
+    if (
       body.lineHeight !== undefined &&
       body.lineHeight !== null &&
       (typeof body.lineHeight !== 'number' ||
@@ -542,6 +554,15 @@ export function createServer(options: ApiOptions): FastifyInstance {
         body.lineHeight > MAX_SONG_LINE_HEIGHT)
     ) {
       return reply.code(400).send({ error: 'bad line height' });
+    }
+    if (
+      body.cueStyle !== undefined &&
+      body.cueStyle !== null &&
+      body.cueStyle !== 'full' &&
+      body.cueStyle !== 'compact' &&
+      body.cueStyle !== 'minimal'
+    ) {
+      return reply.code(400).send({ error: 'bad cue style' });
     }
     if (
       body.showBlockTitles !== undefined &&

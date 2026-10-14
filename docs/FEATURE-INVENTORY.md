@@ -196,7 +196,7 @@ point, not a decision.
 > **Decided:** another system already handles congregation projection. The new app is
 > band-facing only. All of I1–I12 are dropped.
 >
-> One consequence worth keeping: **auto-fit text between a min and max font size**
+> One consequence worth keeping: **auto-fit text above a selected minimum font size**
 > (I3) is still needed for the _stage display_ (H1), because a TV at the back of a
 > platform has the same problem. Carried over to J4.
 
@@ -209,7 +209,7 @@ point, not a decision.
 | J1  | Named profiles per context (screen/print/projection/editor)     | `.sdp`                        | CHANGE → simplify |      |
 | J2  | Per-element styling (Title, Verse, Chorus, Chord, Instruction…) | str                           | KEEP              |      |
 | J3  | Font family / size / weight / italic / colour per element       | `ProfileEditor`               | KEEP              |      |
-| J4  | Min/max font with auto-fit                                      | str                           | KEEP              |      |
+| J4  | Minimum readable font with one-column-first auto-fit            | str                           | KEEP              |      |
 | J5  | Background colour / image                                       | str                           | KEEP              |      |
 | J6  | Per-line colours                                                | `EditProfileWizardLineColors` | **KEEP**          | KEEP |
 | J7  | Dark mode / high-contrast for stage                             | —                             | NEW               |      |
@@ -300,26 +300,26 @@ projection (I), Bible (M), and media (N)
 
 ## Decisions taken
 
-| Question                          | Decision                                                                                                            |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Congregation projection (I)       | **Out of scope** — another system does it                                                                           |
-| Bible (M)                         | **Out of scope** — not used                                                                                         |
-| Media: images/video/audio/PPT (N) | **Out of scope** — not used                                                                                         |
-| Tempo + beat metronome (F9, F10)  | **In** — confirmed used                                                                                             |
-| Bass-notes layer (B5)             | **In** — confirmed used                                                                                             |
-| UI language                       | **Romanian default, English switchable**, fully externalised                                                        |
-| Host machine                      | **Leader's laptop**, cross-platform (Windows + macOS)                                                               |
-| Devices                           | **PC, laptop, tablet, phone** — fully responsive                                                                    |
-| Song editing                      | **Full editor in the browser** — replaces SongEditor.exe                                                            |
-| Standalone use                    | **Yes, full offline mode** — works alone with no server on the LAN                                                  |
-| Library editing rights            | **Simple roles** — admin / editor / viewer                                                                          |
-| Live control                      | **Unprotected** — trusted network, whoever is at the leader screen leads                                            |
-| Stack                             | **React 19 + TypeScript + Vite + Tailwind**, Node + Fastify + ws + SQLite                                           |
-| Packaging                         | **Electron** desktop app for the host machine (Windows + macOS)                                                     |
-| App name                          | **Worship Archive** — repo `stratidennis/worship-archive`                                                           |
-| Storage format                    | **ChordPro `.chopro` files on disk**; SQLite is a disposable index. Our extras use `{x_*}` custom directives.       |
-| Import formats                    | ChordPro · plain text / website paste · OpenSong XML · legacy `.song`                                               |
-| **Whole song on one screen**      | **Hard requirement.** No pagination or mid-song scrolling; text auto-scales and reflows into columns. See PLAN §4b. |
+| Question                          | Decision                                                                                                                                                 |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Congregation projection (I)       | **Out of scope** — another system does it                                                                                                                |
+| Bible (M)                         | **Out of scope** — not used                                                                                                                              |
+| Media: images/video/audio/PPT (N) | **Out of scope** — not used                                                                                                                              |
+| Tempo + beat metronome (F9, F10)  | **In** — confirmed used                                                                                                                                  |
+| Bass-notes layer (B5)             | **In** — confirmed used                                                                                                                                  |
+| UI language                       | **Romanian default, English switchable**, fully externalised                                                                                             |
+| Host machine                      | **Leader's laptop**, cross-platform (Windows + macOS)                                                                                                    |
+| Devices                           | **PC, laptop, tablet, phone** — fully responsive                                                                                                         |
+| Song editing                      | **Full editor in the browser** — replaces SongEditor.exe                                                                                                 |
+| Standalone use                    | **Yes, full offline mode** — works alone with no server on the LAN                                                                                       |
+| Library editing rights            | **Simple roles** — admin / editor / viewer                                                                                                               |
+| Live control                      | **Unprotected** — trusted network, whoever is at the leader screen leads                                                                                 |
+| Stack                             | **React 19 + TypeScript + Vite + Tailwind**, Node + Fastify + ws + SQLite                                                                                |
+| Packaging                         | **Electron** desktop app for the host machine (Windows + macOS)                                                                                          |
+| App name                          | **Worship Archive** — repo `stratidennis/worship-archive`                                                                                                |
+| Storage format                    | **ChordPro `.chopro` files on disk**; SQLite is a disposable index. Our extras use `{x_*}` custom directives.                                            |
+| Import formats                    | ChordPro · plain text / website paste · OpenSong XML · legacy `.song`                                                                                    |
+| **Whole song on one screen**      | **Hard requirement on full-size displays.** Text auto-scales in one column to its minimum, then adds columns. Phones keep one readable scrolling column. |
 
 ## All rows are now marked
 

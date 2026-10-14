@@ -1,3 +1,5 @@
+import type { CueStyle } from '@worship/core';
+
 const CUE_COLOURS: Record<string, { border: string; background: string }> = {
   Intro: { border: 'var(--color-cue-intro)', background: 'var(--color-cue-intro-bg)' },
   Instrumental: {
@@ -11,7 +13,21 @@ const CUE_COLOURS: Record<string, { border: string; background: string }> = {
 /** Visual treatment shared by every place that renders a non-lyric song cue. */
 export function cueAppearance(
   type: string,
-): { border: string; background: string; fontScale: number } | null {
+  style: CueStyle = 'full',
+): {
+  border: string;
+  background: string;
+  fontScale: number;
+  coloured: boolean;
+} | null {
   const colours = CUE_COLOURS[type];
-  return colours ? { ...colours, fontScale: 0.8 } : null;
+  if (!colours) return null;
+  if (style === 'minimal') {
+    return { ...colours, fontScale: 0.64, coloured: false };
+  }
+  return {
+    ...colours,
+    fontScale: style === 'compact' ? 0.72 : 0.8,
+    coloured: true,
+  };
 }

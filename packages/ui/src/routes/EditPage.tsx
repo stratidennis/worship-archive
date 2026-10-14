@@ -648,7 +648,7 @@ export function EditPage() {
                 options={{
                   showChords: true,
                   showBass: false,
-                  showBlockTitles: prefs.showBlockTitles,
+                  cueStyle: prefs.cueStyle,
                   capo: 0,
                   transpose: 0,
                   lineHeight: prefs.lineHeight,

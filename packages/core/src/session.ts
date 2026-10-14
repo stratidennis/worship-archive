@@ -20,11 +20,17 @@ export type OutputMode = 'live' | 'cleared';
 export type DeviceRole = 'leader' | 'band' | 'stage';
 export type ThemeName = 'auto' | 'light' | 'dark';
 export type LanguageName = 'ro' | 'en';
+/** How much visual furniture non-lyric cue blocks use on a performance screen. */
+export type CueStyle = 'full' | 'compact' | 'minimal';
 
 /** Readable bounds shared by every song renderer and its settings controls. */
 export const MIN_SONG_LINE_HEIGHT = 1;
 export const DEFAULT_SONG_LINE_HEIGHT = 1.2;
 export const MAX_SONG_LINE_HEIGHT = 1.35;
+/** User-selectable floor for automatic song fitting. */
+export const MIN_SONG_FONT_SIZE = 8;
+export const DEFAULT_SONG_FONT_SIZE = 12;
+export const MAX_SONG_FONT_SIZE = 32;
 
 /**
  * Increment only when a released client can no longer speak to a released host.
@@ -61,15 +67,19 @@ export const LAN_DISCOVERY_REQUEST = `worship-archive-discover:${SESSION_PROTOCO
 export interface StageDisplay {
   theme: ThemeName | null;
   language: LanguageName | null;
-  /** A ceiling for the fit, in pixels. Null leaves the stage's own generous default. */
-  maxFontPx: number | null;
+  /** The smallest automatic fit may make the lyrics. */
+  minFontPx: number | null;
   /** Unitless lyric line height. Null leaves the stage's own default. */
   lineHeight: number | null;
   /** Any CSS colour, or null for the theme's own accent. */
   chordColor: string | null;
   /** Null follows the Stage installation's own choice. */
   showChords: boolean | null;
-  /** Whether song block labels such as Verse, Chorus and Note are visible. */
+  /** Full, compact or minimal treatment for cues and section labels. */
+  cueStyle: CueStyle | null;
+  /** @deprecated Kept on the wire so already-installed screens can still reconnect. */
+  maxFontPx: number | null;
+  /** @deprecated Replaced by cueStyle; accepted while older clients remain in use. */
   showBlockTitles: boolean | null;
 }
 
@@ -89,9 +99,8 @@ export interface StageDisplay {
  * would mean the *television's* system, which is exactly the misunderstanding again,
  * one level down. The leader's laptop in dark mode publishes `dark`.
  *
- * Text size is deliberately absent. A ceiling chosen for a laptop on a music stand is
- * not a ceiling for a television across a hall — that one is not a thing to mirror,
- * and the screens' own generous default is the right answer.
+ * Text size is deliberately absent. A readability floor chosen for a laptop on a music
+ * stand is not necessarily the right floor for a television across a hall.
  */
 export interface HostDisplay {
   theme: Exclude<ThemeName, 'auto'>;
@@ -110,10 +119,12 @@ export interface StageDeviceDisplay {
 export const DEFAULT_STAGE_DISPLAY: StageDisplay = {
   theme: null,
   language: null,
+  minFontPx: null,
   maxFontPx: null,
   lineHeight: null,
   chordColor: null,
   showChords: null,
+  cueStyle: null,
   showBlockTitles: null,
 };
 
@@ -122,10 +133,12 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
   return (
     display.theme === null &&
     display.language === null &&
+    display.minFontPx === null &&
     display.maxFontPx === null &&
     display.lineHeight === null &&
     display.chordColor === null &&
     display.showChords == null &&
+    display.cueStyle == null &&
     display.showBlockTitles == null
   );
 }
@@ -141,15 +154,34 @@ export function patchStageDisplay(
   current: StageDisplay,
   patch: Partial<StageDisplay>,
 ): StageDisplay {
+  const cueStyle =
+    patch.cueStyle !== undefined
+      ? patch.cueStyle
+      : patch.showBlockTitles !== undefined
+        ? patch.showBlockTitles === null
+          ? null
+          : patch.showBlockTitles
+            ? 'full'
+            : 'compact'
+        : current.cueStyle;
+  const showBlockTitles =
+    patch.cueStyle !== undefined
+      ? patch.cueStyle === null
+        ? null
+        : patch.cueStyle === 'full'
+      : patch.showBlockTitles !== undefined
+        ? patch.showBlockTitles
+        : current.showBlockTitles;
   return {
     theme: patch.theme !== undefined ? patch.theme : current.theme,
     language: patch.language !== undefined ? patch.language : current.language,
+    minFontPx: patch.minFontPx !== undefined ? patch.minFontPx : current.minFontPx,
     maxFontPx: patch.maxFontPx !== undefined ? patch.maxFontPx : current.maxFontPx,
     lineHeight: patch.lineHeight !== undefined ? patch.lineHeight : current.lineHeight,
     chordColor: patch.chordColor !== undefined ? patch.chordColor : current.chordColor,
     showChords: patch.showChords !== undefined ? patch.showChords : current.showChords,
-    showBlockTitles:
-      patch.showBlockTitles !== undefined ? patch.showBlockTitles : current.showBlockTitles,
+    cueStyle,
+    showBlockTitles,
   };
 }
 
@@ -173,13 +205,20 @@ export function resolveStageDisplay(
     (screen && state.stageBy[screen]) ||
     null;
   const host = state.host;
+  const legacyCueStyle = (display: StageDisplay | null | undefined): CueStyle | null =>
+    display?.showBlockTitles == null ? null : display.showBlockTitles ? 'full' : 'compact';
+  const cueStyle =
+    own?.cueStyle ?? legacyCueStyle(own) ?? state.stage.cueStyle ?? legacyCueStyle(state.stage);
   return {
     theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,
     language: own?.language ?? state.stage.language ?? host?.language ?? null,
     chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
     showChords: own?.showChords ?? null,
-    showBlockTitles: own?.showBlockTitles ?? state.stage.showBlockTitles,
+    cueStyle,
+    // Preserve a useful value for an older Stage client receiving this session.
+    showBlockTitles: cueStyle === null ? null : cueStyle === 'full',
     // Not the leader's. See {@link HostDisplay}.
+    minFontPx: own?.minFontPx ?? state.stage.minFontPx,
     maxFontPx: own?.maxFontPx ?? state.stage.maxFontPx,
     lineHeight: own?.lineHeight ?? state.stage.lineHeight,
   };

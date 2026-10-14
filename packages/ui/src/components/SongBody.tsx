@@ -8,6 +8,7 @@ import {
   semitonesBetween,
   transposeChord,
   type Block,
+  type CueStyle,
   type AccidentalPreferences,
   type Line,
   type Song,
@@ -22,8 +23,8 @@ const INDENTED_TYPES = new Set(['Chorus', 'PreChorus', 'Bridge', 'Ending']);
 export interface RenderOptions {
   showChords: boolean;
   showBass: boolean;
-  /** Display the small Verse / Chorus / Note label above each block. */
-  showBlockTitles?: boolean;
+  /** Full, compact or minimal treatment for section labels and coloured cues. */
+  cueStyle?: CueStyle;
   capo: number;
   /** Unitless lyric line-height multiplier. */
   lineHeight?: number;
@@ -219,7 +220,8 @@ function BlockView({
   const { blockName, singerName } = useT();
   const isCue = CUE_TYPES.has(block.type);
   const isIndented = INDENTED_TYPES.has(block.type);
-  const cue = cueAppearance(block.type);
+  const cueStyle = options.cueStyle ?? 'full';
+  const cue = cueAppearance(block.type, cueStyle);
   const label = [
     blockName(block.type),
     block.label ? `— ${block.label}` : null,
@@ -233,12 +235,16 @@ function BlockView({
     <section
       data-song-font-scale={cue?.fontScale ?? 1}
       className={`mb-[0.9em] ${
-        isCue ? 'rounded-md border-l-2 py-[0.3em] pl-[0.6em]' : isIndented ? 'ml-[1.3em]' : ''
+        isCue && cue?.coloured
+          ? 'rounded-md border-l-2 py-[0.3em] pl-[0.6em]'
+          : isIndented
+            ? 'ml-[1.3em]'
+            : ''
       }`}
       // Never let a block be split down the middle by a column break.
       style={{
         breakInside: 'avoid',
-        ...(cue
+        ...(cue?.coloured
           ? {
               borderColor: cue.border,
               backgroundColor: cue.background,
@@ -247,7 +253,7 @@ function BlockView({
           : {}),
       }}
     >
-      {options.showBlockTitles !== false && (
+      {cueStyle === 'full' && (
         <h2
           data-song-font-scale={(cue?.fontScale ?? 1) * 0.62}
           className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)"

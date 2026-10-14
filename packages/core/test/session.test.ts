@@ -118,16 +118,18 @@ describe('how a stage screen should look', () => {
     const patched = patchStageDisplay(
       { ...DEFAULT_STAGE_DISPLAY, theme: 'dark' },
       {
-        maxFontPx: 40,
+        minFontPx: 14,
       },
     );
     expect(patched).toEqual({
       theme: 'dark',
       language: null,
-      maxFontPx: 40,
+      minFontPx: 14,
+      maxFontPx: null,
       lineHeight: null,
       chordColor: null,
       showChords: null,
+      cueStyle: null,
       showBlockTitles: null,
     });
   });
@@ -144,27 +146,29 @@ describe('how a stage screen should look', () => {
   });
 
   it('gives an unnamed screen the shared settings', () => {
-    const state = session({ stage: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 60 } });
-    expect(resolveStageDisplay(state, null).maxFontPx).toBe(60);
-    expect(resolveStageDisplay(state, 'Anything').maxFontPx).toBe(60);
+    const state = session({ stage: { ...DEFAULT_STAGE_DISPLAY, minFontPx: 16 } });
+    expect(resolveStageDisplay(state, null).minFontPx).toBe(16);
+    expect(resolveStageDisplay(state, 'Anything').minFontPx).toBe(16);
   });
 
   /* Every screen can differ, while unset values continue through the shared layers. */
   it('lets one screen differ without disturbing the rest', () => {
     const state = session({
-      stage: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 60, chordColor: '#f59e0b' },
-      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 28 } },
+      stage: { ...DEFAULT_STAGE_DISPLAY, minFontPx: 16, chordColor: '#f59e0b' },
+      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, minFontPx: 12 } },
     });
     expect(resolveStageDisplay(state, 'Drums')).toEqual({
       theme: null,
       language: null,
-      maxFontPx: 28,
+      minFontPx: 12,
+      maxFontPx: null,
       lineHeight: null,
       chordColor: '#f59e0b',
       showChords: null,
+      cueStyle: null,
       showBlockTitles: null,
     });
-    expect(resolveStageDisplay(state, 'Back').maxFontPx).toBe(60);
+    expect(resolveStageDisplay(state, 'Back').minFontPx).toBe(16);
   });
 
   /*
@@ -178,9 +182,11 @@ describe('how a stage screen should look', () => {
       theme: 'dark',
       language: 'en',
       chordColor: '#ef4444',
+      minFontPx: null,
       maxFontPx: null,
       lineHeight: null,
       showChords: null,
+      cueStyle: null,
       showBlockTitles: null,
     });
   });
@@ -210,11 +216,11 @@ describe('how a stage screen should look', () => {
       stageByDevice: {
         'stage-installation-1': {
           name: 'Old name',
-          display: { ...DEFAULT_STAGE_DISPLAY, maxFontPx: 34 },
+          display: { ...DEFAULT_STAGE_DISPLAY, minFontPx: 14 },
         },
       },
     });
-    expect(resolveStageDisplay(state, 'New name', 'stage-installation-1').maxFontPx).toBe(34);
+    expect(resolveStageDisplay(state, 'New name', 'stage-installation-1').minFontPx).toBe(14);
   });
 
   it('lets one screen use tighter line spacing than the shared setting', () => {
@@ -226,22 +232,31 @@ describe('how a stage screen should look', () => {
     expect(resolveStageDisplay(state, 'Back').lineHeight).toBe(1.2);
   });
 
-  it('lets one screen hide block titles without hiding them on the others', () => {
+  it('lets one screen use a denser cue style without changing the others', () => {
     const state = session({
-      stage: { ...DEFAULT_STAGE_DISPLAY, showBlockTitles: true },
-      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, showBlockTitles: false } },
+      stage: { ...DEFAULT_STAGE_DISPLAY, cueStyle: 'full' },
+      stageBy: { Drums: { ...DEFAULT_STAGE_DISPLAY, cueStyle: 'minimal' } },
     });
-    expect(resolveStageDisplay(state, 'Drums').showBlockTitles).toBe(false);
-    expect(resolveStageDisplay(state, 'Back').showBlockTitles).toBe(true);
+    expect(resolveStageDisplay(state, 'Drums').cueStyle).toBe('minimal');
+    expect(resolveStageDisplay(state, 'Back').cueStyle).toBe('full');
+  });
+
+  it('maps the retired title toggle to compatible cue styles', () => {
+    expect(patchStageDisplay(DEFAULT_STAGE_DISPLAY, { showBlockTitles: false }).cueStyle).toBe(
+      'compact',
+    );
+    expect(patchStageDisplay(DEFAULT_STAGE_DISPLAY, { showBlockTitles: true }).cueStyle).toBe(
+      'full',
+    );
   });
 
   /*
-    Size is the exception, and deliberately so: a ceiling chosen for a laptop on a
-    music stand would be unreadable from the back of a hall.
+    Size is the exception, and deliberately so: a floor chosen for a laptop on a music
+    stand should not silently become the floor for a television across a hall.
   */
   it('never takes the text size from the leader\u2019s device', () => {
     const state = session({ host: { theme: 'dark', language: 'ro', chordColor: null } });
-    expect(resolveStageDisplay(state, null).maxFontPx).toBeNull();
+    expect(resolveStageDisplay(state, null).minFontPx).toBeNull();
   });
 
   it('is unchanged by settings belonging to a screen that is not this one', () => {

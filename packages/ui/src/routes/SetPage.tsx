@@ -1460,8 +1460,8 @@ function Preview({
   // refs are null and there is nothing to measure. Without it the fit would never re-run
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
-    maxFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.showBlockTitles}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    minFontPx: prefs.minFontPx,
+    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;
@@ -1518,7 +1518,7 @@ function Preview({
             options={{
               showChords: prefs.showChords,
               showBass: false,
-              showBlockTitles: prefs.showBlockTitles,
+              cueStyle: prefs.cueStyle,
               capo: capo ?? 0,
               transpose: shift,
               lineHeight: prefs.lineHeight,

@@ -1,10 +1,14 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import {
   DEFAULT_ACCIDENTAL_PREFERENCES,
+  DEFAULT_SONG_FONT_SIZE,
   DEFAULT_SONG_LINE_HEIGHT,
+  MAX_SONG_FONT_SIZE,
   MAX_SONG_LINE_HEIGHT,
+  MIN_SONG_FONT_SIZE,
   MIN_SONG_LINE_HEIGHT,
   type AccidentalPreferences,
+  type CueStyle,
 } from '@worship/core';
 
 /**
@@ -23,13 +27,13 @@ import {
 
 export interface Prefs {
   showChords: boolean;
-  /** Whether song block labels such as Verse, Chorus and Note are visible. */
-  showBlockTitles: boolean;
+  /** Visual density of song cues and section labels. */
+  cueStyle: CueStyle;
   capo: number;
   /** Extra transposition on top of the song's performance key. */
   transpose: number;
-  /** A ceiling, not a command — the fit algorithm decides the actual size. */
-  maxFontPx: number;
+  /** The automatic fitter may never make normal lyrics smaller than this. */
+  minFontPx: number;
   /** Lyric line height as a unitless multiplier. */
   lineHeight: number;
   /**
@@ -61,10 +65,10 @@ export interface Prefs {
 
 export const DEFAULT_PREFS: Prefs = {
   showChords: true,
-  showBlockTitles: true,
+  cueStyle: 'full',
   capo: 0,
   transpose: 0,
-  maxFontPx: 26,
+  minFontPx: DEFAULT_SONG_FONT_SIZE,
   lineHeight: DEFAULT_SONG_LINE_HEIGHT,
   chordColor: null,
   accidentalPreferences: DEFAULT_ACCIDENTAL_PREFERENCES,
@@ -77,31 +81,59 @@ export const DEFAULT_PREFS: Prefs = {
 
 const KEY = 'worship-archive:prefs';
 
+type StoredPrefs = Partial<Prefs> & {
+  /** Preferences written before the three cue styles were introduced. */
+  showBlockTitles?: boolean;
+  /** Retired: text size is now a floor rather than an adjustable ceiling. */
+  maxFontPx?: number;
+};
+
+export function normalisePrefs(value: unknown): Prefs {
+  if (!value || typeof value !== 'object') return DEFAULT_PREFS;
+  const saved = value as StoredPrefs;
+  const legacyShowBlockTitles = saved.showBlockTitles;
+  const currentSaved = { ...saved };
+  delete currentSaved.showBlockTitles;
+  delete currentSaved.maxFontPx;
+  const theme =
+    saved.theme === 'light' || saved.theme === 'dark' || saved.theme === 'auto'
+      ? saved.theme
+      : DEFAULT_PREFS.theme;
+  const lineHeight =
+    typeof saved.lineHeight === 'number' && Number.isFinite(saved.lineHeight)
+      ? Math.min(MAX_SONG_LINE_HEIGHT, Math.max(MIN_SONG_LINE_HEIGHT, saved.lineHeight))
+      : DEFAULT_PREFS.lineHeight;
+  const minFontPx =
+    typeof saved.minFontPx === 'number' && Number.isFinite(saved.minFontPx)
+      ? Math.min(MAX_SONG_FONT_SIZE, Math.max(MIN_SONG_FONT_SIZE, saved.minFontPx))
+      : DEFAULT_PREFS.minFontPx;
+  const cueStyle: CueStyle =
+    saved.cueStyle === 'full' || saved.cueStyle === 'compact' || saved.cueStyle === 'minimal'
+      ? saved.cueStyle
+      : legacyShowBlockTitles === false
+        ? 'compact'
+        : DEFAULT_PREFS.cueStyle;
+  return {
+    ...DEFAULT_PREFS,
+    ...currentSaved,
+    // Older builds offered a separate Stage palette. Treat that retired value as
+    // the normal system theme instead of leaving an unsupported data attribute.
+    theme,
+    lineHeight,
+    minFontPx,
+    cueStyle,
+    accidentalPreferences: {
+      ...DEFAULT_ACCIDENTAL_PREFERENCES,
+      ...(saved.accidentalPreferences ?? {}),
+    },
+  };
+}
+
 function read(): Prefs {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_PREFS;
-    const saved = JSON.parse(raw) as Partial<Prefs>;
-    const theme =
-      saved.theme === 'light' || saved.theme === 'dark' || saved.theme === 'auto'
-        ? saved.theme
-        : DEFAULT_PREFS.theme;
-    const lineHeight =
-      typeof saved.lineHeight === 'number' && Number.isFinite(saved.lineHeight)
-        ? Math.min(MAX_SONG_LINE_HEIGHT, Math.max(MIN_SONG_LINE_HEIGHT, saved.lineHeight))
-        : DEFAULT_PREFS.lineHeight;
-    return {
-      ...DEFAULT_PREFS,
-      ...saved,
-      // Older builds offered a separate Stage palette. Treat that retired value as
-      // the normal system theme instead of leaving an unsupported data attribute.
-      theme,
-      lineHeight,
-      accidentalPreferences: {
-        ...DEFAULT_ACCIDENTAL_PREFERENCES,
-        ...(saved.accidentalPreferences ?? {}),
-      },
-    };
+    return normalisePrefs(JSON.parse(raw));
   } catch {
     return DEFAULT_PREFS;
   }

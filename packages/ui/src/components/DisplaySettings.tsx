@@ -1,9 +1,12 @@
 import {
   DEFAULT_SONG_LINE_HEIGHT,
   ENHARMONIC_PAIRS,
+  MAX_SONG_FONT_SIZE,
   MAX_SONG_LINE_HEIGHT,
+  MIN_SONG_FONT_SIZE,
   MIN_SONG_LINE_HEIGHT,
   type AccidentalPreferences,
+  type CueStyle,
   type LanguageName,
   type ThemeName,
 } from '@worship/core';
@@ -150,13 +153,12 @@ export function ThemeChoice<T extends ThemeName | null>({
   );
 }
 
-export function FontSize({
+export function MinimumFontSize({
   value,
   onChange,
   onClear,
   clearLabel,
   fallback,
-  min = 14,
 }: {
   value: number | null;
   onChange: (value: number) => void;
@@ -171,15 +173,13 @@ export function FontSize({
   clearLabel?: string | undefined;
   /** Shown when nothing has been chosen — the size that screen would use anyway. */
   fallback?: number;
-  /** A phone held close remains readable below the stage-display default. */
-  min?: number;
 }) {
   const { t } = useT();
   const shown = value ?? fallback ?? 26;
   return (
     <label className="mt-4 block">
       <span className="flex items-baseline justify-between gap-2 text-sm">
-        {t('settings.maxFont')}
+        {t('settings.minFont')}
         <span className="flex items-baseline gap-2">
           {onClear && clearLabel && value !== null && (
             <button
@@ -195,17 +195,50 @@ export function FontSize({
       </span>
       <input
         type="range"
-        min={min}
-        max={72}
+        min={MIN_SONG_FONT_SIZE}
+        max={MAX_SONG_FONT_SIZE}
         step={1}
         value={shown}
         onChange={(event) => onChange(Number(event.target.value))}
         className="mt-1 w-full cursor-pointer accent-(--color-chord)"
       />
       <span className="mt-1 block text-xs text-(--color-muted)">
-        {t('settings.maxFontHint')}
+        {t('settings.minFontHint')}
       </span>
     </label>
+  );
+}
+
+/** Three deliberate levels of visual density for section labels and cue blocks. */
+export function CueStyleChoice<T extends CueStyle | null>({
+  value,
+  onChange,
+  inherit,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  inherit?: string;
+}) {
+  const { t } = useT();
+  const shown = value ?? 'full';
+  return (
+    <Field label={t('settings.cueStyle')}>
+      <Segmented label={t('settings.cueStyle')} className="max-w-full flex-wrap">
+        {inherit && (
+          <Segment active={value === null} onClick={() => onChange(null as T)}>
+            {inherit}
+          </Segment>
+        )}
+        {(['full', 'compact', 'minimal'] as const).map((style) => (
+          <Segment key={style} active={value === style} onClick={() => onChange(style as T)}>
+            {t(`settings.cueStyle.${style}`)}
+          </Segment>
+        ))}
+      </Segmented>
+      <span className="mt-1.5 block text-xs text-(--color-muted)">
+        {t(`settings.cueStyle.${shown}Hint`)}
+      </span>
+    </Field>
   );
 }
 

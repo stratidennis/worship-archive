@@ -80,12 +80,8 @@ export function SongPage() {
   // loading, so the refs are null and there is nothing to measure. Without it the
   // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
-    maxFontPx: prefs.maxFontPx,
-    // The Leader's opened-song view is a fixed desktop display, just like Stage. Use
-    // the same last-resort floor so small viewport and platform font-metric differences
-    // do not make the fit stop at 11px and turn the song into a scrolling page.
-    minFontPx: 8,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.showBlockTitles}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    minFontPx: prefs.minFontPx,
+    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (error) {
@@ -208,7 +204,7 @@ export function SongPage() {
             options={{
               showChords: prefs.showChords,
               showBass: false,
-              showBlockTitles: prefs.showBlockTitles,
+              cueStyle: prefs.cueStyle,
               capo: prefs.capo,
               transpose: prefs.transpose,
               lineHeight: prefs.lineHeight,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  DEFAULT_SONG_FONT_SIZE,
   DEFAULT_SONG_LINE_HEIGHT,
   preferredKeyName,
   resolveStageDisplay,
@@ -24,7 +25,7 @@ import { Button, Checkbox, IconButton, Input } from '../components/ui.js';
 import { IconSettings } from '../components/icons.js';
 
 /** What a screen uses when nobody has said otherwise: big, because it is read far away. */
-export const STAGE_DEFAULT_FONT = 72;
+export const STAGE_PREFERRED_FONT = 72;
 
 /**
  * The stage display.
@@ -131,15 +132,11 @@ export function StagePage() {
   }, [viewing, performanceKey, state.transpose]);
 
   const fit = useFitToScreen(container, content, {
-    // A stage display is read at a distance, so it is allowed to go much larger than a
-    // handheld device would — and the leader can raise or lower that ceiling for every
-    // screen at once.
-    maxFontPx: stage.maxFontPx ?? STAGE_DEFAULT_FONT,
-    // Full-size stage displays cannot be scrolled, so allow a smaller last-resort
-    // floor there. Phones use their separate, more readable floor and then scroll.
-    minFontPx: 8,
-    narrowMinFontPx: 12,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${stage.showBlockTitles}:${extraTranspose}:${capo}:${stage.maxFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    // Stage text may start generously large, but it remains one continuous column as
+    // long as it can stay above this screen's readability floor.
+    preferredFontPx: STAGE_PREFERRED_FONT,
+    minFontPx: stage.minFontPx ?? DEFAULT_SONG_FONT_SIZE,
+    key: `${song?.id ?? ''}:${showChords}:${showBass}:${stage.cueStyle}:${extraTranspose}:${capo}:${stage.minFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.
@@ -183,7 +180,7 @@ export function StagePage() {
           >
             {showChords && (
               <PerformanceInfo
-                showBlockTitles={stage.showBlockTitles ?? true}
+                cueStyle={stage.cueStyle ?? 'full'}
                 performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                 transpose={state.transpose}
                 capo={capo}
@@ -194,7 +191,7 @@ export function StagePage() {
               options={{
                 showChords,
                 showBass,
-                showBlockTitles: stage.showBlockTitles ?? true,
+                cueStyle: stage.cueStyle ?? 'full',
                 capo,
                 transpose: extraTranspose,
                 lineHeight: stage.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT,

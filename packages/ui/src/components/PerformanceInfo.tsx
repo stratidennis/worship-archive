@@ -1,3 +1,4 @@
+import type { CueStyle } from '@worship/core';
 import { useT } from '../lib/i18n.js';
 
 function signed(value: number): string {
@@ -12,7 +13,7 @@ export function PerformanceInfo({
   displayedKey,
   instrumentTranspose,
   instrumentCapo,
-  showBlockTitles = true,
+  cueStyle = 'full',
 }: {
   performanceKey: string | null;
   transpose: number;
@@ -20,7 +21,7 @@ export function PerformanceInfo({
   displayedKey?: string | null;
   instrumentTranspose?: number | null;
   instrumentCapo?: number | null;
-  showBlockTitles?: boolean;
+  cueStyle?: CueStyle;
 }) {
   const { t } = useT();
   const leader = [
@@ -39,27 +40,36 @@ export function PerformanceInfo({
   ].filter(Boolean);
 
   if (leader.length === 0 && mine.length === 0) return null;
+  const coloured = cueStyle !== 'minimal';
+  const leaderScale = cueStyle === 'full' ? 0.78 : cueStyle === 'compact' ? 0.7 : 0.62;
+  const mineScale = cueStyle === 'full' ? 0.68 : cueStyle === 'compact' ? 0.62 : 0.56;
   return (
     <section
-      data-song-font-scale={1}
-      className="mb-[0.9em] rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.65em] py-[0.4em]"
-      style={{ breakInside: 'avoid' }}
+      data-song-font-scale={leaderScale}
+      className={`mb-[0.9em] ${
+        coloured
+          ? 'rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.65em] py-[0.4em]'
+          : ''
+      }`}
+      style={{ breakInside: 'avoid', fontSize: `${leaderScale}em` }}
     >
-      {showBlockTitles && (
+      {cueStyle === 'full' && (
         <h2
           data-song-font-scale={0.58}
-          className="text-[0.58em] font-semibold uppercase tracking-wider text-(--color-muted)"
+          className="font-semibold uppercase tracking-wider text-(--color-muted)"
+          style={{ fontSize: `${0.58 / leaderScale}em` }}
         >
           {t('performance.title')}
         </h2>
       )}
-      <p data-song-font-scale={0.78} className="text-[0.78em] font-semibold leading-snug">
+      <p data-song-font-scale={leaderScale} className="font-semibold leading-snug">
         {leader.join(' · ')}
       </p>
       {mine.length > 0 && (
         <p
-          data-song-font-scale={0.68}
-          className="mt-[0.18em] text-[0.68em] leading-snug text-(--color-muted)"
+          data-song-font-scale={mineScale}
+          className="mt-[0.18em] leading-snug text-(--color-muted)"
+          style={{ fontSize: `${mineScale / leaderScale}em` }}
         >
           {mine.join(' · ')}
         </p>

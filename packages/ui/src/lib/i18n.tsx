@@ -370,16 +370,23 @@ const ro = {
   'settings.themeLight': 'Luminos',
   'settings.themeDark': 'Întunecat',
   'settings.display': 'Afișare',
-  'settings.maxFont': 'Mărimea maximă a textului',
-  'settings.maxFontHint':
-    'O limită, nu o comandă — textul se micșorează singur până când cântarea încape pe un ecran.',
+  'settings.minFont': 'Mărimea minimă a textului',
+  'settings.minFontHint':
+    'Textul rămâne într-o singură coloană cât timp încape fără să treacă sub această mărime. Numai apoi poate folosi mai multe coloane.',
   'settings.lineSpacing': 'Spațierea rândurilor',
   'settings.lineSpacingHint':
     'Mai strâns lasă loc pentru text mai mare; mai aerisit separă mai clar rândurile.',
   'settings.showChords': 'Arată acordurile',
-  'settings.showBlockTitles': 'Arată titlurile secțiunilor',
-  'settings.showBlockTitlesHint':
-    'Ascunde etichetele precum Strofă, Refren, Notă și Configurația cântării pentru a lăsa mai mult loc textului.',
+  'settings.cueStyle': 'Stilul secțiunilor și indicațiilor',
+  'settings.cueStyle.full': 'Complet',
+  'settings.cueStyle.fullHint':
+    'Arată titlurile, fundalurile colorate și textul indicațiilor la 80% din mărimea versurilor.',
+  'settings.cueStyle.compact': 'Compact',
+  'settings.cueStyle.compactHint':
+    'Ascunde titlurile, păstrează fundalurile colorate și micșorează textul indicațiilor la 72%.',
+  'settings.cueStyle.minimal': 'Minimal',
+  'settings.cueStyle.minimalHint':
+    'Ascunde titlurile și fundalurile, iar textul indicațiilor folosește 64% din mărimea versurilor.',
   'settings.chordsShown': 'Cu acorduri',
   'settings.chordsHidden': 'Doar versuri',
   'settings.accidentals': 'Scrierea diezurilor și bemolilor',
@@ -845,16 +852,23 @@ const en: Record<TranslationKey, Entry> = {
   'settings.themeLight': 'Light',
   'settings.themeDark': 'Dark',
   'settings.display': 'Display',
-  'settings.maxFont': 'Largest text size',
-  'settings.maxFontHint':
-    'A ceiling, not a command — the text shrinks by itself until the song fits one screen.',
+  'settings.minFont': 'Minimum text size',
+  'settings.minFontHint':
+    'The song stays in one column while it can fit without crossing this size. Only then may it use more columns.',
   'settings.lineSpacing': 'Line spacing',
   'settings.lineSpacingHint':
     'Tighter spacing leaves room for larger text; looser spacing separates the lines more clearly.',
   'settings.showChords': 'Show chords',
-  'settings.showBlockTitles': 'Show section titles',
-  'settings.showBlockTitlesHint':
-    'Hide labels such as Verse, Chorus, Note and Song setup to leave more room for the song text.',
+  'settings.cueStyle': 'Section and cue style',
+  'settings.cueStyle.full': 'Full',
+  'settings.cueStyle.fullHint':
+    'Shows titles and coloured backgrounds, with cue text at 80% of normal lyrics.',
+  'settings.cueStyle.compact': 'Compact',
+  'settings.cueStyle.compactHint':
+    'Hides titles, keeps coloured backgrounds, and reduces cue text to 72%.',
+  'settings.cueStyle.minimal': 'Minimal',
+  'settings.cueStyle.minimalHint':
+    'Hides titles and backgrounds, with cue text reduced further to 64%.',
   'settings.chordsShown': 'With chords',
   'settings.chordsHidden': 'Words only',
   'settings.accidentals': 'Sharp and flat notation',

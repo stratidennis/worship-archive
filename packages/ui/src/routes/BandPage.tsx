@@ -28,9 +28,10 @@ import {
   AccidentalChoice,
   ChordColour,
   ChordSample,
-  FontSize,
+  CueStyleChoice,
   LanguageChoice,
   LineSpacing,
+  MinimumFontSize,
 } from '../components/DisplaySettings.js';
 import { IconMusic, IconPresentation, IconSets, IconSettings } from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
@@ -258,15 +259,12 @@ export function BandPage() {
   }, []);
 
   const fit = useFitToScreen(container, content, {
-    maxFontPx: prefs.maxFontPx,
-    // A desktop Band window follows the same fit-to-one-screen rule as Leader and
-    // Stage. The separate narrow floor below remains the readable phone fallback.
-    minFontPx: 8,
-    narrowMinFontPx: 10,
-    // On a phone the musician can scroll, so their chosen size should be the actual
-    // size, not merely a ceiling that the fit algorithm silently reduces.
+    minFontPx: prefs.minFontPx,
+    // A desktop Band window follows the same one-column-first rule as Leader and
+    // Stage. A phone instead keeps a comfortable reading size in one column and
+    // scrolls, because scrolling is practical there and tiny lyrics are not.
     narrowScrollAtPreferredSize: true,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${prefs.showBlockTitles}:${transpose}:${capoFret}:${displayedKey}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (
@@ -466,7 +464,7 @@ export function BandPage() {
             >
               {prefs.showChords && (
                 <PerformanceInfo
-                  showBlockTitles={prefs.showBlockTitles}
+                  cueStyle={prefs.cueStyle}
                   performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                   transpose={leaderTranspose}
                   capo={leaderCapo}
@@ -484,7 +482,7 @@ export function BandPage() {
                 options={{
                   showChords: prefs.showChords,
                   showBass: false,
-                  showBlockTitles: prefs.showBlockTitles,
+                  cueStyle: prefs.cueStyle,
                   capo: capoFret,
                   transpose,
                   lineHeight: prefs.lineHeight,
@@ -637,23 +635,18 @@ export function BandPage() {
             </div>
           )}
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
-          <FontSize
-            value={prefs.maxFontPx}
-            min={10}
-            onChange={(maxFontPx) => setPrefs({ maxFontPx })}
+          <MinimumFontSize
+            value={prefs.minFontPx}
+            onChange={(minFontPx) => setPrefs({ minFontPx })}
           />
           <LineSpacing
             value={prefs.lineHeight}
             onChange={(lineHeight) => setPrefs({ lineHeight })}
           />
-          <label className="mt-3 flex items-start gap-2 text-sm">
-            <Checkbox
-              className="mt-0.5"
-              checked={prefs.showBlockTitles}
-              onChange={(event) => setPrefs({ showBlockTitles: event.target.checked })}
-            />
-            <span>{t('settings.showBlockTitles')}</span>
-          </label>
+          <CueStyleChoice
+            value={prefs.cueStyle}
+            onChange={(cueStyle) => setPrefs({ cueStyle })}
+          />
           <ChordColour
             value={prefs.chordColor}
             onChange={(chordColor) => setPrefs({ chordColor })}

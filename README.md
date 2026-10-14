@@ -83,7 +83,8 @@ installing a modern browser alone does not update a device's WebView provider.
 The APK bundles the shared Band UI. It finds compatible Leaders over Wi-Fi using
 mDNS and the same UDP fallback as the desktop clients, with a manual address option
 in **Band settings → Leader connection**. Phones retain single-column scrolling;
-tablets retain fitted columns. No Google services or account are required.
+tablets prefer one fitted column and add columns only when the selected minimum text
+size requires them. No Google services or account are required.
 
 Local builds use the already installed Android SDK platform 36, build-tools 36.1.0,
 and Java 17; there are no additional native libraries or Gradle downloads:
@@ -138,9 +139,11 @@ become. Settings → Backup.
 
 ## Two non-negotiables
 
-**The whole song fits on one screen.** No pagination, no scrolling mid-song. Text
-auto-scales to fill the available space, using multiple columns when that helps. This is
-the behaviour of the old app people rely on, and it drives the renderer's design.
+**The whole song fits on one screen.** No pagination or scrolling mid-song on full-size
+displays. Text auto-scales in one continuous column down to the selected minimum, and
+only then adds columns. This is the behaviour people rely on, and it drives the
+renderer’s design. Phones remain the exception: they keep one readable column and can
+scroll when the song is longer than their screen.
 
 **It works with no internet, ever.** No CDNs, no external fonts, no licence check. The
 app shell is precached by a service worker and the library is mirrored into IndexedDB,

@@ -14,10 +14,9 @@ import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
  * readable than silently shrinking the text.
  *
  * Strategy, in order of preference:
- *   1. one column at the largest size that fits
- *   2. more columns, if the container is wide enough — two readable columns beat one
- *      column of shrunken text
- *   3. the largest size that fits at the best column count
+ *   1. one continuous column, shrinking only as far as the chosen minimum
+ *   2. only when one column would have to cross that floor, allow more columns
+ *   3. within the allowed multi-column alternatives, keep the text as large as possible
  *   4. if nothing fits even at the minimum, report `fits: false` so the caller can
  *      offer block mode rather than rendering something illegible
  *
@@ -27,9 +26,8 @@ import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
 
 export interface FitOptions {
   minFontPx?: number;
-  /** The separate font floor used on portrait/narrow screens before scrolling. */
-  narrowMinFontPx?: number;
-  maxFontPx?: number;
+  /** A practical automatic starting size, not a user-facing maximum setting. */
+  preferredFontPx?: number;
   /**
    * On a phone, keep the chosen size and scroll instead of silently shrinking it.
    * Desktop displays keep fitting because they may have no practical scroll input.
@@ -52,8 +50,8 @@ export interface FitResult {
   measuring: boolean;
 }
 
-const MIN_DEFAULT = 11;
-const MAX_DEFAULT = 40;
+const MIN_DEFAULT = 12;
+const PREFERRED_DEFAULT = 26;
 /*
  * A screen breakpoint describes CSS pixels, not the panel's physical resolution.
  *
@@ -80,16 +78,6 @@ export function usesPreferredSizeScrolling(
   touchBrowser = true,
 ): boolean {
   return enabled && isPhoneScreen(screenWidth, screenHeight, touchBrowser);
-}
-
-export function minimumFontForScreen(
-  screenWidth: number,
-  screenHeight: number,
-  minFontPx: number,
-  narrowMinFontPx = minFontPx,
-  touchBrowser = true,
-): number {
-  return isPhoneScreen(screenWidth, screenHeight, touchBrowser) ? narrowMinFontPx : minFontPx;
 }
 
 export function exceedsAvailableSpace(
@@ -127,15 +115,66 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
 /**
  * Column counts worth trying at a given width. Columns are useless on a phone.
  *
- * Only ever *more* options, never a forced choice: the search below prefers the fewest
- * columns that still allow the largest type, so a wide screen only splits when splitting
- * is what makes the text bigger.
+ * These are only considered after a single column has failed at the selected minimum.
+ * Within that fallback, the search keeps the text as large as the available width allows.
  */
-function columnCandidates(width: number, phoneViewport: boolean): number[] {
+export function columnCandidates(width: number, phoneViewport: boolean): number[] {
   if (phoneViewport || width < NARROW_SCREEN_WIDTH) return [1];
   if (width < 1100) return [1, 2];
   if (width < 1800) return [1, 2, 3];
   return [1, 2, 3, 4];
+}
+
+export interface FitChoice {
+  fontPx: number;
+  columns: number;
+  fits: boolean;
+}
+
+/**
+ * Pick a layout without knowing anything about the DOM.
+ *
+ * Keeping this decision separate from measurement makes its most important promise
+ * explicit and testable: no multi-column trial can win while one column still fits at
+ * or above the selected minimum.
+ */
+export async function chooseFit({
+  minFontPx,
+  preferredFontPx,
+  columns,
+  overflows,
+}: {
+  minFontPx: number;
+  preferredFontPx: number;
+  columns: number[];
+  overflows: (fontPx: number, columns: number) => Promise<boolean>;
+}): Promise<FitChoice> {
+  const largestFit = async (columnCount: number): Promise<number> => {
+    let low = minFontPx;
+    let high = Math.max(minFontPx, preferredFontPx);
+    let found = 0;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (await overflows(mid, columnCount)) high = mid - 1;
+      else {
+        found = mid;
+        low = mid + 1;
+      }
+    }
+    return found;
+  };
+
+  const oneColumn = await largestFit(1);
+  if (oneColumn > 0) return { fontPx: oneColumn, columns: 1, fits: true };
+
+  let best: FitChoice = { fontPx: minFontPx, columns: 1, fits: false };
+  for (const columnCount of columns.filter((candidate) => candidate > 1)) {
+    const found = await largestFit(columnCount);
+    if (found > best.fontPx || (found === minFontPx && !best.fits)) {
+      best = { fontPx: found, columns: columnCount, fits: true };
+    }
+  }
+  return best;
 }
 
 export function useFitToScreen(
@@ -144,11 +183,10 @@ export function useFitToScreen(
   options: FitOptions = {},
 ): FitResult {
   const minFont = options.minFontPx ?? MIN_DEFAULT;
-  const narrowMinFont = options.narrowMinFontPx ?? minFont;
-  const maxFont = options.maxFontPx ?? MAX_DEFAULT;
+  const preferredFont = Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT);
   const narrowScrollAtPreferredSize = options.narrowScrollAtPreferredSize ?? false;
   const [result, setResult] = useState<FitResult>({
-    fontPx: maxFont,
+    fontPx: preferredFont,
     columns: 1,
     heightPx: 0,
     phone: false,
@@ -223,14 +261,6 @@ export function useFitToScreen(
 
       const contentWidth = content.getBoundingClientRect().width;
       const phoneScreen = isPhoneScreen(screenWidth, screenHeight, touchBrowser);
-      const effectiveMinFont = minimumFontForScreen(
-        screenWidth,
-        screenHeight,
-        minFont,
-        narrowMinFont,
-        touchBrowser,
-      );
-
       const overflows = async (fontPx: number, columns: number): Promise<boolean> => {
         if (disposed) throw cancelled;
         // Inherited em sizes on the actual tablet can remain from several earlier
@@ -333,7 +363,7 @@ export function useFitToScreen(
         return overflowing;
       };
 
-      let best = { fontPx: effectiveMinFont, columns: 1, fits: false };
+      let best: FitChoice = { fontPx: minFont, columns: 1, fits: false };
 
       if (
         usesPreferredSizeScrolling(
@@ -343,35 +373,19 @@ export function useFitToScreen(
           touchBrowser,
         )
       ) {
-        best = { fontPx: maxFont, columns: 1, fits: !(await overflows(maxFont, 1)) };
+        best = {
+          fontPx: preferredFont,
+          columns: 1,
+          fits: !(await overflows(preferredFont, 1)),
+        };
       } else {
         const candidates = columnCandidates(width, phoneScreen);
-        // Try the preferred size in every candidate first: most tablet songs fit in
-        // two columns without needing a font-size search at all.
-        for (const columns of candidates) {
-          if (!(await overflows(maxFont, columns))) {
-            best = { fontPx: maxFont, columns, fits: true };
-            break; // Fewer columns is always preferable at the same size.
-          }
-        }
-        for (const columns of best.fits ? [] : candidates) {
-          // Largest size in [minFont, maxFont] that fits, to the nearest pixel.
-          let low = best.fits ? best.fontPx + 1 : effectiveMinFont;
-          let high = maxFont;
-          let found = 0;
-          while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            if (await overflows(mid, columns)) high = mid - 1;
-            else {
-              found = mid;
-              low = mid + 1;
-            }
-          }
-          if (found > best.fontPx || (found > 0 && !best.fits)) {
-            best = { fontPx: found, columns, fits: true };
-          }
-          if (best.fits && best.fontPx >= maxFont) break;
-        }
+        best = await chooseFit({
+          minFontPx: minFont,
+          preferredFontPx: preferredFont,
+          columns: candidates,
+          overflows,
+        });
       }
 
       if (disposed) throw cancelled;
@@ -473,8 +487,7 @@ export function useFitToScreen(
     containerRef,
     contentRef,
     minFont,
-    narrowMinFont,
-    maxFont,
+    preferredFont,
     narrowScrollAtPreferredSize,
     options.key,
   ]);

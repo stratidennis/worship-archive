@@ -10,14 +10,16 @@ import {
   ChordColour,
   ChordSample,
   AccidentalChoice,
-  FontSize,
+  CueStyleChoice,
   LanguageChoice,
   LineSpacing,
+  MinimumFontSize,
   ThemeChoice,
 } from '../components/DisplaySettings.js';
 import { useStageDisplay } from '../lib/stageDisplay.js';
 import {
   DEFAULT_SONG_LINE_HEIGHT,
+  DEFAULT_SONG_FONT_SIZE,
   DEFAULT_STAGE_DISPLAY,
   type StageDisplay,
 } from '@worship/core';
@@ -200,9 +202,9 @@ export function SettingsPage() {
 
             {target === 'device' ? (
               <>
-                <FontSize
-                  value={prefs.maxFontPx}
-                  onChange={(maxFontPx) => setPrefs({ maxFontPx })}
+                <MinimumFontSize
+                  value={prefs.minFontPx}
+                  onChange={(minFontPx) => setPrefs({ minFontPx })}
                 />
                 <LineSpacing
                   value={prefs.lineHeight}
@@ -213,11 +215,9 @@ export function SettingsPage() {
                   onChange={(showChords) => setPrefs({ showChords })}
                   label={t('settings.showChords')}
                 />
-                <Toggle
-                  checked={prefs.showBlockTitles}
-                  onChange={(showBlockTitles) => setPrefs({ showBlockTitles })}
-                  label={t('settings.showBlockTitles')}
-                  hint={t('settings.showBlockTitlesHint')}
+                <CueStyleChoice
+                  value={prefs.cueStyle}
+                  onChange={(cueStyle) => setPrefs({ cueStyle })}
                 />
                 <ChordColour
                   value={prefs.chordColor}
@@ -297,15 +297,14 @@ export function SettingsPage() {
                   onChange={(theme) => setStage({ theme })}
                   inherit={inherit}
                 />
-                {/* Size is the one thing the screens do not take from here: a ceiling
-                    for a laptop on a music stand is not a ceiling for a television
-                    across a hall. Cleared, it is the screens' own generous default. */}
-                <FontSize
-                  value={stage.maxFontPx}
-                  onChange={(maxFontPx) => setStage({ maxFontPx })}
-                  onClear={() => setStage({ maxFontPx: null })}
+                {/* A screen can set a stricter readability floor than this laptop.
+                    Cleared, it follows all screens or the built-in safe default. */}
+                <MinimumFontSize
+                  value={stage.minFontPx}
+                  onChange={(minFontPx) => setStage({ minFontPx })}
+                  onClear={() => setStage({ minFontPx: null })}
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
-                  fallback={(selected ? shared.maxFontPx : null) ?? 72}
+                  fallback={(selected ? shared.minFontPx : null) ?? DEFAULT_SONG_FONT_SIZE}
                 />
                 <LineSpacing
                   value={stage.lineHeight}
@@ -314,13 +313,10 @@ export function SettingsPage() {
                   clearLabel={selected ? inherit : t('settings.chordColorDefault')}
                   fallback={(selected ? shared.lineHeight : null) ?? DEFAULT_SONG_LINE_HEIGHT}
                 />
-                <Toggle
-                  checked={
-                    stage.showBlockTitles ?? (selected ? shared.showBlockTitles : null) ?? true
-                  }
-                  onChange={(showBlockTitles) => setStage({ showBlockTitles })}
-                  label={t('settings.showBlockTitles')}
-                  hint={t('settings.showBlockTitlesHint')}
+                <CueStyleChoice
+                  value={stage.cueStyle}
+                  onChange={(cueStyle) => setStage({ cueStyle })}
+                  inherit={inherit}
                 />
                 {/* Whether chords are shown belongs to a physical display, not to an
                     abstract "all screens" default. It is offered only after the

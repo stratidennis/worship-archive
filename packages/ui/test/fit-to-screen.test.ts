@@ -1,36 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chooseFit,
+  columnCandidates,
   exceedsAvailableSpace,
   fittedSongStyle,
   isPhoneScreen,
-  minimumFontForScreen,
   NARROW_SCREEN_WIDTH,
   usesConstrainedColumnFlow,
   usesPreferredSizeScrolling,
 } from '../src/lib/useFitToScreen.js';
 
 describe('fit-to-screen font floor', () => {
-  it('allows a smaller readable size on a narrow phone before requiring scrolling', () => {
-    expect(minimumFontForScreen(390, 844, 14, 10)).toBe(10);
-  });
-
-  it('keeps the normal minimum on wider screens', () => {
-    expect(minimumFontForScreen(1366, 768, 14, 10)).toBe(14);
-  });
-
   it('treats a compact Android tablet as a fit-to-screen display', () => {
     expect(NARROW_SCREEN_WIDTH).toBeLessThan(600);
-    expect(minimumFontForScreen(600, 960, 8, 12)).toBe(8);
     expect(usesPreferredSizeScrolling(600, 960, true)).toBe(false);
-  });
-
-  it('can keep a more readable floor on phones than on non-scrollable stage displays', () => {
-    expect(minimumFontForScreen(390, 844, 8, 12)).toBe(12);
+    expect(columnCandidates(600, false)).toEqual([1, 2]);
   });
 
   it('does not mistake a narrow song pane on a laptop for a phone', () => {
     expect(isPhoneScreen(1366, 768)).toBe(false);
-    expect(minimumFontForScreen(1366, 768, 8, 12)).toBe(8);
   });
 
   it('recognizes a phone in either orientation', () => {
@@ -49,7 +37,44 @@ describe('fit-to-screen font floor', () => {
   it('keeps heavily scaled desktop displays out of the phone layout', () => {
     expect(isPhoneScreen(853, 480, false)).toBe(false);
     expect(usesPreferredSizeScrolling(853, 480, true, false)).toBe(false);
-    expect(minimumFontForScreen(853, 480, 8, 12, false)).toBe(8);
+  });
+});
+
+describe('one-column-first fitting', () => {
+  it('keeps one column whenever it fits at or above the selected minimum', async () => {
+    const tried: number[] = [];
+    const result = await chooseFit({
+      minFontPx: 12,
+      preferredFontPx: 26,
+      columns: [1, 2, 3],
+      overflows: async (font, columns) => {
+        tried.push(columns);
+        return font > (columns === 1 ? 14 : 26);
+      },
+    });
+    expect(result).toEqual({ fontPx: 14, columns: 1, fits: true });
+    expect(tried).not.toContain(2);
+    expect(tried).not.toContain(3);
+  });
+
+  it('allows columns only when one column would cross the minimum', async () => {
+    const result = await chooseFit({
+      minFontPx: 12,
+      preferredFontPx: 26,
+      columns: [1, 2, 3],
+      overflows: async (font, columns) => font > (columns === 1 ? 11 : columns === 2 ? 20 : 24),
+    });
+    expect(result).toEqual({ fontPx: 24, columns: 3, fits: true });
+  });
+
+  it('reports an honest failure at the minimum when no allowed layout fits', async () => {
+    const result = await chooseFit({
+      minFontPx: 12,
+      preferredFontPx: 26,
+      columns: [1, 2],
+      overflows: async () => true,
+    });
+    expect(result).toEqual({ fontPx: 12, columns: 1, fits: false });
   });
 });
 
@@ -62,9 +87,8 @@ describe('phone font-size control', () => {
     expect(usesPreferredSizeScrolling(1280, 720, true)).toBe(false);
   });
 
-  it('keeps the desktop Band floor separate from its phone floor', () => {
-    expect(minimumFontForScreen(1280, 720, 8, 10)).toBe(8);
-    expect(minimumFontForScreen(390, 844, 8, 10)).toBe(10);
+  it('never offers columns on a phone', () => {
+    expect(columnCandidates(390, true)).toEqual([1]);
   });
 });
 
