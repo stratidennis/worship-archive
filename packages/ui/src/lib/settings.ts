@@ -51,6 +51,8 @@ export interface Prefs {
   accidentalPreferences: AccidentalPreferences;
   /** Band installations follow the Leader until the musician explicitly opts out. */
   bandFollowsLeaderAccidentals: boolean;
+  /** Default Band chord shapes to the sounding key; a manual song choice still wins. */
+  bandAlwaysUsesPerformanceKey: boolean;
   language: 'ro' | 'en';
   /** `auto` follows the operating system. */
   theme: 'auto' | 'light' | 'dark';
@@ -77,6 +79,7 @@ export const DEFAULT_PREFS: Prefs = {
   chordColor: null,
   accidentalPreferences: DEFAULT_ACCIDENTAL_PREFERENCES,
   bandFollowsLeaderAccidentals: true,
+  bandAlwaysUsesPerformanceKey: false,
   language: 'en',
   theme: 'auto',
   setHeaderExpanded: true,

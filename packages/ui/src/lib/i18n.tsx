@@ -266,6 +266,7 @@ const ro = {
   'band.onYourOwn': 'Independent',
   'band.hereNow': 'acum',
   'band.asLeader': 'ca liderul',
+  'band.asPerformanceKey': 'tonalitatea cântată',
   'band.key': 'ton',
   'band.leaderNotOnSong': 'Liderul nu e pe o cântare.',
   'band.waiting': 'Așteptăm liderul',
@@ -398,6 +399,9 @@ const ro = {
   'settings.accidentalsHint':
     'Alege cum se afișează fiecare sunet echivalent. Fișierele originale nu sunt modificate.',
   'settings.followLeaderNotation': 'Ca liderul',
+  'settings.alwaysUsePerformanceKey': 'Folosește mereu acordurile tonalității cântate',
+  'settings.alwaysUsePerformanceKeyHint':
+    'Folosește implicit tonalitatea cântată în locul acordurilor afișate de lider. Poți alege în continuare alt ton pentru fiecare cântare.',
   'settings.customNotation': 'Alegerea mea',
   'settings.library': 'Arhiva',
   'settings.close': 'Închide setările',
@@ -777,6 +781,7 @@ const en: Record<TranslationKey, Entry> = {
   'band.onYourOwn': 'Independent',
   'band.hereNow': 'now',
   'band.asLeader': 'as the leader',
+  'band.asPerformanceKey': 'performance key',
   'band.key': 'key',
   'band.leaderNotOnSong': 'The leader is not on a song.',
   'band.waiting': 'Waiting for the leader',
@@ -901,6 +906,9 @@ const en: Record<TranslationKey, Entry> = {
   'settings.accidentalsHint':
     'Choose how each equivalent pitch is displayed. The original song files are not changed.',
   'settings.followLeaderNotation': 'As the Leader',
+  'settings.alwaysUsePerformanceKey': 'Always use performance key chords',
+  'settings.alwaysUsePerformanceKeyHint':
+    'Defaults to the sounding performance key instead of the Leader’s displayed chords. You can still choose another key for each song.',
   'settings.customNotation': 'My choice',
   'settings.library': 'Archive',
   'settings.close': 'Close settings',

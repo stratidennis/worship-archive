@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PREFS, normalisePrefs } from '../src/lib/settings.js';
 
 describe('display preference migration', () => {
+  it('keeps existing Band screens following the Leader key by default', () => {
+    expect(normalisePrefs({}).bandAlwaysUsesPerformanceKey).toBe(false);
+    expect(
+      normalisePrefs({ bandAlwaysUsesPerformanceKey: true }).bandAlwaysUsesPerformanceKey,
+    ).toBe(true);
+  });
+
   it('starts existing devices with the new minimum rather than reusing the old maximum', () => {
     const prefs = normalisePrefs({ maxFontPx: 26, showBlockTitles: true });
     expect(prefs.minFontPx).toBe(DEFAULT_PREFS.minFontPx);

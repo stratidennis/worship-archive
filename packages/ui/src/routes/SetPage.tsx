@@ -407,10 +407,9 @@ export function SetPage() {
   /*
     Key, transpose and capo travel together.
 
-    Saving the set triggers a library refresh, but that alone cannot reset a Band
-    member's local key: it does not say whether the Leader changed the musical setup or
-    merely renamed a note. Publishing this compact live instruction does both, and the
-    Leader revision makes every Band device give the newer choice priority.
+    Saving the set triggers a library refresh, but the live session must also receive
+    the complete current instruction. Band devices use it as their default while still
+    retaining any explicit per-song choice made by that musician for this session.
   */
   useEffect(() => {
     if (!leading || !synced || state.setId !== id || !set) return;

@@ -19,6 +19,12 @@ import {
 } from '../lib/useFitToScreen.js';
 import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { useHotkeys } from '../lib/useHotkeys.js';
+import {
+  EMPTY_BAND_KEY_CHOICES,
+  rememberBandKey,
+  rememberedBandKey,
+  resolveBandDisplayedKey,
+} from '../lib/bandKeyChoices.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { androidBand } from '../lib/androidBand.js';
@@ -128,19 +134,10 @@ export function BandPage() {
   const viewing = songAt(live.set, live.songs, itemIndex);
 
   /*
-    Key and capo: the leader's, unless this musician has said otherwise since.
-
-    Both are the leader's to set — they are properties of how the song is being played
-    this Sunday, not of this phone — so they arrive with the set and apply everywhere.
-    But a capoed guitar and a bass are not playing the same shapes, so anyone can
-    disagree locally.
-
-    The disagreement lasts until the leader decides something. Any change they make to
-    this song, or moving to another one, puts every device back on what they said:
-    otherwise a guitarist who transposed up two in the first song spends the rest of
-    the service two semitones away from the room, and nothing on their screen explains
-    why. Held in component state rather than in prefs for the same reason — this is an
-    opinion about one song in one service, not a setting.
+    Key and capo are the Leader's until this musician chooses otherwise. A manual
+    choice belongs to one song and one live session: navigating away and back restores
+    it, while the next rehearsal/service starts clean. The persistent preference below
+    changes only the default source; a manual song choice always remains strongest.
   */
   const accidentalPreferences = prefs.bandFollowsLeaderAccidentals
     ? (state.host?.accidentalPreferences ?? prefs.accidentalPreferences)
@@ -172,24 +169,30 @@ export function BandPage() {
   };
   const leaderDisplayedKey = keyAt(performanceKey, -leaderTranspose - leaderCapo);
 
-  const leaderSays = `${state.leaderRevision}:${itemIndex}`;
-  const [heard, setHeard] = useState(leaderSays);
-  const [displayedKeyOverride, setDisplayedKeyOverride] = useState<string | null>(null);
-  if (heard !== leaderSays) {
-    setHeard(leaderSays);
-    setDisplayedKeyOverride(null);
-  }
-
-  const displayedKey = displayedKeyOverride ?? leaderDisplayedKey;
+  const keySessionId = state.active
+    ? `${state.leaderId}:${state.sessionEpoch ?? 'legacy-session'}`
+    : null;
+  const songId = viewing?.song.id ?? null;
+  const [keyChoices, setKeyChoices] = useState(EMPTY_BAND_KEY_CHOICES);
+  const displayedKeyOverride = rememberedBandKey(keyChoices, keySessionId, songId);
+  const setDisplayedKeyOverride = (key: string | null): void =>
+    setKeyChoices((current) => rememberBandKey(current, keySessionId, songId, key));
+  const displayedKey = resolveBandDisplayedKey({
+    manualKey: displayedKeyOverride,
+    alwaysUsePerformanceKey: prefs.bandAlwaysUsesPerformanceKey,
+    performanceKey,
+    leaderDisplayedKey,
+  });
   const localOverride = displayedKeyOverride !== null;
-  const transpose = localOverride
+  const ignoresLeaderChordShapes = localOverride || prefs.bandAlwaysUsesPerformanceKey;
+  const transpose = ignoresLeaderChordShapes
     ? nativeKey && displayedKey
       ? (semitonesBetween(nativeKey, displayedKey) ?? 0)
       : 0
     : nativeKey && performanceKey
       ? (semitonesBetween(nativeKey, performanceKey) ?? 0) - leaderTranspose
       : -leaderTranspose;
-  const capoFret = localOverride ? 0 : leaderCapo;
+  const capoFret = ignoresLeaderChordShapes ? 0 : leaderCapo;
   const instrumentTranspose =
     localOverride && displayedKey && performanceKey
       ? signedSemitonesBetween(displayedKey, performanceKey)
@@ -344,8 +347,12 @@ export function BandPage() {
               aria-label={t('band.key')}
             >
               <option value="">
-                {t('band.asLeader')}
-                {leaderDisplayedKey ? ` - ${leaderDisplayedKey}` : ''}
+                {prefs.bandAlwaysUsesPerformanceKey
+                  ? t('band.asPerformanceKey')
+                  : t('band.asLeader')}
+                {(prefs.bandAlwaysUsesPerformanceKey ? performanceKey : leaderDisplayedKey)
+                  ? ` - ${prefs.bandAlwaysUsesPerformanceKey ? performanceKey : leaderDisplayedKey}`
+                  : ''}
               </option>
               {selectableKeys.map((key) => (
                 <option key={key} value={key}>
@@ -664,6 +671,23 @@ export function BandPage() {
             onChange={(chordColor) => setPrefs({ chordColor })}
           />
           <ChordSample colour={prefs.chordColor} />
+          <div className="mt-5 border-t border-(--color-line) pt-4">
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                className="mt-0.5"
+                checked={prefs.bandAlwaysUsesPerformanceKey}
+                onChange={(event) =>
+                  setPrefs({ bandAlwaysUsesPerformanceKey: event.target.checked })
+                }
+              />
+              <span>
+                <span className="block">{t('settings.alwaysUsePerformanceKey')}</span>
+                <span className="mt-1 block text-xs text-(--color-muted)">
+                  {t('settings.alwaysUsePerformanceKeyHint')}
+                </span>
+              </span>
+            </label>
+          </div>
           <div className="mt-5 border-t border-(--color-line) pt-4">
             <span className="mb-2 block text-sm">{t('settings.accidentals')}</span>
             <label className="flex items-start gap-2 text-sm">

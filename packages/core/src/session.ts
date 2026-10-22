@@ -241,9 +241,9 @@ export interface SessionState {
   /**
    * Increases whenever the Leader changes the live song, key, transpose or capo.
    *
-   * Band devices use this to know when a newer musical choice supersedes a local key
-   * override. `rev` also changes for tempo, appearance and administrative settings, so
-   * it cannot serve that narrower purpose.
+   * Kept as a narrow musical revision for protocol compatibility and for clients that
+   * need to distinguish a musical instruction from tempo, appearance, or administrative
+   * changes. Current Band clients keep their own per-song choice for the whole session.
    */
   leaderRevision: number;
 

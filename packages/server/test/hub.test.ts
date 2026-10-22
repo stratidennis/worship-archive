@@ -315,7 +315,7 @@ describe('driving the service', () => {
     leader.ws.close();
   });
 
-  it('only resets Band key choices for a newer musical instruction', async () => {
+  it('increments the musical revision only for a newer musical instruction', async () => {
     const leader = await connect();
     identify(leader, 'leader', 'leader-performance');
     send(leader, { t: 'patch', patch: { active: true, setId: 'sunday' } });
