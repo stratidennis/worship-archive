@@ -44,6 +44,9 @@ await build({
 
 const data = join(work, 'data');
 await mkdir(join(data, 'songs'), { recursive: true });
+const presentationsDir = join(work, 'presentations');
+await mkdir(presentationsDir, { recursive: true });
+await writeFile(join(presentationsDir, 'Bunatatea Ta.odp'), 'example ODP file');
 await writeFile(
   join(data, 'songs', 'smoke.chopro'),
   '{title: Bunătatea Ta}\n{key: G}\n{x_id: smoke-1}\n\n{start_of_verse: V1}\nEu Te iu[G]besc\n{end_of_verse}\n',
@@ -77,6 +80,7 @@ await writeFile(
 const server = await startServer({
   dataDir: data,
   uiDir: ui,
+  powerpointsDir: presentationsDir,
   port: 7999,
   mdns: false,
   watch: false,
@@ -109,7 +113,7 @@ try {
   check('a song parses back out', song.blocks[0].lines[0].chords[0].raw === 'G');
 
   // Keep the presentation feature in the packaged server contract. A stale desktop
-  // bundle used to serve the new PowerPoint interface with an older API and returned
+  // bundle used to serve the presentation interface with an older API and returned
   // 404 here, even though source-level presentation tests all passed.
   const presentations = await fetch(`${base}/api/powerpoints/find`, {
     method: 'POST',
@@ -118,9 +122,23 @@ try {
   });
   const presentationReport = await presentations.json();
   check(
-    'the PowerPoint lookup route is bundled',
-    presentations.ok && presentationReport.results?.[0]?.songId === song.id,
+    'the ODP lookup route is bundled',
+    presentations.ok &&
+      presentationReport.results?.[0]?.songId === song.id &&
+      presentationReport.results?.[0]?.file?.name === 'Bunatatea Ta.odp',
     `${presentations.status}`,
+  );
+  const downloaded = await fetch(
+    `${base}/api/powerpoints/file?path=${encodeURIComponent('Bunatatea Ta.odp')}`,
+  );
+  check(
+    'the ODP download keeps its format',
+    downloaded.ok &&
+      downloaded.headers
+        .get('content-type')
+        ?.includes('application/vnd.oasis.opendocument.presentation') &&
+      downloaded.headers.get('content-disposition')?.includes('presentation.odp'),
+    `${downloaded.status}`,
   );
 
   // The WebSocket hub upgrades on the same server; a bundled `ws` that cannot upgrade

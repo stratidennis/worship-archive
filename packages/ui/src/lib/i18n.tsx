@@ -492,6 +492,8 @@ const ro = {
   'settings.lastSync': 'ultima sincronizare {when}',
   'settings.neverSynced': 'nesincronizat încă',
   'settings.resync': 'Sincronizează acum',
+  'settings.resyncHint':
+    'Actualizează cântările și programele salvate pe acest dispozitiv din arhiva liderului. Sincronizarea cu cloudul se face separat.',
   'settings.shortcuts': 'Scurtături de tastatură',
 
   // --- chord cleanup --------------------------------------------------------
@@ -998,6 +1000,8 @@ const en: Record<TranslationKey, Entry> = {
   'settings.lastSync': 'last synced {when}',
   'settings.neverSynced': 'never synced',
   'settings.resync': 'Sync now',
+  'settings.resyncHint':
+    'Refreshes the songs and sets saved on this device from the Leader’s library. Cloud synchronization is separate.',
   'settings.shortcuts': 'Keyboard shortcuts',
 
   'cleanup.title': 'Tidy up the chords',

@@ -1,5 +1,5 @@
 /**
- * PowerPoint discovery and generation.
+ * Presentation discovery and PowerPoint-compatible generation.
  *
  * The configured folder is intentionally separate from the song library. Churches
  * often keep presentations on a shared drive with years of subfolders, and moving
@@ -12,7 +12,27 @@ import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import type { Block, Song } from '@worship/core';
 
-const POWERPOINT_EXTENSIONS = new Set(['.ppt', '.pptx', '.pptm', '.pps', '.ppsx', '.ppsm']);
+// Slide decks and presentation templates supported by PowerPoint, ONLYOFFICE,
+// Keynote, LibreOffice, or WPS. Keep this list explicit so unrelated files in
+// shared presentation folders cannot be offered for download or opening.
+const PRESENTATION_EXTENSIONS = new Set([
+  '.ppt',
+  '.pptx',
+  '.pptm',
+  '.pps',
+  '.ppsx',
+  '.ppsm',
+  '.pot',
+  '.potx',
+  '.potm',
+  '.odp',
+  '.otp',
+  '.fodp',
+  '.key',
+  '.sxi',
+  '.dps',
+  '.dpt',
+]);
 const AUDIENCE_BLOCKS = new Set(['Verse', 'Chorus', 'Bridge']);
 
 export interface PowerPointFile {
@@ -35,8 +55,8 @@ export interface PowerPointReport {
 
 /** Remove accents, punctuation and file extensions for tolerant comparisons. */
 export function comparableName(value: string): string {
-  return value
-    .replace(/\.(?:ppt|pptx|pptm|pps|ppsx|ppsm)$/i, '')
+  const extension = extname(value).toLocaleLowerCase('en');
+  return (PRESENTATION_EXTENSIONS.has(extension) ? value.slice(0, -extension.length) : value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[’'`]/g, '')
@@ -121,7 +141,7 @@ function presentationFiles(root: string): PowerPointFile[] {
       if (entry.isDirectory()) walk(full);
       else if (
         entry.isFile() &&
-        POWERPOINT_EXTENSIONS.has(extname(entry.name).toLocaleLowerCase())
+        PRESENTATION_EXTENSIONS.has(extname(entry.name).toLocaleLowerCase('en'))
       ) {
         found.push({ name: entry.name, relativePath: relative(root, full) });
       }
@@ -317,6 +337,28 @@ export function resolvePowerPointFile(root: string, candidate: string): string |
   if (rel === '' || rel.startsWith(`..${sep}`) || rel === '..' || resolve(rel) === rel)
     return null;
   if (!existsSync(full) || !statSync(full).isFile()) return null;
-  if (!POWERPOINT_EXTENSIONS.has(extname(full).toLocaleLowerCase())) return null;
+  if (!PRESENTATION_EXTENSIONS.has(extname(full).toLocaleLowerCase('en'))) return null;
   return full;
+}
+
+/** Preserve each source format when a browser downloads a presentation. */
+export function presentationMimeType(path: string): string {
+  const extension = extname(path).toLocaleLowerCase('en');
+  const types: Record<string, string> = {
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pps': 'application/vnd.ms-powerpoint',
+    '.pot': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.ppsx': 'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+    '.potx': 'application/vnd.openxmlformats-officedocument.presentationml.template',
+    '.pptm': 'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+    '.ppsm': 'application/vnd.ms-powerpoint.slideshow.macroEnabled.12',
+    '.potm': 'application/vnd.ms-powerpoint.template.macroEnabled.12',
+    '.odp': 'application/vnd.oasis.opendocument.presentation',
+    '.otp': 'application/vnd.oasis.opendocument.presentation-template',
+    '.fodp': 'application/vnd.oasis.opendocument.presentation-flat-xml',
+    '.key': 'application/vnd.apple.keynote',
+    '.sxi': 'application/vnd.sun.xml.impress',
+  };
+  return types[extension] ?? 'application/octet-stream';
 }

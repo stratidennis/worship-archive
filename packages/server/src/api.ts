@@ -9,7 +9,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { createReadStream, existsSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { hostname, networkInterfaces } from 'node:os';
 import {
@@ -39,6 +39,7 @@ import { isLoopbackAddress } from './network.js';
 import {
   createMissingPowerPoints,
   findPowerPoints,
+  presentationMimeType,
   resolvePowerPointFile,
 } from './powerpoints.js';
 import { cloudSyncStatus, syncCloudFolder } from './cloud-sync.js';
@@ -481,7 +482,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
 
   app.post('/api/powerpoints/find', async (request, reply) => {
     if (!options.powerpointsDir) {
-      return reply.code(503).send({ error: 'PowerPoint folder is not configured' });
+      return reply.code(503).send({ error: 'Presentations folder is not configured' });
     }
     const songs = requestedSongs(request.body);
     if (!songs) return reply.code(400).send({ error: 'expected songIds' });
@@ -490,7 +491,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
 
   app.post('/api/powerpoints/create', async (request, reply) => {
     if (!options.powerpointsDir) {
-      return reply.code(503).send({ error: 'PowerPoint folder is not configured' });
+      return reply.code(503).send({ error: 'Presentations folder is not configured' });
     }
     const songs = requestedSongs(request.body);
     if (!songs) return reply.code(400).send({ error: 'expected songIds' });
@@ -511,12 +512,9 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const name = basename(full);
     reply.header(
       'Content-Disposition',
-      `attachment; filename="presentation.pptx"; filename*=UTF-8''${encodeURIComponent(name)}`,
+      `attachment; filename="presentation${extname(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`,
     );
-    reply.header(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    );
+    reply.header('Content-Type', presentationMimeType(name));
     return reply.send(createReadStream(full));
   });
 

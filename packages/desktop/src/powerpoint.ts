@@ -3,7 +3,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { win32 } from 'node:path';
+import { extname, win32 } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -186,9 +186,30 @@ export async function openInOnlyOffice(paths: string[]): Promise<void> {
   throw new Error('ONLYOFFICE launch is supported on Windows and macOS.');
 }
 
-/** The caller uses the system file association if neither editor can launch. */
+export function preferredPresentationApps(paths: string[]): Array<'powerpoint' | 'onlyoffice'> {
+  const extensions = paths.map((path) => extname(path).toLocaleLowerCase('en'));
+  // Keynote files need their registered app. These formats are supported by
+  // ONLYOFFICE, but cannot reliably be opened by Microsoft PowerPoint.
+  if (extensions.includes('.key')) return [];
+  if (
+    extensions.some((extension) =>
+      ['.dps', '.dpt', '.fodp', '.otp', '.sxi'].includes(extension),
+    )
+  ) {
+    return ['onlyoffice'];
+  }
+  return ['powerpoint', 'onlyoffice'];
+}
+
+/** The caller uses the system file association if no preferred editor can launch. */
 export async function openInPresentationApp(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
+  const preferred = preferredPresentationApps(paths);
+  if (preferred.length === 0) throw new Error('Open with the default presentation app.');
+  if (preferred[0] === 'onlyoffice') {
+    await openInOnlyOffice(paths);
+    return;
+  }
   try {
     await openInMicrosoftPowerPoint(paths);
   } catch {

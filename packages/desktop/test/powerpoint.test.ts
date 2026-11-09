@@ -3,6 +3,7 @@ import {
   executablePathFromRegistry,
   macOnlyOfficeCandidates,
   powerPointPathFromRegistry,
+  preferredPresentationApps,
   windowsOnlyOfficeCandidates,
   windowsPowerPointCandidates,
 } from '../src/powerpoint.js';
@@ -69,5 +70,27 @@ describe('locating ONLYOFFICE on macOS', () => {
       '/Applications/ONLYOFFICE.app/Contents/MacOS/ONLYOFFICE',
       '/Users/singer/Applications/ONLYOFFICE.app/Contents/MacOS/ONLYOFFICE',
     ]);
+  });
+});
+
+describe('choosing a presentation app for each format', () => {
+  it('tries PowerPoint then ONLYOFFICE for ODP and PowerPoint files', () => {
+    expect(preferredPresentationApps(['/slides/song.odp'])).toEqual([
+      'powerpoint',
+      'onlyoffice',
+    ]);
+    expect(preferredPresentationApps(['/slides/song.pptx'])).toEqual([
+      'powerpoint',
+      'onlyoffice',
+    ]);
+  });
+
+  it('uses ONLYOFFICE for its other supported formats', () => {
+    expect(preferredPresentationApps(['/slides/song.fodp'])).toEqual(['onlyoffice']);
+    expect(preferredPresentationApps(['/slides/song.dps'])).toEqual(['onlyoffice']);
+  });
+
+  it('leaves Keynote files to the operating system default app', () => {
+    expect(preferredPresentationApps(['/slides/song.key'])).toEqual([]);
   });
 });

@@ -12,11 +12,14 @@ import { join } from 'node:path';
 import { emptyBlock, emptyLine, type BlockType, type Song } from '@worship/core';
 import {
   createPowerPoint,
+  comparableName,
   findPowerPoints,
   firstAudienceLine,
   generatedPowerPointName,
   lyricFontSize,
   lyricLineSpacing,
+  presentationMimeType,
+  resolvePowerPointFile,
   slideGroups,
 } from '../src/powerpoints.js';
 
@@ -70,6 +73,55 @@ describe('PowerPoint names and matching', () => {
     const result = findPowerPoints(dir, [value]).results[0]!;
     expect(result.status).toBe('found');
     expect(result.file?.relativePath).toContain(join('2026', 'Sunday'));
+  });
+
+  it('finds an ODP presentation and matches its title without the extension', () => {
+    const nested = join(dir, 'OpenDocument');
+    mkdirSync(nested);
+    writeFileSync(join(nested, 'Ce mare esti Tu.ODP'), 'existing');
+    const value = song([{ type: 'Verse', lines: ['Splendoare de-mpărat'] }]);
+    const result = findPowerPoints(dir, [value]).results[0]!;
+    expect(result.status).toBe('found');
+    expect(result.file?.relativePath).toBe(join('OpenDocument', 'Ce mare esti Tu.ODP'));
+  });
+
+  it('recognizes supported slide formats but not unrelated files', () => {
+    for (const extension of [
+      'ppt',
+      'pptx',
+      'pptm',
+      'pps',
+      'ppsx',
+      'ppsm',
+      'pot',
+      'potx',
+      'potm',
+      'odp',
+      'otp',
+      'fodp',
+      'key',
+      'sxi',
+      'dps',
+      'dpt',
+    ]) {
+      const name = `Example.${extension.toUpperCase()}`;
+      writeFileSync(join(dir, name), 'presentation');
+      expect(resolvePowerPointFile(dir, name)).toBe(join(dir, name));
+      expect(comparableName(name)).toBe('example');
+    }
+    writeFileSync(join(dir, 'Example.pdf'), 'unrelated');
+    expect(resolvePowerPointFile(dir, 'Example.pdf')).toBeNull();
+  });
+
+  it('uses the original presentation format for browser downloads', () => {
+    expect(presentationMimeType('Example.ODP')).toBe(
+      'application/vnd.oasis.opendocument.presentation',
+    );
+    expect(presentationMimeType('Example.ppsx')).toBe(
+      'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+    );
+    expect(presentationMimeType('Example.key')).toBe('application/vnd.apple.keynote');
+    expect(presentationMimeType('Example.dps')).toBe('application/octet-stream');
   });
 
   it('prefers the first verse over notes and introductions', () => {

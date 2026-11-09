@@ -457,7 +457,8 @@ export function SettingsPage() {
               </div>
             )}
 
-            <p className="mt-3 text-sm text-(--color-muted)">
+            <p className="mt-3 text-xs text-(--color-muted)">{t('settings.resyncHint')}</p>
+            <p className="mt-2 text-sm text-(--color-muted)">
               {t('settings.mirror', { songs: mirror?.songs ?? 0 })} ·{' '}
               {mirror?.lastSync
                 ? t('settings.lastSync', { when: new Date(mirror.lastSync).toLocaleString() })
