@@ -51,6 +51,15 @@ const MIN_BACKOFF = 500;
 const MAX_BACKOFF = 10_000;
 const DEVICE_ID_KEY = 'worship-archive:device-id';
 
+/** A new socket's first session frame is the host's authoritative snapshot. */
+export function acceptsSessionSnapshot(
+  firstOnConnection: boolean,
+  previousRevision: number,
+  incomingRevision: number,
+): boolean {
+  return firstOnConnection || incomingRevision >= previousRevision;
+}
+
 /**
  * An id identifying this *tab*, surviving reconnects and reloads.
  *
@@ -123,6 +132,9 @@ export function useSession(
         return;
       }
       socket.current = ws;
+      // Revisions are ordered only within one connection to one host. A newly
+      // discovered Leader may start at a lower revision than the previous host.
+      let receivedSnapshot = false;
 
       // Every handler checks that this socket is still the current one. A socket that
       // has been replaced can still deliver a late close event, and without this guard
@@ -154,11 +166,22 @@ export function useSession(
           return;
         }
         switch (message.t) {
-          case 'session':
-            // Ignore a frame that lost a race with a newer one.
-            setState((current) => (message.state.rev >= current.rev ? message.state : current));
+          // The first frame on a new socket is authoritative even if its revision
+          // is lower than the old host's. Later frames retain the race guard.
+          case 'session': {
+            const firstSnapshot = !receivedSnapshot;
+            setState((current) =>
+              acceptsSessionSnapshot(firstSnapshot, current.rev, message.state.rev)
+                ? message.state
+                : current,
+            );
+            receivedSnapshot = true;
+            // A new host can use the same set id with different song files. Refresh
+            // the cached library even when its session revision is lower.
+            if (firstSnapshot) setLibraryRev((revision) => revision + 1);
             setSynced(true);
             break;
+          }
           case 'devices':
             setDevices(message.devices);
             break;
@@ -182,6 +205,7 @@ export function useSession(
         if (socket.current !== ws) return;
         socket.current = null;
         setStatus('offline');
+        setSynced(false);
         schedule();
       };
       ws.onerror = () => ws.close();

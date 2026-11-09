@@ -77,6 +77,15 @@ describe('fit-to-screen font floor', () => {
 });
 
 describe('one-column-first fitting', () => {
+  it('checks the exact minimum in two columns even when an intermediate fragmented layout overflows', async () => {
+    const result = await chooseFit({
+      minFontPx: 32,
+      maxFittedFontPx: 72,
+      columns: [1, 2],
+      overflows: async (font, columns) => columns === 1 || (font > 32 && font < 54),
+    });
+    expect(result).toMatchObject({ fontPx: 32, columns: 2, fits: true });
+  });
   it('fills the available space in one column before considering more columns', async () => {
     const tried: number[] = [];
     const result = await chooseFit({

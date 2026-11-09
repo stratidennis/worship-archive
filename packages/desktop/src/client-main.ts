@@ -70,6 +70,7 @@ let udpRetry: NodeJS.Timeout | null = null;
 let leader: LeaderEndpoint | null = null;
 let sleepBlocker: number | null = null;
 let stopping = false;
+const proxyClients = new Set<WebSocket>();
 const mdnsLeaders = new Map<string, LeaderEndpoint>();
 const udpLeaders = new Map<string, LeaderEndpoint & { seenAt: number }>();
 
@@ -96,15 +97,26 @@ function serviceEndpoint(service: Service): LeaderEndpoint | null {
 }
 
 function selectLeader(): void {
+  const previous = leader;
   const leaders = new Map<string, LeaderEndpoint>();
-  for (const endpoint of udpLeaders.values()) leaders.set(endpoint.id, endpoint);
-  // Prefer the richer mDNS result when both discovery paths found the same Leader.
   for (const endpoint of mdnsLeaders.values()) leaders.set(endpoint.id, endpoint);
+  // Broadcast replies come from the Leader's current interface address. A cached
+  // mDNS record can retain an old IP after Wi-Fi changes, so fresh replies win.
+  for (const endpoint of udpLeaders.values()) leaders.set(endpoint.id, endpoint);
   const preferred = settings.preferredLeaderId
     ? leaders.get(settings.preferredLeaderId)
     : undefined;
   leader =
     preferred ?? (leaders.size === 1 ? leaders.values().next().value : undefined) ?? null;
+  if (
+    previous?.id !== leader?.id ||
+    previous?.host !== leader?.host ||
+    previous?.port !== leader?.port
+  ) {
+    // A socket to an old address may remain half-open after Wi-Fi changes. Force
+    // the renderer's retry loop to connect through the newly selected endpoint.
+    for (const client of proxyClients) client.close();
+  }
 }
 
 function stopMdnsDiscovery(): void {
@@ -326,6 +338,7 @@ function proxyHttp(request: IncomingMessage, response: ServerResponse): void {
     if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' });
     response.end('{"error":"leader unavailable"}');
   });
+  upstream.setTimeout(5000, () => upstream.destroy());
   request.pipe(upstream);
 }
 
@@ -365,7 +378,10 @@ async function startShellServer(): Promise<void> {
     }
     const endpoint = leader;
     wss.handleUpgrade(request, socket, head, (client) => {
-      const upstream = new WebSocket(`ws://${endpoint.host}:${endpoint.port}/ws`);
+      proxyClients.add(client);
+      const upstream = new WebSocket(`ws://${endpoint.host}:${endpoint.port}/ws`, {
+        handshakeTimeout: 5000,
+      });
       const queued: { data: WebSocket.RawData; binary: boolean }[] = [];
 
       client.on('message', (data, binary) => {
@@ -384,8 +400,14 @@ async function startShellServer(): Promise<void> {
       });
       upstream.on('close', () => client.close());
       upstream.on('error', () => client.close());
-      client.on('close', () => upstream.close());
-      client.on('error', () => upstream.close());
+      client.on('close', () => {
+        proxyClients.delete(client);
+        upstream.close();
+      });
+      client.on('error', () => {
+        proxyClients.delete(client);
+        upstream.close();
+      });
     });
   });
 

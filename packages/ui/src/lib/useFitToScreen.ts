@@ -178,9 +178,13 @@ export async function chooseFit({
   overflows: (fontPx: number, columns: number) => Promise<boolean>;
 }): Promise<FitChoice> {
   const largestFit = async (columnCount: number): Promise<number> => {
+    // Column fragmentation can change discontinuously as a whole block moves
+    // between columns. A binary search alone may miss a fitting minimum after
+    // an intermediate size overflows, incorrectly showing Stage's warning.
+    if (await overflows(minFontPx, columnCount)) return 0;
     let low = minFontPx;
     let high = Math.max(minFontPx, maxFittedFontPx);
-    let found = 0;
+    let found = minFontPx;
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       if (await overflows(mid, columnCount)) high = mid - 1;
