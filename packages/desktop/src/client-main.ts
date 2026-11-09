@@ -38,7 +38,7 @@ import {
   type ClientRole,
   type ClientSettings,
 } from './client-settings.js';
-import { openInMicrosoftPowerPoint } from './powerpoint.js';
+import { openInPresentationApp } from './powerpoint.js';
 import { installHistoryCommands } from './navigation.js';
 
 declare const __WORSHIP_DESKTOP_ROLE__: ClientRole;
@@ -596,7 +596,7 @@ function registerIpc(): void {
   ipcMain.handle('worship-client:choose-powerpoints-dir', async () => {
     if (ROLE !== 'band') return null;
     const result = await dialog.showOpenDialog({
-      title: 'Choose the PowerPoints folder',
+      title: 'Choose the presentations folder',
       properties: ['openDirectory', 'createDirectory'],
       defaultPath: settings.powerpointsDir,
     });
@@ -627,14 +627,14 @@ function registerIpc(): void {
     for (const candidate of paths) {
       if (typeof candidate !== 'string') continue;
       const full = resolvePowerPointFile(settings.powerpointsDir, candidate);
-      if (!full) throw new Error(`PowerPoint file was not found: ${candidate}`);
+      if (!full) throw new Error(`Presentation file was not found: ${candidate}`);
       files.push({ relativePath: candidate, fullPath: full });
     }
     try {
-      await openInMicrosoftPowerPoint(files.map((file) => file.fullPath));
+      await openInPresentationApp(files.map((file) => file.fullPath));
       return [];
     } catch {
-      // PowerPoint is preferred, but another registered presentation app is valid.
+      // Any presentation app registered as the system default is valid.
       const failed: string[] = [];
       for (const file of files) {
         const error = await shell.openPath(file.fullPath);

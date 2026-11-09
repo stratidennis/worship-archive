@@ -39,7 +39,7 @@ import {
   type RunningServer,
 } from '@worship/server';
 import { loadSettings, saveSettings, isFirstRun, type DesktopSettings } from './settings.js';
-import { openInMicrosoftPowerPoint } from './powerpoint.js';
+import { openInPresentationApp } from './powerpoint.js';
 import { installHistoryCommands } from './navigation.js';
 
 // `__dirname` is the bundle's own folder: `resources/app/dist` when packaged.
@@ -590,7 +590,7 @@ function registerIpc(): void {
 
   ipcMain.handle('worship:choose-powerpoints-dir', async () => {
     const result = await dialog.showOpenDialog({
-      title: 'Choose the PowerPoints folder',
+      title: 'Choose the presentations folder',
       properties: ['openDirectory', 'createDirectory'],
       defaultPath: settings.powerpointsDir,
     });
@@ -620,14 +620,14 @@ function registerIpc(): void {
     for (const candidate of paths) {
       if (typeof candidate !== 'string') continue;
       const full = resolvePowerPointFile(settings.powerpointsDir, candidate);
-      if (!full) throw new Error(`PowerPoint file was not found: ${candidate}`);
+      if (!full) throw new Error(`Presentation file was not found: ${candidate}`);
       files.push({ relativePath: candidate, fullPath: full });
     }
     try {
-      await openInMicrosoftPowerPoint(files.map((file) => file.fullPath));
+      await openInPresentationApp(files.map((file) => file.fullPath));
       return [];
     } catch {
-      // PowerPoint is preferred, but another registered presentation app is valid.
+      // Any presentation app registered as the system default is valid.
       const failed: string[] = [];
       for (const file of files) {
         const error = await shell.openPath(file.fullPath);

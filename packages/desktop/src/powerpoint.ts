@@ -1,7 +1,8 @@
-/** Prefer Microsoft PowerPoint while allowing callers to fall back to the default app. */
+/** Launch presentation files in a desktop editor before falling back to the OS default. */
 
 import { execFile, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { win32 } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -23,6 +24,31 @@ export function windowsPowerPointCandidates(
     }
   }
   return [...candidates];
+}
+
+export function windowsOnlyOfficeCandidates(
+  environment: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const roots = [
+    environment['LOCALAPPDATA'],
+    environment['ProgramW6432'],
+    environment['ProgramFiles'],
+    environment['ProgramFiles(x86)'],
+  ].filter((value): value is string => Boolean(value));
+  return [
+    ...new Set(
+      roots.map((root) =>
+        win32.join(root, 'ONLYOFFICE', 'DesktopEditors', 'DesktopEditors.exe'),
+      ),
+    ),
+  ];
+}
+
+export function macOnlyOfficeCandidates(home = homedir()): string[] {
+  return [
+    '/Applications/ONLYOFFICE.app/Contents/MacOS/ONLYOFFICE',
+    `${home}/Applications/ONLYOFFICE.app/Contents/MacOS/ONLYOFFICE`,
+  ];
 }
 
 export function powerPointPathFromRegistry(output: string): string | null {
@@ -48,6 +74,42 @@ async function windowsPowerPointPath(): Promise<string | null> {
     }
   }
   return windowsPowerPointCandidates().find(existsSync) ?? null;
+}
+
+async function windowsOnlyOfficePath(): Promise<string | null> {
+  const keys = [
+    'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\DesktopEditors.exe',
+    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\DesktopEditors.exe',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\App Paths\\DesktopEditors.exe',
+  ];
+  for (const key of keys) {
+    try {
+      const { stdout } = await execFileAsync('reg.exe', ['query', key, '/ve'], {
+        windowsHide: true,
+      });
+      const found = executablePathFromRegistry(stdout, 'DesktopEditors.exe');
+      if (found && existsSync(found)) return found;
+    } catch {
+      // The app can be installed without an App Paths entry.
+    }
+  }
+  return windowsOnlyOfficeCandidates().find(existsSync) ?? null;
+}
+
+export function executablePathFromRegistry(output: string, executable: string): string | null {
+  const line = output
+    .split(/\r?\n/)
+    .find(
+      (value) =>
+        value.includes('REG_SZ') && value.toLowerCase().includes(executable.toLowerCase()),
+    );
+  if (!line) return null;
+  const value =
+    line
+      .split(/REG_SZ/i)[1]
+      ?.trim()
+      .replace(/^"|"$/g, '') ?? '';
+  return value.toLowerCase().endsWith(executable.toLowerCase()) ? value : null;
 }
 
 function spawnDetached(command: string, args: string[]): Promise<void> {
@@ -93,4 +155,43 @@ export async function openInMicrosoftPowerPoint(paths: string[]): Promise<void> 
     }
   }
   throw new Error('Opening Microsoft PowerPoint is supported on Windows and macOS.');
+}
+
+export async function openInOnlyOffice(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  if (process.platform === 'darwin') {
+    try {
+      await execFileAsync('/usr/bin/open', ['-a', 'ONLYOFFICE', ...paths]);
+      return;
+    } catch {
+      // Launch Services may not have registered an otherwise usable app bundle.
+      for (const executable of macOnlyOfficeCandidates()) {
+        if (!existsSync(executable)) continue;
+        try {
+          await spawnDetached(executable, paths);
+          return;
+        } catch {
+          // Try another installation before falling back to the file association.
+        }
+      }
+      throw new Error('ONLYOFFICE is not installed or could not be opened.');
+    }
+  }
+  if (process.platform === 'win32') {
+    const executable = await windowsOnlyOfficePath();
+    if (!executable) throw new Error('ONLYOFFICE is not installed.');
+    await spawnDetached(executable, paths);
+    return;
+  }
+  throw new Error('ONLYOFFICE launch is supported on Windows and macOS.');
+}
+
+/** The caller uses the system file association if neither editor can launch. */
+export async function openInPresentationApp(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  try {
+    await openInMicrosoftPowerPoint(paths);
+  } catch {
+    await openInOnlyOffice(paths);
+  }
 }
