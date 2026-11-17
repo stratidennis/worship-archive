@@ -138,6 +138,7 @@ final class ChordPro {
             else if ("x_performance_key".equals(name)) nullable(song, "performanceKey", nullableString(value));
             else if ("x_tags".equals(name)) song.put("tags", csv(value));
             else if ("x_collections".equals(name)) song.put("collectionIds", csv(value));
+            else if ("x_arrangement_source".equals(name)) song.put("arrangementSource", value);
             else if ("x_arrangement".equals(name)) { JSONArray values = words(value); nullable(song, "arrangement", values.length() == 0 ? null : values); }
             else if ("x_created".equals(name) && value != null) song.put("createdAt", value);
             else if ("x_updated".equals(name) && value != null) song.put("updatedAt", value);
@@ -225,6 +226,7 @@ final class ChordPro {
         add(out, directive("x_performance_key", value(song, "performanceKey")));
         JSONArray tags = song.optJSONArray("tags"); add(out, directive("x_tags", tags == null || tags.length() == 0 ? null : join(tags, ", ")));
         JSONArray collections = song.optJSONArray("collectionIds"); add(out, directive("x_collections", collections == null || collections.length() == 0 ? null : join(collections, ", ")));
+        add(out, directive("x_arrangement_source", song.optString("arrangementSource", null)));
         JSONArray arrangement = song.optJSONArray("arrangement"); add(out, directive("x_arrangement", arrangement == null || arrangement.length() == 0 ? null : join(arrangement, " ")));
         add(out, directive("x_created", song.optString("createdAt"))); add(out, directive("x_updated", song.optString("updatedAt"))); add(out, directive("x_rev", song.opt("rev")));
         JSONArray blocks = song.optJSONArray("blocks");

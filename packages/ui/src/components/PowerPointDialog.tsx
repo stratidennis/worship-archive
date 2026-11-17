@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Song } from '@worship/core';
-import { api, type PowerPointReport } from '../lib/api.js';
+import type { PowerPointReport } from '../lib/api.js';
+import { presentationApi as api } from '../lib/presentationApi.js';
+import { supportsPresentations } from '../lib/presentationCapabilities.js';
 import { clientDesktop } from '../lib/clientDesktop.js';
 import { desktop } from '../lib/desktop.js';
 import { useT } from '../lib/i18n.js';
@@ -32,12 +34,21 @@ export function PowerPointDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ids = useMemo(() => songs.map((song) => song.id), [songs]);
-  const supported = role === 'leader' || band !== null;
+  const arrangements = useMemo(
+    () =>
+      Object.fromEntries(
+        songs
+          .filter((song) => song.arrangementSource === 'reviewed' && song.arrangement)
+          .map((song) => [song.id, song.arrangement!]),
+      ),
+    [songs],
+  );
+  const supported = supportsPresentations(role);
 
   useEffect(() => {
     if (!supported || ids.length === 0) return;
     let cancelled = false;
-    const request = band ? band.findPowerPoints(songs) : api.findPowerPoints(ids);
+    const request = band ? band.findPowerPoints(songs) : api.findPowerPoints(ids, arrangements);
     void request
       .then((value) => {
         if (!cancelled) setReport(value);
@@ -48,7 +59,7 @@ export function PowerPointDialog({
     return () => {
       cancelled = true;
     };
-  }, [band, ids, songs, supported]);
+  }, [arrangements, band, ids, songs, supported]);
 
   const found = report?.results.filter((result) => result.status === 'found') ?? [];
   const missing = report?.results.filter((result) => result.status === 'missing') ?? [];
@@ -57,7 +68,11 @@ export function PowerPointDialog({
     setBusy(true);
     setError(null);
     try {
-      setReport(band ? await band.createPowerPoints(songs) : await api.createPowerPoints(ids));
+      setReport(
+        band
+          ? await band.createPowerPoints(songs)
+          : await api.createPowerPoints(ids, arrangements),
+      );
     } catch (reason) {
       setError(String(reason));
     } finally {
@@ -75,8 +90,8 @@ export function PowerPointDialog({
         await band.createPowerPoints([selected]);
         setReport(await band.findPowerPoints(songs));
       } else {
-        await api.createPowerPoints([songId]);
-        setReport(await api.findPowerPoints(ids));
+        await api.createPowerPoints([songId], arrangements);
+        setReport(await api.findPowerPoints(ids, arrangements));
       }
     } catch (reason) {
       setError(String(reason));

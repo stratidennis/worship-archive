@@ -1,3 +1,4 @@
+import { supportsPresentations } from '../lib/presentationCapabilities.js';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi, api, type Backup, type CloudSyncStatus } from '../lib/api.js';
@@ -516,7 +517,7 @@ export function SettingsPage() {
             </Section>
           )}
 
-          {native && state && (
+          {supportsPresentations() && native && state && (
             <Section title={t('settings.powerpoints')}>
               <span className="block text-xs uppercase tracking-wide text-(--color-muted)">
                 {t('settings.powerpointsDir')}

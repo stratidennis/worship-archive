@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  define: { __PRESENTATIONS__: JSON.stringify(process.env['WORSHIP_PLATFORM'] !== 'android') },
+  build: { outDir: process.env['WORSHIP_PLATFORM'] === 'android' ? 'dist-android' : 'dist' },
   plugins: [
     react(),
     tailwindcss(),

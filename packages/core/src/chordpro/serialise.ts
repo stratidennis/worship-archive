@@ -92,6 +92,7 @@ export function serialiseChordPro(song: Song): string {
       'x_collections',
       song.collectionIds.length ? song.collectionIds.join(', ') : null,
     ),
+    directive('x_arrangement_source', song.arrangementSource ?? null),
     directive('x_arrangement', song.arrangement?.length ? song.arrangement.join(' ') : null),
     directive('x_created', song.createdAt),
     directive('x_updated', song.updatedAt),

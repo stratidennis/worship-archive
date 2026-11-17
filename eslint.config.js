@@ -24,6 +24,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/dist-android/**',
       '**/node_modules/**',
       'data/**',
       '**/*.d.ts',

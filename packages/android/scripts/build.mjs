@@ -39,7 +39,19 @@ for (const tool of ['aapt2', 'd8', 'zipalign', 'apksigner']) {
 }
 if (!existsSync(platform))
   throw new Error('Android SDK platform 36 is required. Nothing was downloaded.');
-const ui = join(workspace, 'packages/ui/dist');
+// Always produce an Android-specific bundle: desktop presentation modules must not ship.
+run('pnpm', ['--filter', '@worship/ui', 'build'], {
+  cwd: workspace,
+  env: { ...process.env, WORSHIP_PLATFORM: 'android' },
+});
+const ui = join(workspace, 'packages/ui/dist-android');
+for (const file of readdirSync(join(ui, 'assets'))) {
+  if (!file.endsWith('.js')) continue;
+  const source = readFileSync(join(ui, 'assets', file), 'utf8');
+  if (source.includes('/api/powerpoints/') || file.includes('PowerPointDialog')) {
+    throw new Error(`Desktop presentation implementation leaked into Android: ${file}`);
+  }
+}
 if (!existsSync(join(ui, 'index.html')))
   throw new Error('Build the shared UI first: pnpm --filter @worship/ui build');
 mkdirSync(join(root, 'build'), { recursive: true });

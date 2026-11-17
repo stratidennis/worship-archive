@@ -116,6 +116,13 @@ export function parseArrangementText(text: string): string[] | null {
   const seen = new Map<string, number>();
 
   for (const part of parts) {
+    const reference = /^([VCPBETINSM]\d+)\s*(?:[x×]\s*(\d+))?$/i.exec(part);
+    if (reference) {
+      const times = Number(reference[2] ?? 1);
+      if (times < 1 || times > 20) return null;
+      out.push(...Array<string>(times).fill(reference[1]!.toUpperCase()));
+      continue;
+    }
     // "Refren x2", "Strofa 1", "Refren"
     const m = /^([A-Za-zĂÂÎȘȚăâîșț]+)\s*(\d+)?\s*(?:x\s*(\d+))?$/i.exec(part);
     if (!m) return null;

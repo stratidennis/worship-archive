@@ -73,7 +73,18 @@ import {
   IconPlus,
 } from '../components/icons.js';
 import { PrintableSet } from '../components/PrintableSet.js';
-import { PowerPointDialog } from '../components/PowerPointDialog.js';
+import { lazy, Suspense } from 'react';
+import {
+  presentationsBundled,
+  supportsPresentations,
+} from '../lib/presentationCapabilities.js';
+const PowerPointDialog = presentationsBundled
+  ? lazy(() =>
+      import('../components/PowerPointDialog.js').then((m) => ({
+        default: m.PowerPointDialog,
+      })),
+    )
+  : null;
 import {
   filterArchiveSongs,
   toggleArchiveKey,
@@ -170,7 +181,19 @@ export function SetPage() {
       if (item.kind !== 'song' || seen.has(item.songId)) return [];
       seen.add(item.songId);
       const song = songs[item.songId];
-      return song ? [song] : [];
+      return song
+        ? [
+            {
+              ...song,
+              ...(item.arrangementOverride?.length
+                ? {
+                    arrangement: item.arrangementOverride,
+                    arrangementSource: 'reviewed' as const,
+                  }
+                : {}),
+            },
+          ]
+        : [];
     });
   }, [set, songs]);
 
@@ -710,7 +733,9 @@ export function SetPage() {
               {t('sets.addGap')}
             </Action>
             <Action onClick={() => window.print()}>{t('app.print')}</Action>
-            <Action onClick={() => setPowerpointsOpen(true)}>{t('powerpoint.action')}</Action>
+            {supportsPresentations() && (
+              <Action onClick={() => setPowerpointsOpen(true)}>{t('powerpoint.action')}</Action>
+            )}
             <span className="text-xs text-(--color-muted)">
               {t('set.itemCount', { count: set.items.length })}
             </span>
@@ -1053,12 +1078,14 @@ export function SetPage() {
       </div>
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
-      {powerpointsOpen && (
-        <PowerPointDialog
-          role="leader"
-          songs={powerPointSongs}
-          onDismiss={() => setPowerpointsOpen(false)}
-        />
+      {supportsPresentations('leader') && powerpointsOpen && PowerPointDialog && (
+        <Suspense>
+          <PowerPointDialog
+            role="leader"
+            songs={powerPointSongs}
+            onDismiss={() => setPowerpointsOpen(false)}
+          />
+        </Suspense>
       )}
     </>
   );

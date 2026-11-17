@@ -131,6 +131,8 @@ export interface Song {
   blocks: Block[];
   /** Block ids in play order. `null` means "play the blocks as written". */
   arrangement: string[] | null;
+  /** Provenance of performed order; absent on older files. */
+  arrangementSource?: 'reviewed' | 'inferred' | 'source';
 
   lang: string | null;
   createdAt: string;

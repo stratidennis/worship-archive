@@ -25,3 +25,6 @@ migration-report.html
 packages/desktop/release/
 .smoke/
 /packages/android/.signing/
+
+# Platform-specific shared UI output
+packages/ui/dist-android/

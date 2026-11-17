@@ -8,9 +8,11 @@
  * relative paths to clients.
  */
 
-import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import type { Block, Song } from '@worship/core';
+import { resolvePerformedOrder } from './performed-order.js';
+import { finishPresentationPackage } from './presentation-package.js';
 
 // Slide decks and presentation templates supported by PowerPoint, ONLYOFFICE,
 // Keynote, LibreOffice, or WPS. Keep this list explicit so unrelated files in
@@ -33,7 +35,7 @@ const PRESENTATION_EXTENSIONS = new Set([
   '.dps',
   '.dpt',
 ]);
-const AUDIENCE_BLOCKS = new Set(['Verse', 'Chorus', 'Bridge']);
+const AUDIENCE_BLOCKS = new Set(['Verse', 'Chorus', 'PreChorus', 'Bridge', 'Ending', 'Tag']);
 
 export interface PowerPointFile {
   name: string;
@@ -258,10 +260,10 @@ export function lyricLineSpacing(lines: string[], fontSize = lyricFontSize(lines
 }
 
 export async function createPowerPoint(root: string, song: Song): Promise<PowerPointFile> {
-  const blocks = audienceBlocks(song);
-  const pages = blocks.flatMap((block) =>
-    slideGroups(block.lines.map((line) => line.text.trim()).filter(Boolean)),
-  );
+  const performed = resolvePerformedOrder(song);
+  if (performed.issues.length)
+    throw new Error(`Review presentation arrangement: ${performed.issues.join('; ')}`);
+  const pages = performed.sections.flatMap((section) => slideGroups(section.lines));
   if (pages.length === 0) {
     throw new Error(`“${song.title}” has no Verse, Chorus, or Bridge lyrics.`);
   }
@@ -270,6 +272,7 @@ export async function createPowerPoint(root: string, song: Song): Promise<PowerP
   mkdirSync(absolute, { recursive: true });
   const fileName = generatedPowerPointName(song);
   const filePath = join(absolute, fileName);
+  if (existsSync(filePath)) return { name: fileName, relativePath: fileName };
   // PptxGenJS is deliberately loaded only when a deck is actually created. Importing
   // it with the HTTP server would make every lightweight API process pay its startup
   // cost even when the feature is never used.
@@ -285,8 +288,13 @@ export async function createPowerPoint(root: string, song: Song): Promise<PowerP
     bodyFontFace: 'Arial',
   };
 
+  pptx.defineSlideMaster({
+    title: 'LYRICS',
+    background: { color: '000000' },
+    objects: [],
+  });
   for (const lines of pages) {
-    const slide = pptx.addSlide();
+    const slide = pptx.addSlide('LYRICS');
     slide.background = { color: '000000' };
     const fontSize = lyricFontSize(lines);
     const lineSpacingMultiple = lyricLineSpacing(lines, fontSize);
@@ -312,7 +320,8 @@ export async function createPowerPoint(root: string, song: Song): Promise<PowerP
     });
   }
 
-  await pptx.writeFile({ fileName: filePath, compression: true });
+  const data = (await pptx.write({ outputType: 'nodebuffer' })) as Buffer;
+  writeFileSync(filePath, await finishPresentationPackage(data));
   return { name: basename(filePath), relativePath: relative(absolute, filePath) };
 }
 

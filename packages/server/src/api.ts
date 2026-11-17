@@ -475,7 +475,26 @@ export function createServer(options: ApiOptions): FastifyInstance {
       if (typeof value !== 'string' || seen.has(value)) continue;
       seen.add(value);
       const song = library.get(value);
-      if (song) songs.push(song);
+      if (song) {
+        const arrangements = (body as { arrangements?: Record<string, unknown> }).arrangements;
+        const order = arrangements?.[value];
+        if (order !== undefined) {
+          if (
+            !Array.isArray(order) ||
+            order.length === 0 ||
+            order.length > 500 ||
+            !order.every(
+              (id) => typeof id === 'string' && song.blocks.some((block) => block.id === id),
+            )
+          )
+            return null;
+          songs.push({
+            ...song,
+            arrangement: order as string[],
+            arrangementSource: 'reviewed',
+          });
+        } else songs.push(song);
+      }
     }
     return songs.length > 0 ? songs : null;
   };

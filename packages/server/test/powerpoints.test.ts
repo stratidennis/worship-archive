@@ -198,3 +198,121 @@ describe('PowerPoint generation', () => {
     await expect(createPowerPoint(dir, value)).rejects.toThrow('has no Verse');
   });
 });
+
+// Inspect what editors actually inherit, including the unused blank layout that
+// PptxGenJS includes alongside its public named master/layout.
+describe('exported OOXML inheritance', () => {
+  it('links black masters and every black layout with white editable defaults', async () => {
+    const { default: JSZip } = await import('jszip');
+    const value = song([
+      { type: 'Verse', lines: ['1. Sing 1000 praises!', 'G Am D', '[Band only]'] },
+      { type: 'Chorus', lines: ['Refren: Holy, holy!'] },
+      { type: 'Verse', lines: ['Second verse'] },
+      { type: 'Ending', lines: ['Final: Forever!'] },
+    ]);
+    const file = await createPowerPoint(dir, value);
+    const zip = await JSZip.loadAsync(readFileSync(join(dir, file.relativePath)));
+    const parts = Object.keys(zip.files);
+    const masters = parts.filter((p) => /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(p));
+    const layouts = parts.filter((p) => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(p));
+    expect(masters.length).toBeGreaterThan(0);
+    expect(layouts.length).toBeGreaterThanOrEqual(2);
+    for (const part of [...masters, ...layouts]) {
+      const xml = await zip.file(part)!.async('string');
+      expect(xml).toMatch(/<p:bg><p:bgPr><a:solidFill><a:srgbClr val="000000"/);
+      if (masters.includes(part)) {
+        expect(xml).toContain('bg1="dk1" tx1="lt1"');
+        expect(xml).toContain('<a:defRPr sz="5200" b="1"><a:solidFill><a:srgbClr val="FFFFFF"');
+      }
+      const rels = await zip
+        .file(part.replace(/\/([^/]+)$/, '/_rels/$1.rels'))!
+        .async('string');
+      expect(rels).toContain(masters.includes(part) ? '/slideLayout"' : '/slideMaster"');
+      for (const target of rels.matchAll(/Target="([^"#]+)"/g)) {
+        const { posix } = await import('node:path');
+        expect(
+          zip.file(posix.normalize(posix.join(posix.dirname(part), target[1]!))),
+        ).not.toBeNull();
+      }
+    }
+    const slides = parts
+      .filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))
+      .sort((a, b) => Number(a.match(/(\d+)\.xml/)![1]) - Number(b.match(/(\d+)\.xml/)![1]));
+    const texts: string[] = [];
+    for (const part of slides) {
+      const xml = await zip.file(part)!.async('string');
+      texts.push([...xml.matchAll(/<a:t>(.*?)<\/a:t>/g)].map((m) => m[1]).join('\n'));
+      expect(xml).toContain('<a:srgbClr val="000000"');
+      expect(xml).toContain('<a:srgbClr val="FFFFFF"');
+      expect(xml).toContain('typeface="Arial"');
+      expect(xml).toContain('<a:off x="530352" y="411480"/>');
+      expect(xml).toContain('<a:ext cx="11128248" cy="6035040"/>');
+      expect(xml).not.toContain('<p:pic>');
+      const rels = await zip
+        .file(part.replace(/\/([^/]+)$/, '/_rels/$1.rels'))!
+        .async('string');
+      expect(rels).toContain('/slideLayout"');
+    }
+    expect(texts).toEqual([
+      'Sing 1000 praises!',
+      'Holy, holy!',
+      'Second verse',
+      'Holy, holy!',
+      'Forever!',
+    ]);
+    const presentation = await zip.file('ppt/presentation.xml')!.async('string');
+    expect(presentation).toContain('cx="12192000" cy="6858000"');
+    expect(presentation).toContain('<a:srgbClr val="FFFFFF"');
+  });
+
+  it('does not overwrite an existing presentation', async () => {
+    const value = song([{ type: 'Verse', lines: ['Keep existing'] }]);
+    const name = generatedPowerPointName(value);
+    writeFileSync(join(dir, name), 'user presentation');
+    await createPowerPoint(dir, value);
+    expect(readFileSync(join(dir, name), 'utf8')).toBe('user presentation');
+  });
+});
+
+it('carries reviewed set orders through the desktop HTTP API without saving them', async () => {
+  const { Library } = await import('../src/library.js');
+  const { SetStore } = await import('../src/sets.js');
+  const { createServer } = await import('../src/api.js');
+  const { default: JSZip } = await import('jszip');
+  const library = new Library(join(dir, 'library'));
+  const sets = new SetStore(join(dir, 'library'), library.db);
+  const value = song([
+    { type: 'Verse', lines: ['Verse lyric'] },
+    { type: 'Chorus', lines: ['Chorus lyric'] },
+  ]);
+  library.save(value);
+  const original = library.get(value.id);
+  const app = createServer({ library, sets, powerpointsDir: join(dir, 'decks') });
+  try {
+    const order = [value.blocks[1]!.id, value.blocks[0]!.id];
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/powerpoints/create',
+      payload: { songIds: [value.id], arrangements: { [value.id]: order } },
+    });
+    expect(response.statusCode).toBe(200);
+    const file = response.json().results[0].file.relativePath as string;
+    const zip = await JSZip.loadAsync(readFileSync(join(dir, 'decks', file)));
+    const texts = [];
+    for (const part of ['ppt/slides/slide1.xml', 'ppt/slides/slide2.xml']) {
+      const xml = await zip.file(part)!.async('string');
+      texts.push([...xml.matchAll(/<a:t>(.*?)<\/a:t>/g)].map((m) => m[1]).join('\n'));
+    }
+    expect(texts).toEqual(['Chorus lyric', 'Verse lyric']);
+    expect(library.get(value.id)).toEqual(original);
+    const invalid = await app.inject({
+      method: 'POST',
+      url: '/api/powerpoints/create',
+      payload: { songIds: [value.id], arrangements: { [value.id]: ['UNKNOWN'] } },
+    });
+    expect(invalid.statusCode).toBe(400);
+  } finally {
+    await app.close();
+    library.close();
+  }
+});

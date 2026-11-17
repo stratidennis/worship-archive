@@ -289,6 +289,10 @@ export function parseChordPro(source: string, options: ParseOptions = {}): Song 
           .map((s) => s.trim())
           .filter(Boolean);
         break;
+      case 'x_arrangement_source':
+        if (value === 'reviewed' || value === 'inferred' || value === 'source')
+          song.arrangementSource = value;
+        break;
       case 'x_arrangement':
         song.arrangement = (value ?? '').trim() ? (value ?? '').trim().split(/\s+/) : null;
         break;

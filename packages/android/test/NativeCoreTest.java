@@ -78,6 +78,9 @@ public final class NativeCoreTest {
             String response = request(server, "GET", "/api/session?test=1", "", null);
             check(response.contains("{\"active\":true}"), "Leader API response reaches the bundled renderer");
             check(get.get(3, TimeUnit.SECONDS).startsWith("GET /api/session?test=1 "), "API query strings reach the Leader unchanged");
+            for (String route : new String[]{"find", "create", "file?path=test.pptx"}) {
+                check(request(server, "GET", "/api/powerpoints/" + route, "", null).startsWith("HTTP/1.1 404"), "presentation API absent from Android proxy");
+            }
             Future<String> post = worker.submit(() -> {
                 try (Socket socket = fakeLeader.accept()) {
                     String header = readHeader(socket.getInputStream());
@@ -89,7 +92,7 @@ public final class NativeCoreTest {
                     return new String(body, StandardCharsets.UTF_8);
                 }
             });
-            request(server, "POST", "/api/powerpoints/find", "Content-Type: application/json\r\n", "{\"songIds\":[\"test\"]}");
+            request(server, "POST", "/api/session/clients", "Content-Type: application/json\r\n", "{\"songIds\":[\"test\"]}");
             check(post.get(3, TimeUnit.SECONDS).equals("{\"songIds\":[\"test\"]}"), "Band request bodies are proxied without alteration");
             check(request(server, "DELETE", "/api/songs/test", "", null).startsWith("HTTP/1.1 405"), "the Band shell does not forward deletion requests");
             Future<Boolean> ws = worker.submit(() -> {

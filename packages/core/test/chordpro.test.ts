@@ -215,3 +215,10 @@ describe('reading generic ChordPro from elsewhere', () => {
     }
   });
 });
+
+it('preserves performed-order provenance without upgrading legacy arrays to reviewed', () => {
+  const value = song({ arrangement: ['V1'], arrangementSource: 'reviewed' });
+  expect(parseChordPro(serialiseChordPro(value), FIXED).arrangementSource).toBe('reviewed');
+  delete value.arrangementSource;
+  expect(parseChordPro(serialiseChordPro(value), FIXED).arrangementSource).toBeUndefined();
+});

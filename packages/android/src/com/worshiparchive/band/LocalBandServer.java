@@ -76,6 +76,9 @@ public final class LocalBandServer implements Closeable {
                 }
                 tunnel(socket, input, request[1], headers);
             } else if (path.startsWith("/api/")) {
+                if (!path.matches("/api/(session(?:/.*)?|songs(?:/.*)?|sets(?:/.*)?|library/export|network/ping|host|stats|facets|search)")) {
+                    respond(socket, 404, "Not found"); return;
+                }
                 proxy(socket, input, request[0], request[1], headers);
             } else if ("GET".equals(request[0])) {
                 serveAsset(socket, path);

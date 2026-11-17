@@ -356,7 +356,10 @@ export function importSongXml(source: string, options: SongXmlOptions = {}): Imp
   if (arrangementHints.length === 1) {
     const hint = arrangementHints[0]!;
     const known = new Set(song.blocks.map((b) => b.id));
-    if (hint.every((id) => known.has(id))) song.arrangement = hint;
+    if (hint.every((id) => known.has(id))) {
+      song.arrangement = hint;
+      song.arrangementSource = 'inferred';
+    }
   }
 
   song.id = makeId();

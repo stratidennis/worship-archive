@@ -87,7 +87,6 @@ final class LocalLeaderServer implements Closeable {
         if ("PUT".equals(method) && "/api/session/stage".equals(path)) { JSONObject state = hub.state(); JSONObject stage = state.optJSONObject("stage"); if (stage == null) stage = new JSONObject(); for (Iterator<String> keys = body.keys(); keys.hasNext();) { String key = keys.next(); if (!("screen".equals(key) || "deviceId".equals(key))) stage.put(key, body.get(key)); } hub.patch(new JSONObject().put("stage", stage), false); json(socket, 200, new JSONObject().put("stage", stage)); return; }
         if ("GET".equals(method) && "/api/cloud-sync".equals(path)) { json(socket, 200, cloud.status()); return; }
         if ("POST".equals(method) && "/api/cloud-sync".equals(path)) { JSONObject result=cloud.sync();if(result.optInt("pulled")+result.optInt("deletedLocally")>0)hub.reloadLibrary();json(socket,200,result);return; }
-        if (path.startsWith("/api/powerpoints/")) { json(socket, 503, error("PowerPoint is available in the desktop Leader")); return; }
         if ("GET".equals(method) && "/api/backup".equals(path)) { json(socket, 200, backup()); return; }
         if ("POST".equals(method) && "/api/restore".equals(path)) { JSONObject result=repository.restore(body);changed();json(socket,200,result);return; }
         if (path.startsWith("/api/cleanup")) { json(socket, 200, new JSONObject().put("suggestions", new JSONArray()).put("spellings", new JSONArray()).put("songsAffected", 0).put("chordsScanned", 0)); return; }

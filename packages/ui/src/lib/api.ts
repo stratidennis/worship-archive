@@ -112,7 +112,7 @@ async function get<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function send<T>(
+export async function send<T>(
   path: string,
   method: string,
   body?: unknown,
@@ -202,10 +202,6 @@ export const api = {
   duplicateSet: (id: string, body: { title?: string; date?: string | null } = {}) =>
     send<ServiceSet>(`/api/sets/${encodeURIComponent(id)}/duplicate`, 'POST', body),
   deleteSet: (id: string) => send<void>(`/api/sets/${encodeURIComponent(id)}`, 'DELETE'),
-  findPowerPoints: (songIds: string[]) =>
-    send<PowerPointReport>('/api/powerpoints/find', 'POST', { songIds }),
-  createPowerPoints: (songIds: string[]) =>
-    send<PowerPointReport>('/api/powerpoints/create', 'POST', { songIds }),
 };
 
 // ---- backup, restore, chord cleanup ----------------------------------------

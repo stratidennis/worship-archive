@@ -49,7 +49,18 @@ import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
 import { PerformanceInfo } from '../components/PerformanceInfo.js';
-import { PowerPointDialog } from '../components/PowerPointDialog.js';
+import { lazy, Suspense } from 'react';
+import {
+  presentationsBundled,
+  supportsPresentations,
+} from '../lib/presentationCapabilities.js';
+const PowerPointDialog = presentationsBundled
+  ? lazy(() =>
+      import('../components/PowerPointDialog.js').then((m) => ({
+        default: m.PowerPointDialog,
+      })),
+    )
+  : null;
 
 const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
   { keys: '→', label: 'keys.nextSong' },
@@ -112,7 +123,19 @@ export function BandPage() {
       if (item.kind !== 'song' || seen.has(item.songId)) return [];
       seen.add(item.songId);
       const song = live.songs[item.songId];
-      return song ? [song] : [];
+      return song
+        ? [
+            {
+              ...song,
+              ...(item.arrangementOverride?.length
+                ? {
+                    arrangement: item.arrangementOverride,
+                    arrangementSource: 'reviewed' as const,
+                  }
+                : {}),
+            },
+          ]
+        : [];
     });
   }, [live.set, live.songs]);
 
@@ -306,13 +329,15 @@ export function BandPage() {
         >
           <IconSets size={14} />
         </IconButton>
-        <IconButton
-          size="sm"
-          label={t('powerpoint.action')}
-          onClick={() => setPowerpointsOpen(true)}
-        >
-          <IconPresentation size={14} />
-        </IconButton>
+        {supportsPresentations('band') && (
+          <IconButton
+            size="sm"
+            label={t('powerpoint.action')}
+            onClick={() => setPowerpointsOpen(true)}
+          >
+            <IconPresentation size={14} />
+          </IconButton>
+        )}
         {/*
           Settings, here rather than through the settings page.
 
@@ -597,53 +622,55 @@ export function BandPage() {
                 />
                 <span className="min-w-0">{t('settings.fullscreen')}</span>
               </label>
-              <div className="mt-3 border-t border-(--color-line) pt-4">
-                <span className="block text-xs font-semibold uppercase tracking-wide text-(--color-muted)">
-                  {t('settings.powerpoints')}
-                </span>
-                <code className="mt-1 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
-                  {clientState.powerpointsDir}
-                </code>
-                <p className="mt-2 text-xs text-(--color-muted)">
-                  {t('settings.powerpointsDirHint')}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSettingsError(null);
-                      void clientDesktop()
-                        ?.revealPowerpointsDir()
-                        .catch((error: unknown) => setSettingsError(String(error)));
-                    }}
-                  >
-                    {t('settings.revealPowerpointsDir')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSettingsError(null);
-                      void clientDesktop()
-                        ?.choosePowerpointsDir()
-                        .then((powerpointsDir) => {
-                          if (powerpointsDir) {
-                            setClientState((current) =>
-                              current ? { ...current, powerpointsDir } : current,
-                            );
-                          }
-                        })
-                        .catch((error: unknown) => setSettingsError(String(error)));
-                    }}
-                  >
-                    {t('settings.choosePowerpointsDir')}
-                  </Button>
-                </div>
-                {settingsError && (
-                  <p role="alert" className="mt-2 text-xs text-red-500">
-                    {settingsError}
+              {supportsPresentations('band') && (
+                <div className="mt-3 border-t border-(--color-line) pt-4">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-(--color-muted)">
+                    {t('settings.powerpoints')}
+                  </span>
+                  <code className="mt-1 block break-all rounded bg-(--color-line) px-1.5 py-1 text-xs">
+                    {clientState.powerpointsDir}
+                  </code>
+                  <p className="mt-2 text-xs text-(--color-muted)">
+                    {t('settings.powerpointsDirHint')}
                   </p>
-                )}
-              </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSettingsError(null);
+                        void clientDesktop()
+                          ?.revealPowerpointsDir()
+                          .catch((error: unknown) => setSettingsError(String(error)));
+                      }}
+                    >
+                      {t('settings.revealPowerpointsDir')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSettingsError(null);
+                        void clientDesktop()
+                          ?.choosePowerpointsDir()
+                          .then((powerpointsDir) => {
+                            if (powerpointsDir) {
+                              setClientState((current) =>
+                                current ? { ...current, powerpointsDir } : current,
+                              );
+                            }
+                          })
+                          .catch((error: unknown) => setSettingsError(String(error)));
+                      }}
+                    >
+                      {t('settings.choosePowerpointsDir')}
+                    </Button>
+                  </div>
+                  {settingsError && (
+                    <p role="alert" className="mt-2 text-xs text-red-500">
+                      {settingsError}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <LanguageChoice label={t('settings.language')} value={lang} onChange={setLang} />
@@ -713,12 +740,14 @@ export function BandPage() {
       )}
 
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
-      {powerpointsOpen && (
-        <PowerPointDialog
-          role="band"
-          songs={powerPointSongs}
-          onDismiss={() => setPowerpointsOpen(false)}
-        />
+      {supportsPresentations('band') && powerpointsOpen && PowerPointDialog && (
+        <Suspense>
+          <PowerPointDialog
+            role="band"
+            songs={powerPointSongs}
+            onDismiss={() => setPowerpointsOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   );
