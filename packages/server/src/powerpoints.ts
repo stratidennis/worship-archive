@@ -181,7 +181,7 @@ export function findPowerPoints(root: string, songs: Song[]): PowerPointReport {
 }
 
 function safeFilenamePart(value: string): string {
-  return value
+  const safe = value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[<>:"/\\|?*]/g, '')
@@ -190,11 +190,11 @@ function safeFilenamePart(value: string): string {
     .trim()
     .replace(/[. ]+$/g, '')
     .slice(0, 100);
+  return /^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(safe) ? '_' + safe : safe;
 }
 
 export function generatedPowerPointName(song: Song): string {
-  let title = safeFilenamePart(song.title) || 'Untitled song';
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(title)) title = '_' + title;
+  const title = safeFilenamePart(song.title) || 'Untitled song';
   const firstLine = safeFilenamePart(firstAudienceLine(song) ?? '');
   if (!firstLine || comparableName(firstLine) === comparableName(title)) return `${title}.pptx`;
   return `${firstLine.slice(0, 70)} — ${title.slice(0, 70)}.pptx`;

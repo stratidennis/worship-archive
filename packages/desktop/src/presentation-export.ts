@@ -123,7 +123,7 @@ export async function exportPresentation(
     ? {
         status: 'saved',
         name: basename(destination),
-        relativePath: relative(root, destination),
+        relativePath: relative(realpathSync(root), realpathSync(destination)),
       }
     : { status: 'external', name: basename(destination), path: destination };
 }

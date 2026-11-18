@@ -152,3 +152,13 @@ it('confirms the actual filename if adding the PPTX extension finds an existing 
   expect(await run()).toEqual({ status: 'cancelled' });
   expect(await readFile(join(root, 'existing.pptx'), 'utf8')).toBe('original');
 });
+
+it.each(['CON.txt', 'LPT1.test', 'COM¹.txt'])(
+  'sanitizes Windows reserved first lyrics: %s',
+  (lyric) => {
+    const selected = song();
+    selected.title = 'Safe title';
+    selected.blocks[0]!.lines = [emptyLine(lyric)];
+    expect(generatedPowerPointName(selected)).toBe('_' + lyric + ' — Safe title.pptx');
+  },
+);

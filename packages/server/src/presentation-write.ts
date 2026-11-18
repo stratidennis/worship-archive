@@ -27,6 +27,11 @@ export async function writePresentation(
     else await link(temporary, destination); // Atomic no-clobber publication.
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOTSUP' || code === 'EOPNOTSUPP')
+      throw new Error(
+        'This folder does not support safe no-overwrite exports. Choose a local NTFS, APFS, or other folder that supports hard links.',
+        { cause: error },
+      );
     if (code === 'EPERM' || code === 'EACCES' || code === 'EBUSY')
       throw new Error(
         'Cannot save presentation. Close it in PowerPoint or another app, check folder permissions, and try again.',
