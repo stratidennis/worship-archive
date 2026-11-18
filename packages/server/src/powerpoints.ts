@@ -8,10 +8,11 @@
  * relative paths to clients.
  */
 
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import type { Block, Song } from '@worship/core';
 import { resolvePerformedOrder } from './performed-order.js';
+import { writePresentation } from './presentation-write.js';
 import { finishPresentationPackage } from './presentation-package.js';
 
 // Slide decks and presentation templates supported by PowerPoint, ONLYOFFICE,
@@ -192,7 +193,8 @@ function safeFilenamePart(value: string): string {
 }
 
 export function generatedPowerPointName(song: Song): string {
-  const title = safeFilenamePart(song.title) || 'Untitled song';
+  let title = safeFilenamePart(song.title) || 'Untitled song';
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(title)) title = '_' + title;
   const firstLine = safeFilenamePart(firstAudienceLine(song) ?? '');
   if (!firstLine || comparableName(firstLine) === comparableName(title)) return `${title}.pptx`;
   return `${firstLine.slice(0, 70)} — ${title.slice(0, 70)}.pptx`;
@@ -259,20 +261,43 @@ export function lyricLineSpacing(lines: string[], fontSize = lyricFontSize(lines
   return lines.length <= 4 && fontSize < 44 ? 1.35 : 1.1;
 }
 
-export async function createPowerPoint(root: string, song: Song): Promise<PowerPointFile> {
+export interface PresentationOptions {
+  repeatMode?: 'compact' | 'expanded';
+}
+
+export function presentationPages(song: Song, options: PresentationOptions = {}): string[][] {
   const performed = resolvePerformedOrder(song);
   if (performed.issues.length)
     throw new Error(`Review presentation arrangement: ${performed.issues.join('; ')}`);
-  const pages = performed.sections.flatMap((section) => slideGroups(section.lines));
-  if (pages.length === 0) {
-    throw new Error(`“${song.title}” has no Verse, Chorus, or Bridge lyrics.`);
+  const pages: string[][] = [];
+  for (let i = 0; i < performed.sections.length; i++) {
+    const section = performed.sections[i]!;
+    let count = 1;
+    if (options.repeatMode === 'compact') {
+      while (
+        performed.sections[i + count]?.id === section.id &&
+        JSON.stringify(performed.sections[i + count]!.lines) === JSON.stringify(section.lines)
+      )
+        count++;
+    }
+    const groups = slideGroups(section.lines).map((lines) => [...lines]);
+    if (count > 1 && groups.length) {
+      groups[0]![0] = '/: ' + groups[0]![0];
+      const last = groups[groups.length - 1]!;
+      last[last.length - 1] += ' :/' + (count > 2 ? ` x${count}` : '');
+    }
+    pages.push(...groups);
+    i += count - 1;
   }
+  return pages;
+}
 
-  const absolute = resolve(root);
-  mkdirSync(absolute, { recursive: true });
-  const fileName = generatedPowerPointName(song);
-  const filePath = join(absolute, fileName);
-  if (existsSync(filePath)) return { name: fileName, relativePath: fileName };
+export async function generatePowerPoint(
+  song: Song,
+  options: PresentationOptions = {},
+): Promise<Buffer> {
+  const pages = presentationPages(song, options);
+  if (!pages.length) throw new Error(`“${song.title}” has no Verse, Chorus, or Bridge lyrics.`);
   // PptxGenJS is deliberately loaded only when a deck is actually created. Importing
   // it with the HTTP server would make every lightweight API process pay its startup
   // cost even when the feature is never used.
@@ -321,19 +346,38 @@ export async function createPowerPoint(root: string, song: Song): Promise<PowerP
   }
 
   const data = (await pptx.write({ outputType: 'nodebuffer' })) as Buffer;
-  writeFileSync(filePath, await finishPresentationPackage(data));
+  return finishPresentationPackage(data);
+}
+
+export async function createPowerPoint(
+  root: string,
+  song: Song,
+  options: PresentationOptions = {},
+): Promise<PowerPointFile> {
+  const absolute = resolve(root);
+  mkdirSync(absolute, { recursive: true });
+  const filePath = join(absolute, generatedPowerPointName(song));
+  if (!existsSync(filePath)) {
+    const data = await generatePowerPoint(song, options);
+    try {
+      await writePresentation(filePath, data, false);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+  }
   return { name: basename(filePath), relativePath: relative(absolute, filePath) };
 }
 
 export async function createMissingPowerPoints(
   root: string,
   songs: Song[],
+  options: PresentationOptions = {},
 ): Promise<PowerPointReport> {
   const before = findPowerPoints(root, songs);
   for (const result of before.results) {
     if (result.status !== 'missing') continue;
     const song = songs.find((one) => one.id === result.songId);
-    if (song) await createPowerPoint(root, song);
+    if (song) await createPowerPoint(root, song, options);
   }
   return findPowerPoints(root, songs);
 }
@@ -346,6 +390,9 @@ export function resolvePowerPointFile(root: string, candidate: string): string |
   if (rel === '' || rel.startsWith(`..${sep}`) || rel === '..' || resolve(rel) === rel)
     return null;
   if (!existsSync(full) || !statSync(full).isFile()) return null;
+  const physical = relative(realpathSync(absoluteRoot), realpathSync(full));
+  if (physical === '..' || physical.startsWith(`..${sep}`) || resolve(physical) === physical)
+    return null;
   if (!PRESENTATION_EXTENSIONS.has(extname(full).toLocaleLowerCase('en'))) return null;
   return full;
 }

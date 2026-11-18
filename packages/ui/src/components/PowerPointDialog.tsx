@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Song } from '@worship/core';
 import type { PowerPointReport } from '../lib/api.js';
-import { presentationApi as api } from '../lib/presentationApi.js';
+import { presentationApi as api, type PresentationOptions } from '../lib/presentationApi.js';
 import { supportsPresentations } from '../lib/presentationCapabilities.js';
 import { clientDesktop } from '../lib/clientDesktop.js';
 import { desktop } from '../lib/desktop.js';
@@ -30,6 +30,19 @@ export function PowerPointDialog({
   const { t } = useT();
   const panel = useOverlay(onDismiss);
   const band = role === 'band' ? clientDesktop() : null;
+  const native = band ?? desktop();
+  const nativeExport = !!native?.exportPresentation;
+  const [repeatMode, setRepeatMode] = useState<'compact' | 'expanded'>(() => {
+    try {
+      return localStorage.getItem('presentation-repeat-mode') === 'expanded'
+        ? 'expanded'
+        : 'compact';
+    } catch {
+      return 'compact';
+    }
+  });
+  const options: PresentationOptions = nativeExport ? { repeatMode } : {};
+  const [notice, setNotice] = useState<string | null>(null);
   const [report, setReport] = useState<PowerPointReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +83,8 @@ export function PowerPointDialog({
     try {
       setReport(
         band
-          ? await band.createPowerPoints(songs)
-          : await api.createPowerPoints(ids, arrangements),
+          ? await band.createPowerPoints(songs, options)
+          : await api.createPowerPoints(ids, arrangements, options),
       );
     } catch (reason) {
       setError(String(reason));
@@ -87,11 +100,42 @@ export function PowerPointDialog({
     setError(null);
     try {
       if (band) {
-        await band.createPowerPoints([selected]);
+        await band.createPowerPoints([selected], options);
         setReport(await band.findPowerPoints(songs));
       } else {
-        await api.createPowerPoints([songId], arrangements);
+        await api.createPowerPoints([songId], arrangements, options);
         setReport(await api.findPowerPoints(ids, arrangements));
+      }
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportOne = async (
+    songId: string,
+    action: 'saveAs' | 'regenerate',
+    candidate?: string,
+  ): Promise<void> => {
+    const song = songs.find((one) => one.id === songId);
+    if (!song || !native?.exportPresentation) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await native.exportPresentation(song, options, action, candidate);
+      if (result.status !== 'cancelled') {
+        setNotice(
+          result.status === 'external'
+            ? t('powerpoint.externalSaved', { path: result.path })
+            : t('powerpoint.saved', { name: result.name }),
+        );
+        setReport(
+          band
+            ? await band.findPowerPoints(songs)
+            : await api.findPowerPoints(ids, arrangements),
+        );
       }
     } catch (reason) {
       setError(String(reason));
@@ -167,6 +211,32 @@ export function PowerPointDialog({
         </header>
 
         <div className="scroll-slim min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {nativeExport && (
+            <div className="mb-4 grid gap-1.5">
+              <label className="text-sm font-medium" htmlFor="presentation-repeats">
+                {t('powerpoint.repeats')}
+              </label>
+              <select
+                id="presentation-repeats"
+                disabled={busy}
+                value={repeatMode}
+                className="min-h-10 rounded-lg border border-(--color-line) bg-(--color-raised) px-3 text-sm"
+                onChange={(event) => {
+                  const mode = event.target.value === 'expanded' ? 'expanded' : 'compact';
+                  setRepeatMode(mode);
+                  try {
+                    localStorage.setItem('presentation-repeat-mode', mode);
+                  } catch {
+                    /* Storage unavailable. */
+                  }
+                }}
+              >
+                <option value="compact">{t('powerpoint.compact')}</option>
+                <option value="expanded">{t('powerpoint.expanded')}</option>
+              </select>
+              <p className="text-xs text-(--color-muted)">{t('powerpoint.repeatHint')}</p>
+            </div>
+          )}
           {ids.length === 0 ? (
             <p className="py-6 text-center text-sm text-(--color-muted)">
               {t('powerpoint.noSongs')}
@@ -184,7 +254,7 @@ export function PowerPointDialog({
               {report?.results.map((result) => (
                 <li
                   key={result.songId}
-                  className="flex items-start gap-3 rounded-xl border border-(--color-line) px-3 py-2.5"
+                  className="flex flex-wrap items-start gap-3 rounded-xl border border-(--color-line) px-3 py-2.5"
                 >
                   <span
                     className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full ${
@@ -199,31 +269,59 @@ export function PowerPointDialog({
                       <span className="text-xs font-bold">!</span>
                     )}
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-40">
                     <p className="font-medium">{result.title}</p>
                     <p className="break-all text-xs text-(--color-muted)">
                       {result.file?.relativePath ?? t('powerpoint.missing')}
                     </p>
                   </div>
-                  {result.status === 'found' ? (
-                    <Button
-                      size="sm"
-                      className="shrink-0"
-                      disabled={busy}
-                      onClick={() => void open([result])}
-                    >
-                      {desktop() || band ? t('powerpoint.open') : t('powerpoint.download')}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="shrink-0"
-                      disabled={busy}
-                      onClick={() => void createOne(result.songId)}
-                    >
-                      {t('powerpoint.createOne')}
-                    </Button>
-                  )}
+                  <div className="flex max-w-full flex-wrap justify-end gap-1.5">
+                    {nativeExport && (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void exportOne(result.songId, 'saveAs')}
+                        >
+                          {t('powerpoint.saveAs')}
+                        </Button>
+                        {result.file && (
+                          <Button
+                            size="sm"
+                            disabled={busy}
+                            onClick={() =>
+                              void exportOne(
+                                result.songId,
+                                'regenerate',
+                                result.file!.relativePath,
+                              )
+                            }
+                          >
+                            {t('powerpoint.regenerate')}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {result.status === 'found' ? (
+                      <Button
+                        size="sm"
+                        className="shrink-0"
+                        disabled={busy}
+                        onClick={() => void open([result])}
+                      >
+                        {desktop() || band ? t('powerpoint.open') : t('powerpoint.download')}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="shrink-0"
+                        disabled={busy}
+                        onClick={() => void createOne(result.songId)}
+                      >
+                        {t('powerpoint.createOne')}
+                      </Button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -232,6 +330,11 @@ export function PowerPointDialog({
             <code className="mt-3 block break-all text-xs text-(--color-muted)">
               {report.folder}
             </code>
+          )}
+          {notice && (
+            <p role="status" className="mt-3 break-words text-sm">
+              {notice}
+            </p>
           )}
           {error && (
             <p className="mt-3 rounded-lg border border-red-500/40 p-3 text-sm text-red-500">

@@ -1,3 +1,5 @@
+import type { PresentationOptions } from '@worship/server/powerpoints';
+import type { PresentationExportResult } from './presentation-export.js';
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ClientSettings } from './client-settings.js';
 import type { Song } from '@worship/core';
@@ -20,8 +22,18 @@ const api = {
     ipcRenderer.invoke('worship-client:reveal-powerpoints-dir'),
   findPowerPoints: (songs: Song[]): Promise<PowerPointReport> =>
     ipcRenderer.invoke('worship-client:find-powerpoints', songs),
-  createPowerPoints: (songs: Song[]): Promise<PowerPointReport> =>
-    ipcRenderer.invoke('worship-client:create-powerpoints', songs),
+  createPowerPoints: (
+    songs: Song[],
+    options?: PresentationOptions,
+  ): Promise<PowerPointReport> =>
+    ipcRenderer.invoke('worship-client:create-powerpoints', songs, options),
+  exportPresentation: (
+    song: Song,
+    options: PresentationOptions,
+    action: 'saveAs' | 'regenerate',
+    candidate?: string,
+  ): Promise<PresentationExportResult> =>
+    ipcRenderer.invoke('worship-client:export-presentation', song, options, action, candidate),
   openPowerPoints: (paths: string[]): Promise<string[]> =>
     ipcRenderer.invoke('worship-client:open-powerpoints', paths),
   quit: (): Promise<void> => ipcRenderer.invoke('worship-client:quit'),

@@ -1,3 +1,5 @@
+import { exportPresentation } from './presentation-export.js';
+import type { PresentationOptions } from '@worship/server/powerpoints';
 /**
  * Electron shell shared by the Band and Stage products.
  *
@@ -617,10 +619,36 @@ function registerIpc(): void {
     if (ROLE !== 'band' || !Array.isArray(songs)) throw new Error('Not available');
     return findPowerPoints(settings.powerpointsDir, songs);
   });
-  ipcMain.handle('worship-client:create-powerpoints', (_event, songs: Song[]) => {
-    if (ROLE !== 'band' || !Array.isArray(songs)) throw new Error('Not available');
-    return createMissingPowerPoints(settings.powerpointsDir, songs);
-  });
+  ipcMain.handle(
+    'worship-client:create-powerpoints',
+    (_event, songs: Song[], options?: PresentationOptions) => {
+      if (ROLE !== 'band' || !Array.isArray(songs)) throw new Error('Not available');
+      return createMissingPowerPoints(settings.powerpointsDir, songs, options);
+    },
+  );
+  ipcMain.handle(
+    'worship-client:export-presentation',
+    (
+      _event,
+      song: Song,
+      options: PresentationOptions,
+      action: 'saveAs' | 'regenerate',
+      candidate?: string,
+    ) => {
+      if (action !== 'saveAs' && action !== 'regenerate')
+        throw new Error('Invalid export action');
+      if (ROLE !== 'band') throw new Error('Not available');
+      return exportPresentation(
+        dialog,
+        settings.powerpointsDir,
+        song,
+        options ?? {},
+        action,
+        candidate,
+        join(app.getPath('userData'), 'presentation-export-folder'),
+      );
+    },
+  );
   ipcMain.handle('worship-client:open-powerpoints', async (_event, paths: unknown) => {
     if (ROLE !== 'band' || !Array.isArray(paths)) return [];
     const files: Array<{ relativePath: string; fullPath: string }> = [];

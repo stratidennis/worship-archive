@@ -56,6 +56,16 @@ const ro = {
   'app.print': 'Print / PDF',
   'powerpoint.action': 'Prezentări',
   'powerpoint.title': 'Prezentările programului',
+  'powerpoint.repeats': 'Notarea repetărilor',
+  'powerpoint.compact': 'Repetări compacte',
+  'powerpoint.expanded': 'Repetări desfășurate',
+  'powerpoint.repeatHint':
+    'Marcajele compacte descriu o secțiune întreagă, pe toate slide-urile ei. PowerPoint nu repetă automat.',
+  'powerpoint.saveAs': 'Salvează prezentarea ca…',
+  'powerpoint.regenerate': 'Regenerează prezentarea…',
+  'powerpoint.saved': 'S-a salvat {name}.',
+  'powerpoint.externalSaved':
+    'S-a salvat în {path}. Fișierul nu va fi găsit automat la scanarea dosarului de prezentări.',
   'powerpoint.scanning': 'Se caută în dosarul de prezentări…',
   'powerpoint.found': 'Găsit',
   'powerpoint.missing': 'Lipsește',
@@ -588,6 +598,16 @@ const en: Record<TranslationKey, Entry> = {
   'app.print': 'Print / PDF',
   'powerpoint.action': 'Presentations',
   'powerpoint.title': 'Presentations for this set',
+  'powerpoint.repeats': 'Repeat notation',
+  'powerpoint.compact': 'Compact repeats',
+  'powerpoint.expanded': 'Expanded repeats',
+  'powerpoint.repeatHint':
+    'Compact marks describe a whole section, across slides. PowerPoint does not loop automatically.',
+  'powerpoint.saveAs': 'Save presentation as…',
+  'powerpoint.regenerate': 'Regenerate presentation…',
+  'powerpoint.saved': 'Saved {name}.',
+  'powerpoint.externalSaved':
+    'Saved to {path}. This file will not be found automatically by the presentation-folder scan.',
   'powerpoint.scanning': 'Searching the presentations folder…',
   'powerpoint.found': 'Found',
   'powerpoint.missing': 'Missing',

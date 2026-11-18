@@ -1,3 +1,4 @@
+import type { PresentationOptions, PresentationExportResult } from './presentationApi.js';
 import type { Song } from '@worship/core';
 import type { PowerPointReport } from './api.js';
 
@@ -28,7 +29,16 @@ interface WorshipClientApi {
   choosePowerpointsDir: () => Promise<string | null>;
   revealPowerpointsDir: () => Promise<void>;
   findPowerPoints: (songs: Song[]) => Promise<PowerPointReport>;
-  createPowerPoints: (songs: Song[]) => Promise<PowerPointReport>;
+  createPowerPoints: (
+    songs: Song[],
+    options?: PresentationOptions,
+  ) => Promise<PowerPointReport>;
+  exportPresentation?: (
+    song: Song,
+    options: PresentationOptions,
+    action: 'saveAs' | 'regenerate',
+    candidate?: string,
+  ) => Promise<PresentationExportResult>;
   openPowerPoints: (paths: string[]) => Promise<string[]>;
   quit: () => Promise<void>;
 }

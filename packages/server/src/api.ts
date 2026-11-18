@@ -515,7 +515,14 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const songs = requestedSongs(request.body);
     if (!songs) return reply.code(400).send({ error: 'expected songIds' });
     try {
-      return await createMissingPowerPoints(options.powerpointsDir, songs);
+      const mode = (request.body as { repeatMode?: unknown }).repeatMode;
+      if (mode !== undefined && mode !== 'compact' && mode !== 'expanded')
+        return reply.code(400).send({ error: 'Invalid repeat mode' });
+      return await createMissingPowerPoints(
+        options.powerpointsDir,
+        songs,
+        mode ? { repeatMode: mode } : {},
+      );
     } catch (error) {
       return reply.code(422).send({
         error: error instanceof Error ? error.message : String(error),

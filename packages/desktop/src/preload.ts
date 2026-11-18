@@ -1,3 +1,6 @@
+import type { Song } from '@worship/core';
+import type { PresentationOptions } from '@worship/server/powerpoints';
+import type { PresentationExportResult } from './presentation-export.js';
 /**
  * The bridge, and the whole of it.
  *
@@ -59,6 +62,13 @@ const api = {
     ipcRenderer.invoke('worship:choose-powerpoints-dir'),
   revealPowerpointsDir: (): Promise<void> =>
     ipcRenderer.invoke('worship:reveal-powerpoints-dir'),
+  exportPresentation: (
+    song: Song,
+    options: PresentationOptions,
+    action: 'saveAs' | 'regenerate',
+    candidate?: string,
+  ): Promise<PresentationExportResult> =>
+    ipcRenderer.invoke('worship:export-presentation', song, options, action, candidate),
   openPowerPoints: (paths: string[]): Promise<string[]> =>
     ipcRenderer.invoke('worship:open-powerpoints', paths),
 

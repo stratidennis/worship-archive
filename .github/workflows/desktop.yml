@@ -5,80 +5,34 @@ name: App builds
 # installer for a typo in a comment.
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Products to build
+        type: choice
+        default: all
+        options: [all, presentations]
   push:
     tags: ['v*']
 
 jobs:
+  products:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: matrix
+        env:
+          BUILD_SCOPE: ${{ inputs.scope }}
+        run: echo "matrix=$(node .github/scripts/desktop-matrix.mjs "$BUILD_SCOPE")" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: products
     strategy:
       # One platform failing should still leave you with the other installer, which is
       # usually the one you were waiting for.
       fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            args: --mac
-            role: leader
-            config: electron-builder.yml
-            label: macOS · leader
-            native_args: ''
-            artifact: worship-archive-leader-macOS
-          - os: windows-latest
-            args: --win --x64
-            role: leader
-            config: electron-builder.yml
-            label: Windows · leader · x64
-            native_args: --arch x64
-            artifact: worship-archive-leader-Windows-x64
-          - os: windows-latest
-            args: --win --ia32
-            role: leader
-            config: electron-builder.yml
-            label: Windows · leader · 32-bit
-            native_args: --arch ia32
-            artifact: worship-archive-leader-Windows-ia32
-          - os: macos-latest
-            args: --mac
-            role: band
-            config: electron-builder.band.yml
-            label: macOS · band
-            native_args: ''
-            artifact: worship-archive-band-macOS
-          - os: windows-latest
-            args: --win --x64
-            role: band
-            config: electron-builder.band.yml
-            label: Windows · band · x64
-            native_args: --arch x64
-            artifact: worship-archive-band-Windows-x64
-          - os: windows-latest
-            args: --win --ia32
-            role: band
-            config: electron-builder.band.yml
-            label: Windows · band · 32-bit
-            native_args: --arch ia32
-            artifact: worship-archive-band-Windows-ia32
-          - os: macos-latest
-            args: --mac
-            role: stage
-            config: electron-builder.stage.yml
-            label: macOS · stage
-            native_args: ''
-            artifact: worship-archive-stage-macOS
-          - os: windows-latest
-            args: --win --x64
-            role: stage
-            config: electron-builder.stage.yml
-            label: Windows · stage · x64
-            native_args: --arch x64
-            artifact: worship-archive-stage-Windows-x64
-          - os: windows-latest
-            args: --win --ia32
-            role: stage
-            config: electron-builder.stage.yml
-            label: Windows · stage · 32-bit
-            native_args: --arch ia32
-            artifact: worship-archive-stage-Windows-ia32
+      matrix: ${{ fromJSON(needs.products.outputs.matrix) }}
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.label }}
@@ -99,6 +53,10 @@ jobs:
       - name: Rebuild native modules for Electron
         if: matrix.role == 'leader'
         run: pnpm --filter @worship/desktop exec electron-builder install-app-deps ${{ matrix.native_args }}
+
+      - name: Verify presentation exports on this platform
+        if: matrix.role == 'leader' && matrix.native_args != '--arch ia32'
+        run: pnpm exec vitest run packages/server/test/presentation-export.test.ts packages/desktop/test/presentation-export.test.ts
 
       - name: Build the UI
         run: pnpm --filter @worship/ui build
@@ -129,6 +87,7 @@ jobs:
           retention-days: 30
 
   android-band:
+    if: inputs.scope != 'presentations'
     name: Android · Band + Leader · universal APKs
     runs-on: ubuntu-latest
     timeout-minutes: 35

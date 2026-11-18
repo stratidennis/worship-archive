@@ -1,3 +1,5 @@
+import type { Song } from '@worship/core';
+import type { PresentationOptions, PresentationExportResult } from './presentationApi.js';
 /**
  * Talking to the Electron shell, when there is one.
  *
@@ -46,6 +48,12 @@ interface DesktopApi {
   disconnectCloudSync: () => Promise<boolean>;
   choosePowerpointsDir: () => Promise<string | null>;
   revealPowerpointsDir: () => Promise<void>;
+  exportPresentation?: (
+    song: Song,
+    options: PresentationOptions,
+    action: 'saveAs' | 'regenerate',
+    candidate?: string,
+  ) => Promise<PresentationExportResult>;
   openPowerPoints: (paths: string[]) => Promise<string[]>;
   pickFiles: () => Promise<PickedFile[] | null>;
   saveFile: (name: string, contents: string) => Promise<string | null>;

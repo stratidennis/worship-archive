@@ -1,3 +1,6 @@
+import type { Song } from '@worship/core';
+import { exportPresentation } from './presentation-export.js';
+import type { PresentationOptions } from '@worship/server/powerpoints';
 /**
  * The Electron main process.
  *
@@ -614,6 +617,40 @@ function registerIpc(): void {
     if (error) throw new Error(error);
   });
 
+  ipcMain.handle(
+    'worship:export-presentation',
+    (
+      _event,
+      song: Song,
+      options: PresentationOptions,
+      action: 'saveAs' | 'regenerate',
+      candidate?: string,
+    ) => {
+      if (action !== 'saveAs' && action !== 'regenerate')
+        throw new Error('Invalid export action');
+      const current = server?.library.get(song.id);
+      if (!current) throw new Error('Song not found');
+      if (song.arrangementSource === 'reviewed' && song.arrangement) {
+        if (
+          !song.arrangement.length ||
+          song.arrangement.length > 500 ||
+          !song.arrangement.every((id) => current.blocks.some((block) => block.id === id))
+        )
+          throw new Error('Invalid reviewed arrangement');
+        current.arrangement = song.arrangement;
+        current.arrangementSource = 'reviewed';
+      }
+      return exportPresentation(
+        dialog,
+        settings.powerpointsDir,
+        current,
+        options ?? {},
+        action,
+        candidate,
+        join(app.getPath('userData'), 'presentation-export-folder'),
+      );
+    },
+  );
   ipcMain.handle('worship:open-powerpoints', async (_event, paths: unknown) => {
     if (!Array.isArray(paths)) return [];
     const files: Array<{ relativePath: string; fullPath: string }> = [];
