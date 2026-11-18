@@ -12,6 +12,7 @@ import {
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
+import { DeviceReadingColorSettings } from '../components/ReadingColorSettings.js';
 import {
   fittedSongOverflowClass,
   fittedSongStyle,
@@ -37,9 +38,6 @@ import { Button, Checkbox, IconButton, Input, Select } from '../components/ui.js
 import { Sheet } from '../components/Sheet.js';
 import {
   AccidentalChoice,
-  SectionHighlight,
-  ChordColour,
-  ChordSample,
   CueStyleChoice,
   LanguageChoice,
   LineSpacing,
@@ -496,7 +494,7 @@ export function BandPage() {
         <main
           id="main"
           ref={container}
-          className={`min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${fittedSongOverflowClass(
+          className={`reading-surface min-h-0 flex-1 px-3 py-3 ${listOpen ? 'hidden md:block' : ''} ${fittedSongOverflowClass(
             fit.fits,
             true,
           )}`}
@@ -703,21 +701,7 @@ export function BandPage() {
             value={prefs.cueStyle}
             onChange={(cueStyle) => setPrefs({ cueStyle })}
           />
-          <SectionHighlight
-            label={t('settings.highlightBridges')}
-            value={prefs.highlightBridges}
-            onChange={(highlightBridges) => setPrefs({ highlightBridges })}
-          />
-          <SectionHighlight
-            label={t('settings.highlightSolos')}
-            value={prefs.highlightSolos}
-            onChange={(highlightSolos) => setPrefs({ highlightSolos })}
-          />
-          <ChordColour
-            value={prefs.chordColor}
-            onChange={(chordColor) => setPrefs({ chordColor })}
-          />
-          <ChordSample colour={prefs.chordColor} />
+          <DeviceReadingColorSettings />
           <div className="mt-5 border-t border-(--color-line) pt-4">
             <label className="flex items-start gap-2 text-sm">
               <Checkbox

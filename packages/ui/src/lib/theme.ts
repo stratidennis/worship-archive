@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { readingColorStyle } from './readingColors.js';
 import { usePrefs, type Prefs } from './settings.js';
 
 /**
@@ -34,4 +35,11 @@ export function useTheme(): void {
   const [prefs] = usePrefs();
   useEffect(() => applyTheme(prefs.theme), [prefs.theme]);
   useEffect(() => applyChordColor(prefs.chordColor), [prefs.chordColor]);
+  useEffect(() => {
+    const root = document.documentElement;
+    for (const [property, value] of Object.entries(readingColorStyle(prefs.readingColors))) {
+      if (value === 'initial') root.style.removeProperty(property);
+      else root.style.setProperty(property, value);
+    }
+  }, [prefs.readingColors]);
 }

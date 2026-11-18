@@ -3,7 +3,7 @@ import type { HostDisplay } from '@worship/core';
 import { usePrefs } from './settings.js';
 import { useLeading } from './leading.js';
 import { desktop } from './desktop.js';
-import { androidBand } from './androidBand.js';
+import { androidBand, androidLeader } from './androidBand.js';
 
 /**
  * Telling the screens what this device looks like.
@@ -28,7 +28,7 @@ import { androidBand } from './androidBand.js';
 /** Which devices are allowed to speak for the room. */
 function isHost(leading: boolean): boolean {
   // The Android shell also serves its UI on loopback, but never owns the room.
-  if (androidBand()) return false;
+  if (androidBand()) return Boolean(androidLeader());
   if (leading) return true;
   // The desktop app *is* the host machine, and a browser on that machine reaches it
   // by a loopback address. Everything else on the WiFi is somebody's phone.
@@ -61,7 +61,7 @@ export function useHostAppearance(): void {
 
   const theme = prefs.theme === 'auto' ? (systemDark ? 'dark' : 'light') : prefs.theme;
   const language = prefs.language;
-  const chordColor = prefs.chordColor;
+  const { chordColor, readingColors } = prefs;
   const accidentalPreferences = prefs.accidentalPreferences;
 
   useEffect(() => {
@@ -74,6 +74,7 @@ export function useHostAppearance(): void {
         theme,
         language,
         chordColor,
+        readingColors,
         accidentalPreferences,
       } satisfies HostDisplay),
       signal: controller.signal,
@@ -83,5 +84,5 @@ export function useHostAppearance(): void {
       // did not land.
     });
     return () => controller.abort();
-  }, [leading, theme, language, chordColor, accidentalPreferences]);
+  }, [leading, theme, language, chordColor, readingColors, accidentalPreferences]);
 }

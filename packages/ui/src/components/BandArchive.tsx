@@ -98,7 +98,7 @@ export function BandArchive({ onClose }: { onClose: () => void }) {
         {songId && (
           <div
             ref={reader}
-            className={`min-h-0 flex-1 px-4 py-5 ${fittedSongOverflowClass(fit.fits, true)}`}
+            className={`reading-surface min-h-0 flex-1 px-4 py-5 ${fittedSongOverflowClass(fit.fits, true)}`}
           >
             {song ? (
               <div

@@ -17,7 +17,8 @@ import {
 } from '../lib/useFitToScreen.js';
 import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { setLanguageOverride, useT } from '../lib/i18n.js';
-import { applyChordColor, applyTheme } from '../lib/theme.js';
+import { applyTheme } from '../lib/theme.js';
+import { readingColorStyle } from '../lib/readingColors.js';
 import { usePrefs } from '../lib/settings.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { SongBody } from '../components/SongBody.js';
@@ -105,11 +106,6 @@ export function StagePage() {
   }, [stage.theme, prefs.theme]);
 
   useEffect(() => {
-    applyChordColor(stage.chordColor ?? prefs.chordColor);
-    return () => applyChordColor(prefs.chordColor);
-  }, [stage.chordColor, prefs.chordColor]);
-
-  useEffect(() => {
     setLanguageOverride(stage.language);
     return () => setLanguageOverride(null);
   }, [stage.language]);
@@ -174,7 +170,16 @@ export function StagePage() {
       <div
         id="main"
         ref={container}
-        className={`min-h-0 flex-1 px-4 py-3 sm:px-5 ${fittedSongOverflowClass(
+        style={
+          {
+            ...readingColorStyle({ ...prefs.readingColors, ...stage.readingColors }),
+            '--color-chord-ink':
+              stage.readingColors?.chords === null
+                ? 'var(--color-chord)'
+                : (stage.chordColor ?? prefs.chordColor ?? 'var(--color-chord)'),
+          } as React.CSSProperties
+        }
+        className={`reading-surface min-h-0 flex-1 px-4 py-3 sm:px-5 ${fittedSongOverflowClass(
           fit.fits,
           false,
         )} ${state.output !== 'cleared' && !song ? 'flex items-center justify-center' : ''}`}

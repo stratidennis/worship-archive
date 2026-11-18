@@ -4,13 +4,14 @@ import { Link } from 'react-router-dom';
 import { adminApi, api, type Backup, type CloudSyncStatus } from '../lib/api.js';
 import { repo } from '../lib/repo.js';
 import { usePrefs } from '../lib/settings.js';
+import {
+  DeviceReadingColorSettings,
+  ReadingColorSettings,
+} from '../components/ReadingColorSettings.js';
 import { useT } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
 import {
-  SectionHighlight,
-  ChordColour,
-  ChordSample,
   AccidentalChoice,
   CueStyleChoice,
   LanguageChoice,
@@ -27,6 +28,7 @@ import {
   MAX_FITTED_SONG_FONT_SIZE,
   DEFAULT_STAGE_DISPLAY,
   type StageDisplay,
+  readingColorsWithChords,
 } from '@worship/core';
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
@@ -291,21 +293,7 @@ export function SettingsPage() {
                   value={prefs.cueStyle}
                   onChange={(cueStyle) => setPrefs({ cueStyle })}
                 />
-                <SectionHighlight
-                  label={t('settings.highlightBridges')}
-                  value={prefs.highlightBridges}
-                  onChange={(highlightBridges) => setPrefs({ highlightBridges })}
-                />
-                <SectionHighlight
-                  label={t('settings.highlightSolos')}
-                  value={prefs.highlightSolos}
-                  onChange={(highlightSolos) => setPrefs({ highlightSolos })}
-                />
-                <ChordColour
-                  value={prefs.chordColor}
-                  onChange={(chordColor) => setPrefs({ chordColor })}
-                />
-                <ChordSample />
+                <DeviceReadingColorSettings />
               </>
             ) : (
               <>
@@ -413,18 +401,6 @@ export function SettingsPage() {
                   onChange={(cueStyle) => setStage({ cueStyle })}
                   inherit={inherit}
                 />
-                <StageSectionHighlight
-                  label={t('settings.highlightBridges')}
-                  value={stage.highlightBridges ?? null}
-                  onChange={(highlightBridges) => setStage({ highlightBridges })}
-                  inherit={inherit}
-                />
-                <StageSectionHighlight
-                  label={t('settings.highlightSolos')}
-                  value={stage.highlightSolos ?? null}
-                  onChange={(highlightSolos) => setStage({ highlightSolos })}
-                  inherit={inherit}
-                />
                 {/* Whether chords are shown belongs to a physical display, not to an
                     abstract "all screens" default. It is offered only after the
                     Leader has selected a named, connected-or-remembered screen. */}
@@ -434,12 +410,45 @@ export function SettingsPage() {
                     onChange={(showChords) => setStage({ showChords })}
                   />
                 )}
-                <ChordColour
-                  value={stage.chordColor}
-                  onChange={(chordColor) => setStage({ chordColor })}
-                  defaultLabel={inherit}
-                />
-                <ChordSample colour={stage.chordColor} />
+                <ReadingColorSettings
+                  key={selected ?? 'shared-stage'}
+                  colors={readingColorsWithChords(stage.readingColors, stage.chordColor)}
+                  inherited={{
+                    ...prefs.readingColors,
+                    ...(selected
+                      ? readingColorsWithChords(shared.readingColors, shared.chordColor)
+                      : {}),
+                  }}
+                  inheritLabel={inherit}
+                  theme={stage.theme ?? (selected ? shared.theme : null) ?? prefs.theme}
+                  onChange={(key, value) => {
+                    const readingColors = readingColorsWithChords(
+                      stage.readingColors,
+                      stage.chordColor,
+                    );
+                    if (value === undefined) delete readingColors[key];
+                    else readingColors[key] = value;
+                    setStage({
+                      readingColors,
+                      ...(key === 'chords' ? { chordColor: value ?? null } : {}),
+                      ...(value && key === 'Bridge' ? { highlightBridges: true } : {}),
+                      ...(value && key === 'Solo' ? { highlightSolos: true } : {}),
+                    });
+                  }}
+                >
+                  <StageSectionHighlight
+                    label={t('settings.highlightBridges')}
+                    value={stage.highlightBridges ?? null}
+                    onChange={(highlightBridges) => setStage({ highlightBridges })}
+                    inherit={inherit}
+                  />
+                  <StageSectionHighlight
+                    label={t('settings.highlightSolos')}
+                    value={stage.highlightSolos ?? null}
+                    onChange={(highlightSolos) => setStage({ highlightSolos })}
+                    inherit={inherit}
+                  />
+                </ReadingColorSettings>
               </>
             )}
           </Section>

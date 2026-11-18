@@ -104,20 +104,32 @@ Guitar solo
 
   it('inherits section singers, respects line assignments, and highlights bridges only when enabled', () => {
     const html = render('full', true);
-    expect(html).toMatch(/color:var\(--color-singers-women\)[^>]*>.*?Women\. .*?>First /);
-    expect(html).toMatch(/color:var\(--color-singers-men\)[^>]*>.*?Men\. .*?>Second /);
-    expect(html.match(/color:var\(--color-singers-women\)/g)).toHaveLength(2);
-    expect(html).toContain('color:var(--color-bridge-ink)');
-    expect(render('full')).not.toContain('color:var(--color-bridge-ink)');
+    expect(html).toMatch(
+      /color:var\(--reading-Women, var\(--color-singers-women\)\)[^>]*>.*?Women\. .*?>First /,
+    );
+    expect(html).toMatch(
+      /color:var\(--reading-Men, var\(--color-singers-men\)\)[^>]*>.*?Men\. .*?>Second /,
+    );
+    expect(
+      html.match(/color:var\(--reading-Women, var\(--color-singers-women\)\)/g),
+    ).toHaveLength(2);
+    expect(html).toContain('color:var(--reading-Bridge, var(--color-bridge-ink))');
+    expect(render('full')).not.toContain(
+      'color:var(--reading-Bridge, var(--color-bridge-ink))',
+    );
   });
 
   it.each(['full', 'compact', 'minimal'] as const)(
     'highlights solos independently of bridges in %s',
     (style) => {
-      expect(render(style, true)).not.toContain('color:var(--color-solo-ink)');
+      expect(render(style, true)).not.toContain(
+        'color:var(--reading-Solo, var(--color-solo-ink))',
+      );
       const highlighted = render(style, false, true);
-      expect(highlighted).toMatch(/<section[^>]*color:var\(--color-solo-ink\)[^>]*>.*?Guitar /);
-      expect(highlighted).not.toContain('color:var(--color-bridge-ink)');
+      expect(highlighted).toMatch(
+        /<section[^>]*color:var\(--reading-Solo, var\(--color-solo-ink\)\)[^>]*>.*?Guitar /,
+      );
+      expect(highlighted).not.toContain('color:var(--reading-Bridge, var(--color-bridge-ink))');
     },
   );
 });

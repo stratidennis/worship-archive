@@ -7,6 +7,11 @@
  * truth in the next frame rather than having to replay a log.
  */
 import type { AccidentalPreferences } from './key.js';
+import {
+  normaliseReadingColors,
+  readingColorsWithChords,
+  type ReadingColors,
+} from './reading-colors.js';
 
 /**
  * What the screens are showing.
@@ -77,6 +82,7 @@ export interface StageDisplay {
   lineHeight: number | null;
   /** Any CSS colour, or null for the theme's own accent. */
   chordColor: string | null;
+  readingColors?: ReadingColors;
   /** Null follows the Stage installation's own choice. */
   showChords: boolean | null;
   /** Full, compact or minimal treatment for cues and section labels. */
@@ -111,6 +117,7 @@ export interface HostDisplay {
   theme: Exclude<ThemeName, 'auto'>;
   language: LanguageName;
   chordColor: string | null;
+  readingColors?: ReadingColors;
   /** Optional on the wire so clients remain compatible with an older Leader build. */
   accidentalPreferences?: AccidentalPreferences;
 }
@@ -142,6 +149,7 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
     display.maxFontPx === null &&
     display.lineHeight === null &&
     display.chordColor === null &&
+    Object.keys(display.readingColors ?? {}).length === 0 &&
     display.showChords == null &&
     display.cueStyle == null &&
     display.highlightBridges == null &&
@@ -179,7 +187,9 @@ export function patchStageDisplay(
       : patch.showBlockTitles !== undefined
         ? patch.showBlockTitles
         : current.showBlockTitles;
+  const readingColors = normaliseReadingColors(patch.readingColors ?? current.readingColors);
   return {
+    ...(Object.keys(readingColors).length ? { readingColors } : {}),
     theme: patch.theme !== undefined ? patch.theme : current.theme,
     language: patch.language !== undefined ? patch.language : current.language,
     minFontPx: patch.minFontPx !== undefined ? patch.minFontPx : current.minFontPx,
@@ -226,7 +236,13 @@ export function resolveStageDisplay(
     display?.showBlockTitles == null ? null : display.showBlockTitles ? 'full' : 'compact';
   const cueStyle =
     own?.cueStyle ?? legacyCueStyle(own) ?? state.stage.cueStyle ?? legacyCueStyle(state.stage);
+  const readingColors = {
+    ...readingColorsWithChords(host?.readingColors, host?.chordColor ?? null),
+    ...readingColorsWithChords(state.stage.readingColors, state.stage.chordColor),
+    ...readingColorsWithChords(own?.readingColors, own?.chordColor ?? null),
+  };
   return {
+    ...(Object.keys(readingColors).length ? { readingColors } : {}),
     theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,
     language: own?.language ?? state.stage.language ?? host?.language ?? null,
     chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,

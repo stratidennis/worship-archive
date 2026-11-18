@@ -26,6 +26,7 @@ import {
   type HostDisplay,
   isStageDisplayEmpty,
   patchStageDisplay,
+  normaliseReadingColors,
   type ServiceSet,
   type Song,
   type StageDisplay,
@@ -724,6 +725,9 @@ export function createServer(options: ApiOptions): FastifyInstance {
       theme,
       language,
       chordColor: typeof body.chordColor === 'string' ? body.chordColor : null,
+      ...(body.readingColors !== undefined
+        ? { readingColors: normaliseReadingColors(body.readingColors) }
+        : {}),
       accidentalPreferences: {
         ...DEFAULT_ACCIDENTAL_PREFERENCES,
         ...(body.accidentalPreferences ?? {}),

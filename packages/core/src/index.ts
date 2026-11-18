@@ -8,3 +8,4 @@ export * from './edit.js';
 export * from './session.js';
 export * from './id.js';
 export * from './text.js';
+export * from './reading-colors.js';

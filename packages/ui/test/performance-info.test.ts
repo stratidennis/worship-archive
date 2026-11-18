@@ -25,7 +25,7 @@ describe('Song setup cue styles', () => {
     const html = render('full');
     expect(html).toContain('Song setup');
     expect(html).toContain('<h2');
-    expect(html).toContain('bg-(--color-chord)/8');
+    expect(html).toContain('background-color:color-mix');
     expect(html).toContain('class="font-normal leading-snug"');
   });
 
@@ -33,7 +33,7 @@ describe('Song setup cue styles', () => {
     const html = render('compact');
     expect(html).not.toContain('Song setup');
     expect(html).not.toContain('<h2');
-    expect(html).toContain('bg-(--color-chord)/8');
+    expect(html).toContain('background-color:color-mix');
     expect(html).toContain('Performance key G');
     expect(html).toContain('Capo 2');
   });
@@ -41,9 +41,9 @@ describe('Song setup cue styles', () => {
   it('removes the title and background while keeping a colour-coded minimal setup', () => {
     const html = render('minimal');
     expect(html).not.toContain('Song setup');
-    expect(html).not.toContain('bg-(--color-chord)/8');
+    expect(html).not.toContain('background-color:color-mix');
     expect(html).toContain('data-song-font-scale="0.6"');
-    expect(html).toContain('color:var(--color-chord)');
+    expect(html).toContain('color:var(--reading-info, var(--color-chord))');
     expect(html).toContain('Performance key G');
   });
 });

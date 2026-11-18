@@ -648,13 +648,15 @@ export function EditPage() {
             <p className="mb-2 text-xs uppercase tracking-wider text-(--color-muted)">
               {t('edit.preview')}
             </p>
-            <div style={{ fontSize: '16px' }}>
+            <div className="reading-surface" style={{ fontSize: '16px' }}>
               <SongBody
                 song={current}
                 options={{
                   showChords: true,
                   showBass: false,
                   cueStyle: prefs.cueStyle,
+                  highlightBridges: prefs.highlightBridges,
+                  highlightSolos: prefs.highlightSolos,
                   capo: 0,
                   transpose: 0,
                   lineHeight: prefs.lineHeight,

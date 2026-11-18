@@ -1534,7 +1534,7 @@ function Preview({
       </div>
       <div
         ref={container}
-        className={`min-h-0 flex-1 px-3 py-3 sm:px-4 ${fittedSongOverflowClass(
+        className={`reading-surface min-h-0 flex-1 px-3 py-3 sm:px-4 ${fittedSongOverflowClass(
           fit.fits,
           true,
         )}`}

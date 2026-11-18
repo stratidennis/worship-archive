@@ -10,6 +10,9 @@ import {
   MIN_SONG_LINE_HEIGHT,
   type AccidentalPreferences,
   type CueStyle,
+  normaliseReadingColors,
+  readingColorsWithChords,
+  type ReadingColors,
 } from '@worship/core';
 
 /**
@@ -49,6 +52,7 @@ export interface Prefs {
    * is bright is not asking for an orange interface.
    */
   chordColor: string | null;
+  readingColors: ReadingColors;
   /** The spelling selected for each enharmonic black-key pair. */
   accidentalPreferences: AccidentalPreferences;
   /** Band installations follow the Leader until the musician explicitly opts out. */
@@ -81,6 +85,7 @@ export const DEFAULT_PREFS: Prefs = {
   maxFontPx: MAX_FITTED_SONG_FONT_SIZE,
   lineHeight: DEFAULT_SONG_LINE_HEIGHT,
   chordColor: null,
+  readingColors: {},
   accidentalPreferences: DEFAULT_ACCIDENTAL_PREFERENCES,
   bandFollowsLeaderAccidentals: true,
   bandAlwaysUsesPerformanceKey: false,
@@ -140,6 +145,10 @@ export function normalisePrefs(value: unknown): Prefs {
     minFontPx,
     maxFontPx,
     cueStyle,
+    readingColors: readingColorsWithChords(
+      normaliseReadingColors(saved.readingColors),
+      saved.chordColor ?? null,
+    ),
     highlightBridges: saved.highlightBridges === true,
     highlightSolos: saved.highlightSolos === true,
     accidentalPreferences: {

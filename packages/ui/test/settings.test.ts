@@ -9,6 +9,15 @@ describe('display preference migration', () => {
     ).toBe(true);
   });
 
+  it('retains an old chord color when adding a sanitized reading palette', () => {
+    expect(
+      normalisePrefs({
+        chordColor: '#f59e0b',
+        readingColors: { Women: '#bc4477', Solo: 'invalid', unknown: '#ffffff' },
+      }).readingColors,
+    ).toEqual({ chords: '#f59e0b', Women: '#bc4477' });
+  });
+
   it('starts existing devices with the new minimum rather than reusing the old maximum', () => {
     const prefs = normalisePrefs({ maxFontPx: 26, showBlockTitles: true });
     expect(prefs.minFontPx).toBe(DEFAULT_PREFS.minFontPx);

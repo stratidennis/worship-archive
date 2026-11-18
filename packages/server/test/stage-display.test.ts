@@ -121,6 +121,36 @@ describe('the stage screens’ appearance', () => {
     },
   );
 
+  it('layers reading colors by device and allows a screen to use theme defaults', async () => {
+    const host = await app.inject({
+      method: 'PUT',
+      url: '/api/session/host',
+      payload: {
+        theme: 'dark',
+        language: 'en',
+        chordColor: '#ff6600',
+        readingColors: { Women: '#ff44aa', Intro: '#eab308' },
+      },
+    });
+    expect(host.statusCode).toBe(200);
+    await put({ readingColors: { Women: '#cc3366', Intro: 'invalid' } });
+    await put({ deviceId: 'drums', readingColors: { chords: null, Chorus: '#22bb44' } });
+    const state = hub.getState();
+    expect(resolveStageDisplay(state, null).readingColors).toEqual({
+      chords: '#ff6600',
+      Women: '#cc3366',
+      Intro: '#eab308',
+    });
+    expect(resolveStageDisplay(state, null, 'drums').readingColors).toEqual({
+      chords: null,
+      Women: '#cc3366',
+      Intro: '#eab308',
+      Chorus: '#22bb44',
+    });
+    await put({ deviceId: 'drums', readingColors: {} });
+    expect(hub.getState().stageByDevice['drums']).toBeUndefined();
+  });
+
   it('accepts the retired title toggle from an older Leader', async () => {
     await put({ showBlockTitles: false });
     expect(resolveStageDisplay(hub.getState(), 'Back').cueStyle).toBe('compact');

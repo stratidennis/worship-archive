@@ -217,7 +217,7 @@ export function LineEditor({
                     aria-describedby={
                       chordError ? `chord-error-${layer}-${editingAt}` : undefined
                     }
-                    className={`absolute left-0 top-0 z-10 w-16 rounded border bg-(--color-stage-bg) px-1 text-[0.72em] font-semibold text-(--color-chord-ink) outline-none ${
+                    className={`absolute left-0 top-0 z-10 w-16 rounded border bg-(--color-stage-bg) px-1 text-[0.72em] font-semibold reading-chord-ink outline-none ${
                       chordError ? 'border-red-500' : 'border-(--color-chord)'
                     }`}
                     placeholder={t('edit.chordPlaceholder')}
@@ -240,7 +240,7 @@ export function LineEditor({
                     event.stopPropagation();
                     startChordAt(segment.at);
                   }}
-                  className="absolute left-0 top-0 cursor-pointer rounded px-0.5 text-[0.72em] font-semibold text-(--color-chord-ink) hover:bg-(--color-chord)/15"
+                  className="absolute left-0 top-0 cursor-pointer rounded px-0.5 text-[0.72em] font-semibold reading-chord-ink hover:bg-(--color-chord)/15"
                   title={t('edit.editChord')}
                   aria-label={t('edit.editChord')}
                 >
@@ -281,7 +281,7 @@ export function LineEditor({
           onKeyDown={handleKeyDown}
           spellCheck={false}
           className="min-w-0 flex-1 bg-transparent leading-[1.25] outline-none focus:bg-(--color-chord)/5"
-          style={{ color: singerInk(singer) ?? line.color ?? undefined }}
+          style={{ color: singerInk(singer, line.color) }}
           placeholder="…"
         />
         <Select

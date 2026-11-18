@@ -24,7 +24,7 @@ final class LeaderSessionHub implements Closeable {
 
     private JSONObject initial() {
         try {
-            JSONObject display = new JSONObject().put("theme", JSONObject.NULL).put("language", JSONObject.NULL).put("minFontPx", JSONObject.NULL).put("maxFontPx", JSONObject.NULL).put("lineHeight", JSONObject.NULL).put("chordColor", JSONObject.NULL).put("showChords", JSONObject.NULL).put("cueStyle", JSONObject.NULL).put("showBlockTitles", JSONObject.NULL);
+            JSONObject display = emptyStageDisplay();
             return new JSONObject().put("active", false).put("leaderId", leaderId).put("sessionEpoch", JSONObject.NULL).put("leaderRevision", 0)
                     .put("setId", JSONObject.NULL).put("itemIndex", 0).put("output", "live").put("stage", display)
                     .put("stageBy", new JSONObject()).put("stageByDevice", new JSONObject()).put("host", JSONObject.NULL)
@@ -32,6 +32,61 @@ final class LeaderSessionHub implements Closeable {
                     .put("performanceKey", JSONObject.NULL).put("capo", 0).put("rev", 0);
         } catch (JSONException impossible) { throw new IllegalStateException(impossible); }
     }
+    private static JSONObject emptyStageDisplay() throws JSONException {
+        JSONObject display = new JSONObject();
+        for (String key : new String[]{"theme", "language", "minFontPx", "maxFontPx", "lineHeight",
+                "chordColor", "showChords", "cueStyle", "showBlockTitles", "highlightBridges",
+                "highlightSolos", "readingColors"}) {
+            display.put(key, JSONObject.NULL);
+        }
+        return display;
+    }
+
+    synchronized JSONObject patchStage(JSONObject settings) throws JSONException {
+        String deviceId = stageTarget(settings, "deviceId", 100);
+        String screen = stageTarget(settings, "screen", 60);
+        String id = deviceId.isEmpty() ? screen : deviceId;
+        boolean shared = id.isEmpty();
+        String mapKey = deviceId.isEmpty() ? "stageBy" : "stageByDevice";
+        JSONObject devices = state.optJSONObject(mapKey);
+        if (devices == null) devices = new JSONObject();
+        JSONObject saved = shared ? state.optJSONObject("stage") : devices.optJSONObject(id);
+        if (!shared && !deviceId.isEmpty() && saved != null) saved = saved.optJSONObject("display");
+        JSONObject next = emptyStageDisplay();
+        for (Iterator<String> keys = next.keys(); keys.hasNext();) {
+            String key = keys.next();
+            if (shared && "showChords".equals(key)) continue;
+            if (settings.has(key)) next.put(key, settings.get(key));
+            else if (saved != null && saved.has(key)) next.put(key, saved.get(key));
+        }
+        JSONObject changes = new JSONObject();
+        if (shared) {
+            changes.put("stage", next);
+        } else {
+            boolean empty = true;
+            for (Iterator<String> keys = next.keys(); keys.hasNext();) {
+                String key = keys.next();
+                Object value = next.get(key);
+                if (value != JSONObject.NULL && (!(value instanceof JSONObject) || ((JSONObject) value).length() != 0)) {
+                    empty = false;
+                    break;
+                }
+            }
+            if (empty) devices.remove(id);
+            else devices.put(id, deviceId.isEmpty() ? next : new JSONObject().put("name", screen).put("display", next));
+            changes.put(mapKey, devices);
+        }
+        patch(changes, false);
+        return new JSONObject().put("stage", next);
+    }
+
+    private static String stageTarget(JSONObject settings, String key, int limit) {
+        Object value = settings.opt(key);
+        if (!(value instanceof String)) return "";
+        String text = ((String) value).trim();
+        return text.substring(0, Math.min(text.length(), limit));
+    }
+
     private void restore() {
         if (!stateFile.isFile()) return;
         try { JSONObject saved = new JSONObject(new String(java.nio.file.Files.readAllBytes(stateFile.toPath()), StandardCharsets.UTF_8)); for (Iterator<String> i = state.keys(); i.hasNext();) { String key = i.next(); if (saved.has(key)) state.put(key, saved.get(key)); } state.put("rev", state.optInt("rev") + 1); }

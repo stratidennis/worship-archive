@@ -145,10 +145,14 @@ function chunksOf(
   return chunks;
 }
 
-export function singerInk(singer: Line['singers']): string | undefined {
-  if (singer === 'Women') return 'var(--color-singers-women)';
-  if (singer === 'Men') return 'var(--color-singers-men)';
-  return undefined;
+export function singerInk(
+  singer: Line['singers'],
+  fallback?: string | null,
+): string | undefined {
+  if (!singer) return fallback ?? undefined;
+  if (singer === 'Women') return 'var(--reading-Women, var(--color-singers-women))';
+  if (singer === 'Men') return 'var(--reading-Men, var(--color-singers-men))';
+  return `var(--reading-${singer}, ${fallback ?? 'inherit'})`;
 }
 
 function LineView({
@@ -184,7 +188,7 @@ function LineView({
       className="flex flex-wrap items-end"
       style={{
         paddingLeft: `${(line.indent ?? 0) * 1.5}em`,
-        color: singerInk(singer) ?? line.color ?? undefined,
+        color: singerInk(singer, line.color),
       }}
     >
       {(singer === 'Women' || singer === 'Men') && (
@@ -197,10 +201,14 @@ function LineView({
               {showChordRow && (
                 <span
                   data-song-font-scale={fontScale * 0.72}
-                  className="block text-[0.72em] font-semibold leading-[1.1] text-(--color-chord-ink)"
+                  className="block text-[0.72em] font-semibold leading-[1.1] reading-chord-ink"
                 >
                   {part.chord ?? ' '}
-                  {part.bass && <span className="ml-1 text-(--color-bass)">{part.bass}</span>}
+                  {part.bass && (
+                    <span className="ml-1 text-[color:var(--reading-bass,var(--color-bass))]">
+                      {part.bass}
+                    </span>
+                  )}
                 </span>
               )}
               <span
@@ -238,17 +246,38 @@ function BlockView({
     ? `${blockName(block.type)} — ${block.label}`
     : blockName(block.type);
   const repeat = block.repeat ?? 1;
-  let ink = cue?.text ?? undefined;
-  if (block.type === 'Bridge' && options.highlightBridges) ink = 'var(--color-bridge-ink)';
+  const lyricInk = 'var(--reading-lyrics, var(--color-stage-fg))';
+  let ink = `var(--reading-${block.type}, ${cue?.text ?? lyricInk})`;
+  if (block.type === 'Bridge') {
+    ink = options.highlightBridges
+      ? 'var(--reading-Bridge, var(--color-bridge-ink))'
+      : lyricInk;
+  }
   const soloHighlighted = block.type === 'Solo' && options.highlightSolos;
-  if (soloHighlighted) ink = 'var(--color-solo-ink)';
+  if (block.type === 'Solo') {
+    ink = soloHighlighted
+      ? 'var(--reading-Solo, var(--color-solo-ink))'
+      : (cue?.text ?? lyricInk);
+  }
+  const cueAccent =
+    block.type === 'Solo' && !soloHighlighted
+      ? cue?.border
+      : `var(--reading-${block.type}, ${cue?.border})`;
+  const soloBackground =
+    'color-mix(in srgb, var(--reading-Solo, var(--color-solo-ink)) 10%, var(--reading-background, var(--color-stage-bg)))';
+  const cueBackground =
+    block.type === 'Solo'
+      ? soloHighlighted
+        ? soloBackground
+        : cue?.background
+      : `var(--reading-${block.type}-surface, ${cue?.background})`;
 
   return (
     <section
       data-song-font-scale={cue?.fontScale ?? 1}
       className={`mb-[0.9em] ${
         isCue && cue?.coloured
-          ? 'rounded-md border-l-2 py-[0.18em] pl-[0.4em]'
+          ? 'rounded-md border-l py-[0.18em] pl-[0.4em]'
           : isIndented
             ? 'ml-[1.3em]'
             : ''
@@ -260,10 +289,8 @@ function BlockView({
         fontSize: cue ? `${cue.fontScale}em` : undefined,
         ...(cue?.coloured
           ? {
-              borderColor: soloHighlighted ? 'var(--color-solo-ink)' : cue.border,
-              backgroundColor: soloHighlighted
-                ? 'color-mix(in srgb, var(--color-solo-ink) 10%, var(--color-stage-bg))'
-                : cue.background,
+              borderColor: soloHighlighted ? ink : cueAccent,
+              backgroundColor: cueBackground,
             }
           : {}),
       }}
@@ -271,7 +298,7 @@ function BlockView({
       {cueStyle === 'full' && (
         <h2
           data-song-font-scale={(cue?.fontScale ?? 1) * 0.62}
-          className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)"
+          className="text-[0.62em] font-semibold uppercase tracking-wider text-[color:var(--reading-titles,var(--color-muted))]"
         >
           {label}
           {block.singers && block.singers !== 'Women' && block.singers !== 'Men' && (
@@ -296,7 +323,7 @@ function BlockView({
           ))}
         </div>
         {repeat > 1 && (
-          <div className="flex shrink-0 items-stretch gap-[0.2em] pr-[0.15em] text-(--color-stage-fg)">
+          <div className="flex shrink-0 items-stretch gap-[0.2em] pr-[0.15em] text-[color:var(--reading-repeats,var(--reading-lyrics,var(--color-stage-fg)))]">
             <span aria-hidden="true" className="my-[0.1em] w-[0.26em] border-y border-r" />
             <span className="sr-only">{t('song.repeatSection', { count: repeat })}</span>
             <span

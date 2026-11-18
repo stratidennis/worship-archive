@@ -46,21 +46,21 @@ export function PerformanceInfo({
   return (
     <section
       data-song-font-scale={leaderScale}
-      className={`mb-[0.9em] ${
-        coloured
-          ? 'rounded-md border-l-2 border-(--color-chord) bg-(--color-chord)/8 px-[0.45em] py-[0.24em]'
-          : ''
-      }`}
+      className={`mb-[0.9em] ${coloured ? 'rounded-md border-l px-[0.45em] py-[0.24em]' : ''}`}
       style={{
         breakInside: 'avoid',
         fontSize: `${leaderScale}em`,
-        color: cueStyle === 'minimal' ? 'var(--color-chord)' : undefined,
+        color: `var(--reading-info, ${coloured ? 'var(--reading-lyrics, var(--color-stage-fg))' : 'var(--color-chord)'})`,
+        borderColor: coloured ? 'var(--reading-info, var(--color-chord))' : undefined,
+        backgroundColor: coloured
+          ? 'color-mix(in srgb, var(--reading-info, var(--color-chord)) 8%, transparent)'
+          : undefined,
       }}
     >
       {cueStyle === 'full' && (
         <h2
           data-song-font-scale={0.58}
-          className="font-semibold uppercase tracking-wider text-(--color-muted)"
+          className="font-semibold uppercase tracking-wider text-[color:var(--reading-titles,var(--color-muted))]"
           style={{ fontSize: `${0.58 / leaderScale}em` }}
         >
           {t('performance.title')}
@@ -75,7 +75,7 @@ export function PerformanceInfo({
           className="mt-[0.18em] leading-snug text-(--color-muted)"
           style={{
             fontSize: `${mineScale / leaderScale}em`,
-            color: cueStyle === 'minimal' ? 'inherit' : undefined,
+            color: `var(--reading-infoDetails, ${coloured ? 'var(--reading-info, var(--color-muted))' : 'inherit'})`,
           }}
         >
           {mine.join(' · ')}
