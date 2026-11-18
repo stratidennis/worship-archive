@@ -240,7 +240,8 @@ function BlockView({
   const repeat = block.repeat ?? 1;
   let ink = cue?.text ?? undefined;
   if (block.type === 'Bridge' && options.highlightBridges) ink = 'var(--color-bridge-ink)';
-  if (block.type === 'Solo' && options.highlightSolos) ink = 'var(--color-solo-ink)';
+  const soloHighlighted = block.type === 'Solo' && options.highlightSolos;
+  if (soloHighlighted) ink = 'var(--color-solo-ink)';
 
   return (
     <section
@@ -259,8 +260,10 @@ function BlockView({
         fontSize: cue ? `${cue.fontScale}em` : undefined,
         ...(cue?.coloured
           ? {
-              borderColor: cue.border,
-              backgroundColor: cue.background,
+              borderColor: soloHighlighted ? 'var(--color-solo-ink)' : cue.border,
+              backgroundColor: soloHighlighted
+                ? 'color-mix(in srgb, var(--color-solo-ink) 10%, var(--color-stage-bg))'
+                : cue.background,
             }
           : {}),
       }}
