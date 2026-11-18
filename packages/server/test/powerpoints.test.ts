@@ -75,6 +75,49 @@ describe('PowerPoint names and matching', () => {
     expect(result.file?.relativePath).toContain(join('2026', 'Sunday'));
   });
 
+  it.each(["Ceru'ntreg a plans.pptx", 'Ceruntreg a plans.pptx', 'Ceru-ntreg a plans.pptx'])(
+    'finds contracted Romanian first lyrics: %s',
+    (name) => {
+      writeFileSync(join(dir, name), 'existing');
+      const value = song([{ type: 'Verse', lines: ['Ceru-ntreg a plâns'] }], 'La cruce');
+      expect(findPowerPoints(dir, [value]).results[0]!.file?.name).toBe(name);
+    },
+  );
+
+  it('finds the source opening lyric even when a reviewed set starts with another verse', () => {
+    writeFileSync(join(dir, 'Ceru-ntreg a plans.pptx'), 'existing');
+    const value = song(
+      [
+        { type: 'Verse', lines: ['Ceru-ntreg a plâns'] },
+        { type: 'Verse', lines: ['O altă strofă'] },
+      ],
+      'La cruce',
+    );
+    value.arrangement = [value.blocks[1]!.id];
+    value.arrangementSource = 'reviewed';
+    expect(findPowerPoints(dir, [value]).results[0]!.status).toBe('found');
+  });
+
+  it('finds Ceru-ntreg a plans after a leading intro instruction', () => {
+    writeFileSync(join(dir, 'Ceru-ntreg a plans.pptx'), 'existing');
+    const value = song(
+      [
+        { type: 'Note', lines: ['Intro: pian'] },
+        { type: 'Verse', lines: ['[Intro: pian]', 'Ceru-ntreg a plâns', 'La crucea Ta'] },
+      ],
+      'La cruce',
+    );
+    expect(findPowerPoints(dir, [value]).results[0]!.file?.name).toBe(
+      'Ceru-ntreg a plans.pptx',
+    );
+  });
+
+  it('does not match unrelated short filenames just because their letters occur in a lyric', () => {
+    writeFileSync(join(dir, 'A.pptx'), 'unrelated');
+    const value = song([{ type: 'Verse', lines: ['Ceru-ntreg a plâns'] }], 'La cruce');
+    expect(findPowerPoints(dir, [value]).results[0]!.status).toBe('missing');
+  });
+
   it('finds an ODP presentation and matches its title without the extension', () => {
     const nested = join(dir, 'OpenDocument');
     mkdirSync(nested);

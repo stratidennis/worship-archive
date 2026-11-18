@@ -84,6 +84,11 @@ function lyricLines(block: Block, issues: string[]): { lines: string[]; wholeRep
   return { lines, wholeRepeat };
 }
 
+/** Discovery uses the same lyric cleanup as generation, without rejecting ambiguous orders. */
+export function firstSungLine(block: Block): string | null {
+  return lyricLines(block, []).lines[0] ?? null;
+}
+
 export function resolvePerformedOrder(song: Song): PerformedOrder {
   const issues: string[] = [];
   const usable = song.blocks.filter((b) => SUNG.has(b.type) && !b.bandOnly);

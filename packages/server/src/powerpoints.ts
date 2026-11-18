@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import type { Block, Song } from '@worship/core';
-import { resolvePerformedOrder } from './performed-order.js';
+import { firstSungLine, resolvePerformedOrder } from './performed-order.js';
 import { writePresentation } from './presentation-write.js';
 import { finishPresentationPackage } from './presentation-package.js';
 
@@ -86,7 +86,7 @@ export function firstAudienceLine(song: Song): string | null {
   const blocks = audienceBlocks(song);
   const firstVerse = blocks.find((block) => block.type === 'Verse');
   for (const block of firstVerse ? [firstVerse, ...blocks] : blocks) {
-    const line = block.lines.map((one) => one.text.trim()).find(Boolean);
+    const line = firstSungLine(block);
     if (line) return line;
   }
   return null;
@@ -115,8 +115,15 @@ function matchScore(filename: string, candidates: string[]): number {
   for (const candidate of candidates) {
     const wanted = comparableName(candidate);
     if (!wanted) continue;
+    // Romanian contractions are authored with hyphens, apostrophes, or no separator.
+    // Compare exact joined phrases as well, without broad fuzzy matching.
     if (file === wanted) score = Math.max(score, 1);
-    else if (wanted.length >= 5 && (file.includes(wanted) || wanted.includes(file))) {
+    else if (file.replace(/ /g, '') === wanted.replace(/ /g, '')) score = Math.max(score, 0.99);
+    else if (
+      Math.min(file.length, wanted.length) >= 5 &&
+      ((' ' + file + ' ').includes(' ' + wanted + ' ') ||
+        (' ' + wanted + ' ').includes(' ' + file + ' '))
+    ) {
       const shorter = Math.min(file.length, wanted.length);
       const longer = Math.max(file.length, wanted.length);
       score = Math.max(score, 0.82 + 0.16 * (shorter / longer));
@@ -161,7 +168,13 @@ export function findPowerPoints(root: string, songs: Song[]): PowerPointReport {
     folder: absolute,
     results: songs.map((song) => {
       const firstLine = firstAudienceLine(song);
-      const candidates = [song.title, ...(firstLine ? [firstLine] : [])];
+      // A set can start at a later verse. File discovery must still recognise the
+      // library song's original opening lyric, independently of its performed order.
+      const sourceFirstLine = firstAudienceLine({ ...song, arrangement: null });
+      const candidates = [
+        song.title,
+        ...[firstLine, sourceFirstLine].filter((line): line is string => !!line),
+      ];
       const ranked = files
         .map((file) => ({ file, score: matchScore(file.name, candidates) }))
         .sort((a, b) => b.score - a.score || a.file.name.localeCompare(b.file.name));

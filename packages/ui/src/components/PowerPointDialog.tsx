@@ -32,16 +32,7 @@ export function PowerPointDialog({
   const band = role === 'band' ? clientDesktop() : null;
   const native = band ?? desktop();
   const nativeExport = !!native?.exportPresentation;
-  const [repeatMode, setRepeatMode] = useState<'compact' | 'expanded'>(() => {
-    try {
-      return localStorage.getItem('presentation-repeat-mode') === 'expanded'
-        ? 'expanded'
-        : 'compact';
-    } catch {
-      return 'compact';
-    }
-  });
-  const options: PresentationOptions = nativeExport ? { repeatMode } : {};
+  const options: PresentationOptions = { repeatMode: 'compact' };
   const [notice, setNotice] = useState<string | null>(null);
   const [report, setReport] = useState<PowerPointReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -211,32 +202,6 @@ export function PowerPointDialog({
         </header>
 
         <div className="scroll-slim min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {nativeExport && (
-            <div className="mb-4 grid gap-1.5">
-              <label className="text-sm font-medium" htmlFor="presentation-repeats">
-                {t('powerpoint.repeats')}
-              </label>
-              <select
-                id="presentation-repeats"
-                disabled={busy}
-                value={repeatMode}
-                className="min-h-10 rounded-lg border border-(--color-line) bg-(--color-raised) px-3 text-sm"
-                onChange={(event) => {
-                  const mode = event.target.value === 'expanded' ? 'expanded' : 'compact';
-                  setRepeatMode(mode);
-                  try {
-                    localStorage.setItem('presentation-repeat-mode', mode);
-                  } catch {
-                    /* Storage unavailable. */
-                  }
-                }}
-              >
-                <option value="compact">{t('powerpoint.compact')}</option>
-                <option value="expanded">{t('powerpoint.expanded')}</option>
-              </select>
-              <p className="text-xs text-(--color-muted)">{t('powerpoint.repeatHint')}</p>
-            </div>
-          )}
           {ids.length === 0 ? (
             <p className="py-6 text-center text-sm text-(--color-muted)">
               {t('powerpoint.noSongs')}
