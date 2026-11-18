@@ -13,7 +13,7 @@ import {
 } from '@worship/core';
 import { useT } from '../lib/i18n.js';
 import { IconCheck } from './icons.js';
-import { Segment, Segmented } from './ui.js';
+import { Checkbox, Segment, Segmented, Select } from './ui.js';
 
 /**
  * How words look on a screen — in one place, because three screens now ask.
@@ -257,6 +257,50 @@ export function MaximumFontSize({
       <span className="mt-1 block text-xs text-(--color-muted)">
         {t('settings.maxFontHint')}
       </span>
+    </label>
+  );
+}
+
+export function BridgeHighlight({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const { t } = useT();
+  return (
+    <label className="mt-4 flex items-center gap-2 text-sm">
+      <Checkbox checked={value} onChange={(event) => onChange(event.target.checked)} />
+      <span>{t('settings.highlightBridges')}</span>
+    </label>
+  );
+}
+
+export function StageBridgeHighlight({
+  value,
+  onChange,
+  inherit,
+}: {
+  value: boolean | null;
+  onChange: (value: boolean | null) => void;
+  inherit: string;
+}) {
+  const { t } = useT();
+  return (
+    <label className="mt-4 grid gap-1 text-sm">
+      <span>{t('settings.highlightBridges')}</span>
+      <Select
+        value={value === null ? '' : String(value)}
+        onChange={(event) => {
+          const next = event.target.value;
+          onChange(next === '' ? null : next === 'true');
+        }}
+      >
+        <option value="">{inherit}</option>
+        <option value="true">{t('settings.bridgeHighlightOn')}</option>
+        <option value="false">{t('settings.bridgeHighlightOff')}</option>
+      </Select>
     </label>
   );
 }

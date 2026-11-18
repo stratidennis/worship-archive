@@ -8,6 +8,7 @@ import { useT } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
 import {
+  BridgeHighlight,
   ChordColour,
   ChordSample,
   AccidentalChoice,
@@ -17,6 +18,7 @@ import {
   MaximumFontSize,
   MinimumFontSize,
   ThemeChoice,
+  StageBridgeHighlight,
 } from '../components/DisplaySettings.js';
 import { useStageDisplay } from '../lib/stageDisplay.js';
 import {
@@ -289,6 +291,10 @@ export function SettingsPage() {
                   value={prefs.cueStyle}
                   onChange={(cueStyle) => setPrefs({ cueStyle })}
                 />
+                <BridgeHighlight
+                  value={prefs.highlightBridges}
+                  onChange={(highlightBridges) => setPrefs({ highlightBridges })}
+                />
                 <ChordColour
                   value={prefs.chordColor}
                   onChange={(chordColor) => setPrefs({ chordColor })}
@@ -399,6 +405,11 @@ export function SettingsPage() {
                 <CueStyleChoice
                   value={stage.cueStyle}
                   onChange={(cueStyle) => setStage({ cueStyle })}
+                  inherit={inherit}
+                />
+                <StageBridgeHighlight
+                  value={stage.highlightBridges ?? null}
+                  onChange={(highlightBridges) => setStage({ highlightBridges })}
                   inherit={inherit}
                 />
                 {/* Whether chords are shown belongs to a physical display, not to an

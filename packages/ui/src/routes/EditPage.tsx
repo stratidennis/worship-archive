@@ -489,6 +489,12 @@ export function EditPage() {
                   <LineEditor
                     key={lineIndex}
                     line={line}
+                    sectionSingers={block.singers}
+                    onSingersChange={(singers) =>
+                      edit((s) =>
+                        updateLine(s, block.id, lineIndex, (l) => ({ ...l, singers })),
+                      )
+                    }
                     layer="chords"
                     showChords
                     onTextChange={(text) =>

@@ -9,7 +9,6 @@ import {
   isPhoneScreen,
   NARROW_SCREEN_WIDTH,
   usesConstrainedColumnFlow,
-  usesPreferredSizeScrolling,
 } from '../src/lib/useFitToScreen.js';
 
 describe('fit-to-screen font floor', () => {
@@ -49,7 +48,7 @@ describe('fit-to-screen font floor', () => {
 
   it('treats a compact Android tablet as a fit-to-screen display', () => {
     expect(NARROW_SCREEN_WIDTH).toBeLessThan(600);
-    expect(usesPreferredSizeScrolling(600, 960, true)).toBe(false);
+    expect(isPhoneScreen(600, 960)).toBe(false);
     expect(columnCandidates(600, false)).toEqual([1, 2]);
   });
 
@@ -72,7 +71,6 @@ describe('fit-to-screen font floor', () => {
 
   it('keeps heavily scaled desktop displays out of the phone layout', () => {
     expect(isPhoneScreen(853, 480, false)).toBe(false);
-    expect(usesPreferredSizeScrolling(853, 480, true, false)).toBe(false);
   });
 });
 
@@ -174,12 +172,18 @@ describe('one-column-first fitting', () => {
 });
 
 describe('phone font-size control', () => {
-  it('uses the chosen size and scrolling on a narrow Band screen', () => {
-    expect(usesPreferredSizeScrolling(390, 844, true)).toBe(true);
-  });
-
-  it('keeps fitting on desktop screens even when phone scrolling is enabled', () => {
-    expect(usesPreferredSizeScrolling(1280, 720, true)).toBe(false);
+  it('honours both phone font bounds and scrolls at the floor when needed', async () => {
+    const columns = columnCandidates(390, isPhoneScreen(390, 844));
+    const overflows = async (font: number) => font > 22;
+    expect(await chooseFit({ minFontPx: 12, maxFittedFontPx: 32, columns, overflows })).toEqual(
+      { fontPx: 22, columns: 1, fits: true },
+    );
+    expect(await chooseFit({ minFontPx: 12, maxFittedFontPx: 18, columns, overflows })).toEqual(
+      { fontPx: 18, columns: 1, fits: true },
+    );
+    expect(await chooseFit({ minFontPx: 26, maxFittedFontPx: 32, columns, overflows })).toEqual(
+      { fontPx: 26, columns: 1, fits: false },
+    );
   });
 
   it('never offers columns on a phone', () => {

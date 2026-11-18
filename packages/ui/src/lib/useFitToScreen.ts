@@ -28,15 +28,10 @@ import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
 
 export interface FitOptions {
   minFontPx?: number;
-  /** The fixed comfortable size used by phone scrolling. */
+  /** Initial size while the available area is being measured. */
   preferredFontPx?: number;
   /** Safety ceiling for automatic fit-to-screen enlargement. */
   maxFittedFontPx?: number;
-  /**
-   * On a phone, keep the chosen size and scroll instead of silently shrinking it.
-   * Desktop displays keep fitting because they may have no practical scroll input.
-   */
-  narrowScrollAtPreferredSize?: boolean;
   /** Change this when the content changes, to force a re-fit. */
   key?: unknown;
 }
@@ -75,15 +70,6 @@ export function isPhoneScreen(
   touchBrowser = true,
 ): boolean {
   return touchBrowser && Math.min(screenWidth, screenHeight) < NARROW_SCREEN_WIDTH;
-}
-
-export function usesPreferredSizeScrolling(
-  screenWidth: number,
-  screenHeight: number,
-  enabled: boolean,
-  touchBrowser = true,
-): boolean {
-  return enabled && isPhoneScreen(screenWidth, screenHeight, touchBrowser);
 }
 
 export function exceedsAvailableSpace(
@@ -219,7 +205,6 @@ export function useFitToScreen(
     maxFittedFont,
     Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT),
   );
-  const narrowScrollAtPreferredSize = options.narrowScrollAtPreferredSize ?? false;
   const [result, setResult] = useState<FitResult>({
     fontPx: preferredFont,
     columns: 1,
@@ -401,30 +386,12 @@ export function useFitToScreen(
         return overflowing;
       };
 
-      let best: FitChoice = { fontPx: minFont, columns: 1, fits: false };
-
-      if (
-        usesPreferredSizeScrolling(
-          screenWidth,
-          screenHeight,
-          narrowScrollAtPreferredSize,
-          touchBrowser,
-        )
-      ) {
-        best = {
-          fontPx: preferredFont,
-          columns: 1,
-          fits: !(await overflows(preferredFont, 1)),
-        };
-      } else {
-        const candidates = columnCandidates(width, phoneScreen);
-        best = await chooseFit({
-          minFontPx: minFont,
-          maxFittedFontPx: maxFittedFont,
-          columns: candidates,
-          overflows,
-        });
-      }
+      const best = await chooseFit({
+        minFontPx: minFont,
+        maxFittedFontPx: maxFittedFont,
+        columns: columnCandidates(width, phoneScreen),
+        overflows,
+      });
 
       if (disposed) throw cancelled;
       const currentBox = getComputedStyle(container);
@@ -525,15 +492,7 @@ export function useFitToScreen(
     };
     // `key` re-runs the fit when the content itself changed: transpose alters chord
     // widths, toggling chords changes line height, and both change what fits.
-  }, [
-    containerRef,
-    contentRef,
-    minFont,
-    preferredFont,
-    maxFittedFont,
-    narrowScrollAtPreferredSize,
-    options.key,
-  ]);
+  }, [containerRef, contentRef, minFont, preferredFont, maxFittedFont, options.key]);
 
   return fittedKey.current === options.key ? result : { ...result, measuring: true };
 }

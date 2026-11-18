@@ -286,7 +286,19 @@ public final class BandActivity extends Activity {
         if (root != null) root.requestApplyInsets();
     }
 
-    private void back() { if (settingsDialog != null && settingsDialog.isShowing()) settingsDialog.dismiss(); else finish(); }
+    private void back() {
+        if (settingsDialog != null && settingsDialog.isShowing()) {
+            settingsDialog.dismiss();
+            return;
+        }
+        if (web == null) {
+            finish();
+            return;
+        }
+        web.evaluateJavascript("(function(){const dialog=document.querySelector('dialog[data-band-archive][open]');"
+                + "if(!dialog)return false;dialog.dispatchEvent(new Event('cancel',{cancelable:true}));return true;})()",
+                handled -> { if (!"true".equals(handled)) finish(); });
+    }
     @Override public void onBackPressed() { back(); }
     @Override public void onResume() {
         super.onResume();

@@ -25,6 +25,7 @@ export interface RenderOptions {
   showBass: boolean;
   /** Full, compact or minimal treatment for section labels and coloured cues. */
   cueStyle?: CueStyle;
+  highlightBridges?: boolean;
   capo: number;
   /** Unitless lyric line-height multiplier. */
   lineHeight?: number;
@@ -143,19 +144,29 @@ function chunksOf(
   return chunks;
 }
 
+export function singerInk(singer: Line['singers']): string | undefined {
+  if (singer === 'Women') return 'var(--color-singers-women)';
+  if (singer === 'Men') return 'var(--color-singers-men)';
+  return undefined;
+}
+
 function LineView({
   line,
   options,
   semitones,
   targetKey,
   fontScale,
+  singers,
 }: {
   line: Line;
   options: RenderOptions;
   semitones: number;
   targetKey: string | null;
   fontScale: number;
+  singers: Block['singers'];
 }) {
+  const { singerName } = useT();
+  const singer = line.singers ?? singers;
   const chunks = useMemo(
     () => chunksOf(line, options, semitones, targetKey),
     [line, options, semitones, targetKey],
@@ -172,9 +183,12 @@ function LineView({
       className="flex flex-wrap items-end"
       style={{
         paddingLeft: `${(line.indent ?? 0) * 1.5}em`,
-        color: line.color ?? undefined,
+        color: singerInk(singer) ?? line.color ?? undefined,
       }}
     >
+      {(singer === 'Women' || singer === 'Men') && (
+        <span className="sr-only">{singerName(singer)}. </span>
+      )}
       {chunks.map((chunk, c) => (
         <span key={c} className="flex items-end">
           {chunk.map((part, i) => (
@@ -214,22 +228,15 @@ function BlockView({
   semitones: number;
   targetKey: string | null;
 }) {
-  // Block types and singers are stored in English — that is the file format — but this
-  // heading sits directly above the words on a stage display, and a Romanian song with
-  // an English "CHORUS" over it reads as someone else's software.
-  const { blockName, singerName } = useT();
+  const { blockName, singerName, t } = useT();
   const isCue = CUE_TYPES.has(block.type);
   const isIndented = INDENTED_TYPES.has(block.type);
   const cueStyle = options.cueStyle ?? 'full';
   const cue = cueAppearance(block.type, cueStyle);
-  const label = [
-    blockName(block.type),
-    block.label ? `— ${block.label}` : null,
-    block.repeat ? `×${block.repeat}` : null,
-    block.singers ? `· ${singerName(block.singers)}` : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const label = block.label
+    ? `${blockName(block.type)} — ${block.label}`
+    : blockName(block.type);
+  const repeat = block.repeat ?? 1;
 
   return (
     <section
@@ -250,6 +257,9 @@ function BlockView({
               color: cue.text ?? undefined,
             }
           : {}),
+        ...(block.type === 'Bridge' && options.highlightBridges
+          ? { color: 'var(--color-bridge-ink)' }
+          : {}),
         ...(cue?.coloured
           ? {
               borderColor: cue.border,
@@ -264,18 +274,41 @@ function BlockView({
           className="text-[0.62em] font-semibold uppercase tracking-wider text-(--color-muted)"
         >
           {label}
+          {block.singers && block.singers !== 'Women' && block.singers !== 'Men' && (
+            <span className="ml-1.5">· {singerName(block.singers)}</span>
+          )}
         </h2>
       )}
-      {block.lines.map((line, i) => (
-        <LineView
-          key={i}
-          line={line}
-          options={options}
-          semitones={semitones}
-          targetKey={targetKey}
-          fontScale={cue?.fontScale ?? 1}
-        />
-      ))}
+      <div
+        className={repeat > 1 ? 'flex w-fit max-w-full items-stretch gap-[0.4em]' : undefined}
+      >
+        <div className={repeat > 1 ? 'min-w-0 flex-1' : undefined}>
+          {block.lines.map((line, i) => (
+            <LineView
+              key={i}
+              line={line}
+              singers={block.singers}
+              options={options}
+              semitones={semitones}
+              targetKey={targetKey}
+              fontScale={cue?.fontScale ?? 1}
+            />
+          ))}
+        </div>
+        {repeat > 1 && (
+          <div className="flex shrink-0 items-stretch gap-[0.2em] pr-[0.15em] text-(--color-stage-fg)">
+            <span aria-hidden="true" className="my-[0.1em] w-[0.26em] border-y border-r" />
+            <span className="sr-only">{t('song.repeatSection', { count: repeat })}</span>
+            <span
+              aria-hidden="true"
+              data-song-font-scale={(cue?.fontScale ?? 1) * 0.75}
+              className="self-center whitespace-nowrap text-[0.75em] font-semibold tabular-nums"
+            >
+              ×{repeat}
+            </span>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -301,9 +334,19 @@ export function SongBody({
   const byId = useMemo(() => new Map(song.blocks.map((b) => [b.id, b])), [song]);
   const sequence: Block[] = useMemo(() => {
     if (!arrangementView || !song.arrangement) return song.blocks;
-    return song.arrangement
-      .map((id) => byId.get(id))
-      .filter((b): b is Block => b !== undefined);
+    const blocks: Block[] = [];
+    for (let i = 0; i < song.arrangement.length; i++) {
+      const id = song.arrangement[i];
+      const block = id ? byId.get(id) : undefined;
+      if (!block) continue;
+      let count = 1;
+      while (song.arrangement[i + 1] === id) {
+        i++;
+        count++;
+      }
+      blocks.push(count > 1 ? { ...block, repeat: count } : block);
+    }
+    return blocks;
   }, [song, arrangementView, byId]);
 
   // Group linked blocks so they cannot be split across columns.

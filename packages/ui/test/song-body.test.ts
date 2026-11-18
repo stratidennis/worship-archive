@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { hasVisibleChordRow } from '../src/components/SongBody.js';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { parseChordPro, type CueStyle } from '@worship/core';
+import { I18nProvider } from '../src/lib/i18n.js';
+import { hasVisibleChordRow, SongBody } from '../src/components/SongBody.js';
 import { cueAppearance } from '../src/lib/cueAppearance.js';
 
 describe('song line chord spacing', () => {
@@ -40,5 +44,65 @@ describe('song cue blocks', () => {
       coloured: false,
       text: 'var(--color-cue-note)',
     });
+  });
+});
+
+describe('performance markings', () => {
+  const render = (cueStyle: CueStyle, highlightBridges = false) => {
+    const song = parseChordPro(`
+{title: Example}
+{x_block_singers: Women}
+{x_repeat: 2}
+{start_of_bridge: B1}
+First phrase
+{x_singers: Men}
+Second phrase
+{x_singers: All}
+Third phrase
+{end_of_bridge}
+{start_of_verse: V1}
+Other verse
+{end_of_verse}
+`);
+    // Use the same section consecutively and again after the verse.
+    song.arrangement = ['B1', 'B1', 'B1', 'V1', 'B1'];
+    return renderToStaticMarkup(
+      createElement(
+        I18nProvider,
+        null,
+        createElement(SongBody, {
+          song,
+          arrangementView: true,
+          options: {
+            showChords: false,
+            showBass: false,
+            transpose: 0,
+            capo: 0,
+            cueStyle,
+            highlightBridges,
+          },
+        }),
+      ),
+    );
+  };
+
+  it.each(['full', 'compact', 'minimal'] as const)(
+    'shows repeat counts beside each lyric run in %s',
+    (style) => {
+      const html = render(style);
+      expect(html).toContain('Repeat section 3 times');
+      expect(html).toContain('Repeat section 2 times');
+      expect(html.match(/>First /g)).toHaveLength(2);
+      expect(html).not.toMatch(/<h2[^>]*>[^<]*×/);
+    },
+  );
+
+  it('inherits section singers, respects line assignments, and highlights bridges only when enabled', () => {
+    const html = render('full', true);
+    expect(html).toMatch(/color:var\(--color-singers-women\)[^>]*>.*?Women\. .*?>First /);
+    expect(html).toMatch(/color:var\(--color-singers-men\)[^>]*>.*?Men\. .*?>Second /);
+    expect(html.match(/color:var\(--color-singers-women\)/g)).toHaveLength(2);
+    expect(html).toContain('color:var(--color-bridge-ink)');
+    expect(render('full')).not.toContain('color:var(--color-bridge-ink)');
   });
 });

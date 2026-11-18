@@ -72,15 +72,39 @@ function KeyBadge({ song }: { song: SongSummary }) {
 }
 
 export function Library() {
-  const { t } = useT();
-  const [prefs] = usePrefs();
-  const navigate = useNavigate();
   const location = useLocation();
   const [initialParams] = useState(() =>
     location.search ? new URLSearchParams(location.search) : readArchiveState('library'),
   );
   const [params, setParams] = useSearchParams(initialParams);
-  useEffect(() => rememberArchiveState('library', params), [params]);
+  useHeader({ current: 'library' });
+  return (
+    <ArchiveBrowser
+      params={params}
+      onFiltersChange={(next) => setParams(next, { replace: true })}
+    />
+  );
+}
+
+/** Shared archive search and filters for Leader and the read-only Band dialog. */
+export function ArchiveBrowser({
+  params,
+  onFiltersChange,
+  onOpenSong,
+  active = true,
+}: {
+  params: URLSearchParams;
+  onFiltersChange: (next: URLSearchParams) => void;
+  onOpenSong?: (id: string) => void;
+  active?: boolean;
+}) {
+  const { t } = useT();
+  const [prefs] = usePrefs();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const readOnly = onOpenSong !== undefined;
+  const view = readOnly ? 'band-library' : 'library';
+  useEffect(() => rememberArchiveState(view, params), [view, params]);
   const query = params.get('q') ?? '';
   const collection = params.get('collection') ?? '';
   const { keys } = useMemo(() => archiveFiltersFromParams(params), [params]);
@@ -96,20 +120,21 @@ export function Library() {
   const [songsReady, setSongsReady] = useState(false);
   const [searchReady, setSearchReady] = useState(false);
   const archiveScroll = useArchiveScroll<HTMLDivElement>(
-    'library:' + params.toString(),
+    view + ':' + params.toString(),
     songsReady && (!query.trim() || searchReady) && (!collection || inCollection !== null),
   );
-
-  useHeader({ current: 'library' });
 
   useEffect(() => onReachabilityChange(setReach), []);
 
   // `/` is the search shortcut everywhere on the web, and a leader hunting for a song
   // between two others has both hands free for exactly as long as that takes.
-  useHotkeys({
-    '/': () => search.current?.focus(),
-    n: () => void createSong(),
-  });
+  useHotkeys(
+    {
+      '/': () => search.current?.focus(),
+      ...(!readOnly && { n: () => createSong() }),
+    },
+    active,
+  );
 
   // Mirror first, then refresh from the host. The list therefore appears instantly and
   // identically whether or not there is a host to reach.
@@ -117,14 +142,20 @@ export function Library() {
     let cancelled = false;
     const show = async (): Promise<void> => {
       const local = await repo.songs();
-      if (!cancelled && local.length > 0) setSongs(local);
+      if (cancelled) return;
+      setSongs(local);
       const synced = await repo.sync();
       if (cancelled) return;
-      if (synced) setSongs(await repo.songs());
-      setMirror(await repo.status());
-      setSongsReady(true);
+      const refreshed = synced ? await repo.songs() : local;
+      const status = await repo.status();
+      if (!cancelled) {
+        setSongs(refreshed);
+        setMirror(status);
+      }
     };
-    void show();
+    void show()
+      .catch((e: unknown) => !cancelled && setError(String(e)))
+      .finally(() => !cancelled && setSongsReady(true));
     return () => {
       cancelled = true;
     };
@@ -186,14 +217,14 @@ export function Library() {
     const next = new URLSearchParams(params);
     if (value) next.set(name, value);
     else next.delete(name);
-    setParams(next, { replace: true });
+    onFiltersChange(next);
   };
 
   const toggleKey = (key: string): void => {
     const next = new URLSearchParams(params);
     next.delete('key');
     for (const selected of toggleArchiveKey(keys, key)) next.append('key', selected);
-    setParams(next, { replace: true });
+    onFiltersChange(next);
   };
 
   const results = useMemo(
@@ -206,7 +237,7 @@ export function Library() {
     if (direction === 1 && songIds[0]) {
       navigate(`/song/${encodeURIComponent(songIds[0])}`, { state: songState });
     }
-  });
+  }, !readOnly);
   const keyFacets = useMemo(() => {
     const merged = new Map<string, number>();
     for (const item of facets?.keys ?? []) {
@@ -220,17 +251,19 @@ export function Library() {
 
   return (
     <>
-      <HeaderActions>
-        <ButtonLink to="/import">{t('app.import')}</ButtonLink>
-        <Button variant="primary" onClick={createSong}>
-          <IconPlus size={16} />
-          <span className="hidden sm:inline">{t('library.new')}</span>
-        </Button>
-      </HeaderActions>
+      {!readOnly && (
+        <HeaderActions>
+          <ButtonLink to="/import">{t('app.import')}</ButtonLink>
+          <Button variant="primary" onClick={createSong}>
+            <IconPlus size={16} />
+            <span className="hidden sm:inline">{t('library.new')}</span>
+          </Button>
+        </HeaderActions>
+      )}
       <Scroll {...archiveScroll}>
         <div className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           {/* Every page carries one, so a screen reader announces where it landed. */}
-          <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>
+          {!readOnly && <h1 className="mb-3 text-2xl font-bold">{t('app.library')}</h1>}
           <div className="relative">
             <IconSearch
               size={16}
@@ -296,14 +329,12 @@ export function Library() {
             )}
           </p>
 
-          <ul id="main" className="grid gap-x-6 lg:grid-cols-2">
-            {results.map((song) => (
-              <li key={song.id} className="border-b border-(--color-line)">
-                <Link
-                  to={`/song/${encodeURIComponent(song.id)}`}
-                  state={songState}
-                  className="flex items-baseline gap-3 py-2.5 hover:bg-(--color-line)/40"
-                >
+          <ul id={readOnly ? undefined : 'main'} className="grid gap-x-6 lg:grid-cols-2">
+            {results.map((song) => {
+              const className =
+                'flex w-full items-baseline gap-3 py-2.5 text-left hover:bg-(--color-line)/40';
+              const detail = (
+                <>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">
                       {song.title || t('app.untitled')}
@@ -320,15 +351,42 @@ export function Library() {
                     </span>
                   )}
                   <KeyBadge song={song} />
-                </Link>
-              </li>
-            ))}
+                </>
+              );
+              return (
+                <li key={song.id} className="border-b border-(--color-line)">
+                  {onOpenSong ? (
+                    <button
+                      type="button"
+                      className={className}
+                      onClick={() => onOpenSong(song.id)}
+                    >
+                      {detail}
+                    </button>
+                  ) : (
+                    <Link
+                      to={`/song/${encodeURIComponent(song.id)}`}
+                      state={songState}
+                      className={className}
+                    >
+                      {detail}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
           </ul>
 
           {results.length === 0 && !error && (
             <div className="mt-10 text-center text-sm text-(--color-muted)">
-              {query ? (
+              {!songsReady || (query.trim() && !searchReady) ? (
+                <p role="status">{t('library.loading')}</p>
+              ) : query ? (
                 <p>{t('library.nothingFor', { query })}</p>
+              ) : collection || keys.length ? (
+                <p>{t('library.noMatches')}</p>
+              ) : readOnly ? (
+                <p>{t('library.empty')}</p>
               ) : (
                 <>
                   <p>{t('library.empty')}</p>
@@ -362,7 +420,7 @@ function Chip({
       aria-pressed={active}
       className={`inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-medium transition-colors ${
         active
-          ? 'border-(--color-chord) bg-(--color-chord) text-white'
+          ? 'border-(--color-chord) bg-(--color-chord) text-(--color-stage-bg)'
           : 'border-(--color-line) bg-(--color-surface) hover:bg-(--color-line)'
       }`}
     >

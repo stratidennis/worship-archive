@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { parseChord, type Line } from '@worship/core';
+import { parseChord, SINGERS, type Line, type Singers } from '@worship/core';
 import { useT } from '../lib/i18n.js';
+import { singerInk } from './SongBody.js';
+import { Select } from './ui.js';
 
 /**
  * One editable lyric line, with its chords stacked above the right syllables.
@@ -15,6 +17,8 @@ export interface LineEditorProps {
   line: Line;
   layer: 'chords' | 'bass';
   showChords: boolean;
+  sectionSingers: Singers | null;
+  onSingersChange: (singers: Singers | null) => void;
   onTextChange: (text: string) => void;
   onChordChange: (at: number, raw: string) => void;
   onEnter: () => void;
@@ -64,6 +68,8 @@ export function LineEditor({
   line,
   layer,
   showChords,
+  sectionSingers,
+  onSingersChange,
   onTextChange,
   onChordChange,
   onEnter,
@@ -72,7 +78,8 @@ export function LineEditor({
   onStructuredPaste,
   autoFocus,
 }: LineEditorProps) {
-  const { t } = useT();
+  const { singerName, t } = useT();
+  const singer = line.singers ?? sectionSingers;
   const input = useRef<HTMLInputElement>(null);
   const chordInput = useRef<HTMLInputElement>(null);
   const endingChord = useRef(false);
@@ -273,9 +280,26 @@ export function LineEditor({
           }}
           onKeyDown={handleKeyDown}
           spellCheck={false}
-          className="w-full bg-transparent leading-[1.25] outline-none focus:bg-(--color-chord)/5"
+          className="min-w-0 flex-1 bg-transparent leading-[1.25] outline-none focus:bg-(--color-chord)/5"
+          style={{ color: singerInk(singer) ?? line.color ?? undefined }}
           placeholder="…"
         />
+        <Select
+          tight
+          className="w-24 shrink-0 text-xs"
+          value={line.singers ?? ''}
+          aria-label={t('edit.lineSingers')}
+          onChange={(event) => onSingersChange((event.target.value || null) as Singers | null)}
+        >
+          <option value="">
+            {sectionSingers ? singerName(sectionSingers) : t('edit.whoSings')}
+          </option>
+          {SINGERS.map((who) => (
+            <option key={who} value={who}>
+              {singerName(who)}
+            </option>
+          ))}
+        </Select>
       </div>
     </div>
   );

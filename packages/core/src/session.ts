@@ -81,6 +81,8 @@ export interface StageDisplay {
   showChords: boolean | null;
   /** Full, compact or minimal treatment for cues and section labels. */
   cueStyle: CueStyle | null;
+  /** Optional for compatibility with older Stage and Leader installations. */
+  highlightBridges?: boolean | null;
   /** @deprecated Replaced by cueStyle; accepted while older clients remain in use. */
   showBlockTitles: boolean | null;
 }
@@ -141,6 +143,7 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
     display.chordColor === null &&
     display.showChords == null &&
     display.cueStyle == null &&
+    display.highlightBridges == null &&
     display.showBlockTitles == null
   );
 }
@@ -183,6 +186,11 @@ export function patchStageDisplay(
     chordColor: patch.chordColor !== undefined ? patch.chordColor : current.chordColor,
     showChords: patch.showChords !== undefined ? patch.showChords : current.showChords,
     cueStyle,
+    ...(patch.highlightBridges !== undefined
+      ? { highlightBridges: patch.highlightBridges }
+      : current.highlightBridges !== undefined
+        ? { highlightBridges: current.highlightBridges }
+        : {}),
     showBlockTitles,
   };
 }
@@ -217,6 +225,9 @@ export function resolveStageDisplay(
     chordColor: own?.chordColor ?? state.stage.chordColor ?? host?.chordColor ?? null,
     showChords: own?.showChords ?? null,
     cueStyle,
+    ...(own?.highlightBridges != null || state.stage.highlightBridges != null
+      ? { highlightBridges: own?.highlightBridges ?? state.stage.highlightBridges ?? null }
+      : {}),
     // Preserve a useful value for an older Stage client receiving this session.
     showBlockTitles: cueStyle === null ? null : cueStyle === 'full',
     // Not the leader's. See {@link HostDisplay}.

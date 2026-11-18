@@ -28,6 +28,7 @@ import {
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { androidBand } from '../lib/androidBand.js';
+import { BandArchive } from '../components/BandArchive.js';
 import { SongBody } from '../components/SongBody.js';
 import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
@@ -36,6 +37,7 @@ import { Button, Checkbox, IconButton, Input, Select } from '../components/ui.js
 import { Sheet } from '../components/Sheet.js';
 import {
   AccidentalChoice,
+  BridgeHighlight,
   ChordColour,
   ChordSample,
   CueStyleChoice,
@@ -44,7 +46,13 @@ import {
   MaximumFontSize,
   MinimumFontSize,
 } from '../components/DisplaySettings.js';
-import { IconMusic, IconPresentation, IconSets, IconSettings } from '../components/icons.js';
+import {
+  IconLibrary,
+  IconMusic,
+  IconPresentation,
+  IconSets,
+  IconSettings,
+} from '../components/icons.js';
 import { Logo } from '../components/Logo.js';
 import { WaitingForLeader } from '../components/Waiting.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
@@ -107,6 +115,7 @@ export function BandPage() {
   const [prefs, setPrefs] = usePrefs();
 
   const [local, setLocal] = useState<number | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [clientState, setClientState] = useState<ClientDesktopState | null>(null);
@@ -251,22 +260,25 @@ export function BandPage() {
     setLocal(next);
   };
 
-  useHotkeys({
-    ArrowRight: () => step(1),
-    ArrowLeft: () => step(-1),
-    // Escape means "stop looking ahead" first and "close the help" second, because
-    // during a service the first is the one people press without thinking.
-    Escape: () => (help ? setHelp(false) : setLocal(null)),
-    c: () => setPrefs({ showChords: !prefs.showChords }),
-    '+': () => shiftDisplayedKey(1),
-    '=': () => shiftDisplayedKey(1),
-    '-': () => shiftDisplayedKey(-1),
-    // Back to the leader, both of them, which is what "0" means on this screen.
-    '0': () => {
-      setDisplayedKeyOverride(null);
+  useHotkeys(
+    {
+      ArrowRight: () => step(1),
+      ArrowLeft: () => step(-1),
+      // Escape means "stop looking ahead" first and "close the help" second, because
+      // during a service the first is the one people press without thinking.
+      Escape: () => (help ? setHelp(false) : setLocal(null)),
+      c: () => setPrefs({ showChords: !prefs.showChords }),
+      '+': () => shiftDisplayedKey(1),
+      '=': () => shiftDisplayedKey(1),
+      '-': () => shiftDisplayedKey(-1),
+      // Back to the leader, both of them, which is what "0" means on this screen.
+      '0': () => {
+        setDisplayedKeyOverride(null);
+      },
+      '?': () => setHelp((open) => !open),
     },
-    '?': () => setHelp((open) => !open),
-  });
+    !archiveOpen,
+  );
 
   // Phones lock their screens mid-song otherwise.
   useEffect(() => {
@@ -292,11 +304,7 @@ export function BandPage() {
   const fit = useFitToScreen(container, content, {
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
-    // A desktop Band window follows the same one-column-first rule as Leader and
-    // Stage. A phone instead keeps a comfortable reading size in one column and
-    // scrolls, because scrolling is practical there and tiny lyrics are not.
-    narrowScrollAtPreferredSize: true,
-    key: `${viewing?.song.id ?? ''}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id ?? ''}:${viewing?.song.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (
@@ -305,14 +313,6 @@ export function BandPage() {
       className="stable-screen-height flex touch-pan-y flex-col overscroll-none"
     >
       <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-(--color-line) bg-(--color-surface) px-3 py-1.5">
-        {/*
-          The mark, and nothing behind it.
-
-          Not a link, on purpose — this view has no way out and should not have one. A
-          musician two bars into a song who taps the corner of their phone must not
-          find themselves on the archive, with the service still running on the screen
-          they can no longer see. It says whose app this is; that is its whole job.
-        */}
         <Logo className="h-[17px] shrink-0 text-(--color-chord)" label={t('app.name')} />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {viewing?.song.title ?? (live.set ? '—' : t('band.noLiveSet'))}
@@ -328,6 +328,14 @@ export function BandPage() {
           onClick={() => setListOpen((open) => !open)}
         >
           <IconSets size={14} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label={t('app.library')}
+          aria-haspopup="dialog"
+          onClick={() => setArchiveOpen(true)}
+        >
+          <IconLibrary size={14} />
         </IconButton>
         {supportsPresentations('band') && (
           <IconButton
@@ -520,6 +528,7 @@ export function BandPage() {
                   showChords: prefs.showChords,
                   showBass: false,
                   cueStyle: prefs.cueStyle,
+                  highlightBridges: prefs.highlightBridges,
                   capo: capoFret,
                   transpose,
                   lineHeight: prefs.lineHeight,
@@ -693,6 +702,10 @@ export function BandPage() {
             value={prefs.cueStyle}
             onChange={(cueStyle) => setPrefs({ cueStyle })}
           />
+          <BridgeHighlight
+            value={prefs.highlightBridges}
+            onChange={(highlightBridges) => setPrefs({ highlightBridges })}
+          />
           <ChordColour
             value={prefs.chordColor}
             onChange={(chordColor) => setPrefs({ chordColor })}
@@ -739,6 +752,7 @@ export function BandPage() {
         </Sheet>
       )}
 
+      {archiveOpen && <BandArchive onClose={() => setArchiveOpen(false)} />}
       {help && <Shortcuts rows={SHORTCUTS} onClose={() => setHelp(false)} />}
       {supportsPresentations('band') && powerpointsOpen && PowerPointDialog && (
         <Suspense>

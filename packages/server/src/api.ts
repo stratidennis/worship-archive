@@ -646,6 +646,9 @@ export function createServer(options: ApiOptions): FastifyInstance {
     ) {
       return reply.code(400).send({ error: 'bad cue style' });
     }
+    if (body.highlightBridges != null && typeof body.highlightBridges !== 'boolean') {
+      return reply.code(400).send({ error: 'bad bridge highlighting' });
+    }
     if (
       body.showBlockTitles !== undefined &&
       body.showBlockTitles !== null &&

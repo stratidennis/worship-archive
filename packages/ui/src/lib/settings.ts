@@ -30,6 +30,7 @@ export interface Prefs {
   showChords: boolean;
   /** Visual density of song cues and section labels. */
   cueStyle: CueStyle;
+  highlightBridges: boolean;
   capo: number;
   /** Extra transposition on top of the song's performance key. */
   transpose: number;
@@ -71,6 +72,7 @@ export interface Prefs {
 export const DEFAULT_PREFS: Prefs = {
   showChords: true,
   cueStyle: 'full',
+  highlightBridges: false,
   capo: 0,
   transpose: 0,
   minFontPx: DEFAULT_SONG_FONT_SIZE,
@@ -136,6 +138,7 @@ export function normalisePrefs(value: unknown): Prefs {
     minFontPx,
     maxFontPx,
     cueStyle,
+    highlightBridges: saved.highlightBridges === true,
     accidentalPreferences: {
       ...DEFAULT_ACCIDENTAL_PREFERENCES,
       ...(saved.accidentalPreferences ?? {}),

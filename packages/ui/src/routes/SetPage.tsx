@@ -1551,6 +1551,7 @@ function Preview({
               showChords: prefs.showChords,
               showBass: false,
               cueStyle: prefs.cueStyle,
+              highlightBridges: prefs.highlightBridges,
               capo: capo ?? 0,
               transpose: shift,
               lineHeight: prefs.lineHeight,

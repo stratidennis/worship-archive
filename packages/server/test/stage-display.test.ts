@@ -107,6 +107,19 @@ describe('the stage screens’ appearance', () => {
     expect((await put({ cueStyle: 'sometimes' })).statusCode).toBe(400);
   });
 
+  it('inherits bridge highlighting and lets a stage monitor override or clear it', async () => {
+    expect(resolveStageDisplay(hub.getState(), 'Monitor').highlightBridges ?? false).toBe(
+      false,
+    );
+    expect((await put({ highlightBridges: true })).statusCode).toBe(200);
+    expect((await put({ screen: 'Monitor', highlightBridges: false })).statusCode).toBe(200);
+    expect(resolveStageDisplay(hub.getState(), 'Monitor').highlightBridges).toBe(false);
+    expect(resolveStageDisplay(hub.getState(), 'Room').highlightBridges).toBe(true);
+    await put({ screen: 'Monitor', highlightBridges: null });
+    expect(resolveStageDisplay(hub.getState(), 'Monitor').highlightBridges).toBe(true);
+    expect((await put({ highlightBridges: 'yes' })).statusCode).toBe(400);
+  });
+
   it('accepts the retired title toggle from an older Leader', async () => {
     await put({ showBlockTitles: false });
     expect(resolveStageDisplay(hub.getState(), 'Back').cueStyle).toBe('compact');
