@@ -141,7 +141,7 @@ jobs:
           disable-animations: true
           enable-hw-keyboard: true
           script: |
-            node packages/android/scripts/device-smoke.mjs --emulator
+            pnpm exec tsx packages/android/scripts/device-smoke.mjs --emulator
             adb -e shell wm size 1200x2000
             adb -e shell wm density 320
             node packages/android/scripts/leader-device-smoke.mjs --emulator
