@@ -261,27 +261,30 @@ export function MaximumFontSize({
   );
 }
 
-export function BridgeHighlight({
+export function SectionHighlight({
+  label,
   value,
   onChange,
 }: {
+  label: string;
   value: boolean;
   onChange: (value: boolean) => void;
 }) {
-  const { t } = useT();
   return (
     <label className="mt-4 flex items-center gap-2 text-sm">
       <Checkbox checked={value} onChange={(event) => onChange(event.target.checked)} />
-      <span>{t('settings.highlightBridges')}</span>
+      <span>{label}</span>
     </label>
   );
 }
 
-export function StageBridgeHighlight({
+export function StageSectionHighlight({
+  label,
   value,
   onChange,
   inherit,
 }: {
+  label: string;
   value: boolean | null;
   onChange: (value: boolean | null) => void;
   inherit: string;
@@ -289,7 +292,7 @@ export function StageBridgeHighlight({
   const { t } = useT();
   return (
     <label className="mt-4 grid gap-1 text-sm">
-      <span>{t('settings.highlightBridges')}</span>
+      <span>{label}</span>
       <Select
         value={value === null ? '' : String(value)}
         onChange={(event) => {
@@ -298,8 +301,8 @@ export function StageBridgeHighlight({
         }}
       >
         <option value="">{inherit}</option>
-        <option value="true">{t('settings.bridgeHighlightOn')}</option>
-        <option value="false">{t('settings.bridgeHighlightOff')}</option>
+        <option value="true">{t('settings.sectionHighlightOn')}</option>
+        <option value="false">{t('settings.sectionHighlightOff')}</option>
       </Select>
     </label>
   );

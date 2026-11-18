@@ -37,7 +37,7 @@ import { Button, Checkbox, IconButton, Input, Select } from '../components/ui.js
 import { Sheet } from '../components/Sheet.js';
 import {
   AccidentalChoice,
-  BridgeHighlight,
+  SectionHighlight,
   ChordColour,
   ChordSample,
   CueStyleChoice,
@@ -529,6 +529,7 @@ export function BandPage() {
                   showBass: false,
                   cueStyle: prefs.cueStyle,
                   highlightBridges: prefs.highlightBridges,
+                  highlightSolos: prefs.highlightSolos,
                   capo: capoFret,
                   transpose,
                   lineHeight: prefs.lineHeight,
@@ -702,9 +703,15 @@ export function BandPage() {
             value={prefs.cueStyle}
             onChange={(cueStyle) => setPrefs({ cueStyle })}
           />
-          <BridgeHighlight
+          <SectionHighlight
+            label={t('settings.highlightBridges')}
             value={prefs.highlightBridges}
             onChange={(highlightBridges) => setPrefs({ highlightBridges })}
+          />
+          <SectionHighlight
+            label={t('settings.highlightSolos')}
+            value={prefs.highlightSolos}
+            onChange={(highlightSolos) => setPrefs({ highlightSolos })}
           />
           <ChordColour
             value={prefs.chordColor}

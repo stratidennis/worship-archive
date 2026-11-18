@@ -26,6 +26,7 @@ export interface RenderOptions {
   /** Full, compact or minimal treatment for section labels and coloured cues. */
   cueStyle?: CueStyle;
   highlightBridges?: boolean;
+  highlightSolos?: boolean;
   capo: number;
   /** Unitless lyric line-height multiplier. */
   lineHeight?: number;
@@ -237,6 +238,9 @@ function BlockView({
     ? `${blockName(block.type)} — ${block.label}`
     : blockName(block.type);
   const repeat = block.repeat ?? 1;
+  let ink = cue?.text ?? undefined;
+  if (block.type === 'Bridge' && options.highlightBridges) ink = 'var(--color-bridge-ink)';
+  if (block.type === 'Solo' && options.highlightSolos) ink = 'var(--color-solo-ink)';
 
   return (
     <section
@@ -251,15 +255,8 @@ function BlockView({
       // Never let a block be split down the middle by a column break.
       style={{
         breakInside: 'avoid',
-        ...(cue
-          ? {
-              fontSize: `${cue.fontScale}em`,
-              color: cue.text ?? undefined,
-            }
-          : {}),
-        ...(block.type === 'Bridge' && options.highlightBridges
-          ? { color: 'var(--color-bridge-ink)' }
-          : {}),
+        color: ink,
+        fontSize: cue ? `${cue.fontScale}em` : undefined,
         ...(cue?.coloured
           ? {
               borderColor: cue.border,

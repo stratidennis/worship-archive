@@ -8,7 +8,7 @@ import { useT } from '../lib/i18n.js';
 import { Scroll } from '../components/Scroll.js';
 import { useHeader } from '../components/header-slots.js';
 import {
-  BridgeHighlight,
+  SectionHighlight,
   ChordColour,
   ChordSample,
   AccidentalChoice,
@@ -18,7 +18,7 @@ import {
   MaximumFontSize,
   MinimumFontSize,
   ThemeChoice,
-  StageBridgeHighlight,
+  StageSectionHighlight,
 } from '../components/DisplaySettings.js';
 import { useStageDisplay } from '../lib/stageDisplay.js';
 import {
@@ -291,9 +291,15 @@ export function SettingsPage() {
                   value={prefs.cueStyle}
                   onChange={(cueStyle) => setPrefs({ cueStyle })}
                 />
-                <BridgeHighlight
+                <SectionHighlight
+                  label={t('settings.highlightBridges')}
                   value={prefs.highlightBridges}
                   onChange={(highlightBridges) => setPrefs({ highlightBridges })}
+                />
+                <SectionHighlight
+                  label={t('settings.highlightSolos')}
+                  value={prefs.highlightSolos}
+                  onChange={(highlightSolos) => setPrefs({ highlightSolos })}
                 />
                 <ChordColour
                   value={prefs.chordColor}
@@ -407,9 +413,16 @@ export function SettingsPage() {
                   onChange={(cueStyle) => setStage({ cueStyle })}
                   inherit={inherit}
                 />
-                <StageBridgeHighlight
+                <StageSectionHighlight
+                  label={t('settings.highlightBridges')}
                   value={stage.highlightBridges ?? null}
                   onChange={(highlightBridges) => setStage({ highlightBridges })}
+                  inherit={inherit}
+                />
+                <StageSectionHighlight
+                  label={t('settings.highlightSolos')}
+                  value={stage.highlightSolos ?? null}
+                  onChange={(highlightSolos) => setStage({ highlightSolos })}
                   inherit={inherit}
                 />
                 {/* Whether chords are shown belongs to a physical display, not to an

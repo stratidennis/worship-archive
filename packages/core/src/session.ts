@@ -83,6 +83,7 @@ export interface StageDisplay {
   cueStyle: CueStyle | null;
   /** Optional for compatibility with older Stage and Leader installations. */
   highlightBridges?: boolean | null;
+  highlightSolos?: boolean | null;
   /** @deprecated Replaced by cueStyle; accepted while older clients remain in use. */
   showBlockTitles: boolean | null;
 }
@@ -144,6 +145,7 @@ export function isStageDisplayEmpty(display: StageDisplay): boolean {
     display.showChords == null &&
     display.cueStyle == null &&
     display.highlightBridges == null &&
+    display.highlightSolos == null &&
     display.showBlockTitles == null
   );
 }
@@ -191,6 +193,11 @@ export function patchStageDisplay(
       : current.highlightBridges !== undefined
         ? { highlightBridges: current.highlightBridges }
         : {}),
+    ...(patch.highlightSolos !== undefined
+      ? { highlightSolos: patch.highlightSolos }
+      : current.highlightSolos !== undefined
+        ? { highlightSolos: current.highlightSolos }
+        : {}),
     showBlockTitles,
   };
 }
@@ -227,6 +234,9 @@ export function resolveStageDisplay(
     cueStyle,
     ...(own?.highlightBridges != null || state.stage.highlightBridges != null
       ? { highlightBridges: own?.highlightBridges ?? state.stage.highlightBridges ?? null }
+      : {}),
+    ...(own?.highlightSolos != null || state.stage.highlightSolos != null
+      ? { highlightSolos: own?.highlightSolos ?? state.stage.highlightSolos ?? null }
       : {}),
     // Preserve a useful value for an older Stage client receiving this session.
     showBlockTitles: cueStyle === null ? null : cueStyle === 'full',

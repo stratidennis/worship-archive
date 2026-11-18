@@ -48,7 +48,7 @@ describe('song cue blocks', () => {
 });
 
 describe('performance markings', () => {
-  const render = (cueStyle: CueStyle, highlightBridges = false) => {
+  const render = (cueStyle: CueStyle, highlightBridges = false, highlightSolos = false) => {
     const song = parseChordPro(`
 {title: Example}
 {x_block_singers: Women}
@@ -63,9 +63,13 @@ Third phrase
 {start_of_verse: V1}
 Other verse
 {end_of_verse}
+{x_type: Solo}
+{start_of_verse: S1}
+Guitar solo
+{end_of_verse}
 `);
     // Use the same section consecutively and again after the verse.
-    song.arrangement = ['B1', 'B1', 'B1', 'V1', 'B1'];
+    song.arrangement = ['B1', 'B1', 'B1', 'V1', 'B1', 'S1'];
     return renderToStaticMarkup(
       createElement(
         I18nProvider,
@@ -80,6 +84,7 @@ Other verse
             capo: 0,
             cueStyle,
             highlightBridges,
+            highlightSolos,
           },
         }),
       ),
@@ -105,4 +110,14 @@ Other verse
     expect(html).toContain('color:var(--color-bridge-ink)');
     expect(render('full')).not.toContain('color:var(--color-bridge-ink)');
   });
+
+  it.each(['full', 'compact', 'minimal'] as const)(
+    'highlights solos independently of bridges in %s',
+    (style) => {
+      expect(render(style, true)).not.toContain('color:var(--color-solo-ink)');
+      const highlighted = render(style, false, true);
+      expect(highlighted).toMatch(/<section[^>]*color:var\(--color-solo-ink\)[^>]*>.*?Guitar /);
+      expect(highlighted).not.toContain('color:var(--color-bridge-ink)');
+    },
+  );
 });

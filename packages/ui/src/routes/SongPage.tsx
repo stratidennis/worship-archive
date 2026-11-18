@@ -212,6 +212,7 @@ export function SongPage() {
               showBass: false,
               cueStyle: prefs.cueStyle,
               highlightBridges: prefs.highlightBridges,
+              highlightSolos: prefs.highlightSolos,
               capo: prefs.capo,
               transpose: prefs.transpose,
               lineHeight: prefs.lineHeight,

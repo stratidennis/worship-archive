@@ -649,6 +649,9 @@ export function createServer(options: ApiOptions): FastifyInstance {
     if (body.highlightBridges != null && typeof body.highlightBridges !== 'boolean') {
       return reply.code(400).send({ error: 'bad bridge highlighting' });
     }
+    if (body.highlightSolos != null && typeof body.highlightSolos !== 'boolean') {
+      return reply.code(400).send({ error: 'bad solo highlighting' });
+    }
     if (
       body.showBlockTitles !== undefined &&
       body.showBlockTitles !== null &&

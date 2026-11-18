@@ -200,6 +200,7 @@ export function StagePage() {
                 showBass,
                 cueStyle: stage.cueStyle ?? 'full',
                 highlightBridges: stage.highlightBridges ?? false,
+                highlightSolos: stage.highlightSolos ?? false,
                 capo,
                 transpose: extraTranspose,
                 lineHeight: stage.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT,
