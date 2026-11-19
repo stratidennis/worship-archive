@@ -14,8 +14,8 @@ import {
   type Song,
 } from '@worship/core';
 import { useT } from '../lib/i18n.js';
-import { cueAppearance } from '../lib/cueAppearance.js';
-import { LYRIC_INK } from '../lib/readingColors.js';
+import { cueAppearance, songSectionFontScale } from '../lib/cueAppearance.js';
+import { readingSectionStyle } from '../lib/readingColors.js';
 
 const INDENTED_TYPES = new Set(['Chorus', 'PreChorus', 'Bridge', 'Ending']);
 
@@ -237,29 +237,28 @@ function BlockView({
   const { blockName, singerName, t } = useT();
   const isIndented = INDENTED_TYPES.has(block.type);
   const cueStyle = options.cueStyle ?? 'full';
-  const cue = cueAppearance(block.type, cueStyle);
+  const cue = cueAppearance(block.type);
+  const fontScale = songSectionFontScale(block.type, cueStyle);
   const label = block.label
     ? `${blockName(block.type)} — ${block.label}`
     : blockName(block.type);
   const repeat = block.repeat ?? 1;
   return (
     <section
-      data-song-font-scale={cue?.fontScale ?? 1}
+      data-song-font-scale={fontScale}
       className={`mb-[var(--song-section-gap,0.9em)] rounded-md ${isIndented ? 'ml-[1.3em]' : ''} ${
-        cue ? 'border-l px-[0.4em] py-[0.18em]' : ''
+        cue && cueStyle !== 'minimal' ? 'border-l px-[0.4em] py-[0.18em]' : ''
       }`}
       // Never let a block be split down the middle by a column break.
       style={{
         breakInside: 'avoid',
-        color: LYRIC_INK,
-        fontSize: cue ? `${cue.fontScale}em` : undefined,
-        borderColor: cue ? `var(--reading-${block.type}-edge, ${cue.border})` : undefined,
-        backgroundColor: `var(--reading-${block.type}, ${cue?.background ?? 'transparent'})`,
+        fontSize: fontScale === 1 ? undefined : `${fontScale}em`,
+        ...readingSectionStyle(block.type, cueStyle, cue),
       }}
     >
       {cueStyle === 'full' && (
         <h2
-          data-song-font-scale={(cue?.fontScale ?? 1) * 0.62}
+          data-song-font-scale={fontScale * 0.62}
           className="text-[0.62em] font-semibold uppercase tracking-wider text-[color:var(--reading-titles,var(--color-muted))]"
         >
           {label}
@@ -280,17 +279,17 @@ function BlockView({
               options={options}
               semitones={semitones}
               targetKey={targetKey}
-              fontScale={cue?.fontScale ?? 1}
+              fontScale={fontScale}
             />
           ))}
         </div>
         {repeat > 1 && (
-          <div className="flex shrink-0 items-stretch gap-[0.2em] pr-[0.15em] text-[color:var(--reading-repeats,var(--reading-lyrics,var(--color-stage-fg)))]">
+          <div className="flex shrink-0 items-stretch gap-[0.2em] pr-[0.15em] text-[color:var(--reading-repeats,inherit)]">
             <span aria-hidden="true" className="my-[0.1em] w-[0.26em] border-y border-r" />
             <span className="sr-only">{t('song.repeatSection', { count: repeat })}</span>
             <span
               aria-hidden="true"
-              data-song-font-scale={(cue?.fontScale ?? 1) * 0.75}
+              data-song-font-scale={fontScale * 0.75}
               className="self-center whitespace-nowrap text-[0.75em] font-semibold tabular-nums"
             >
               ×{repeat}

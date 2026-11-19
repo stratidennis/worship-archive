@@ -407,7 +407,7 @@ const ro = {
     'Ascunde titlurile, păstrează fundalurile colorate și micșorează textul indicațiilor la 70%.',
   'settings.cueStyle.minimal': 'Minimal',
   'settings.cueStyle.minimalHint':
-    'Ascunde titlurile, păstrează fundalurile colorate și folosește 60% din mărimea versurilor pentru indicații.',
+    'Ascunde titlurile și fundalurile secțiunilor, mută culoarea pe text și afișează indicațiile la 60%.',
   'settings.chordsShown': 'Cu acorduri',
   'settings.chordsHidden': 'Doar versuri',
   'settings.accidentals': 'Scrierea diezurilor și bemolilor',
@@ -453,6 +453,7 @@ const ro = {
   'settings.colors.apply': 'Aplică',
   'settings.colors.themeDefault': 'Implicită',
   'settings.colors.noBackground': 'Fără fundal',
+  'settings.colors.noSectionColor': 'Fără culoare de secțiune',
   'settings.colors.reset': 'Restabilește culorile temei',
   'settings.colors.resetPrompt': 'Restabilești culorile temei?',
   'settings.colors.resetDetail':
@@ -954,7 +955,7 @@ const en: Record<TranslationKey, Entry> = {
     'Hides titles, keeps coloured backgrounds, and reduces cue text to 70%.',
   'settings.cueStyle.minimal': 'Minimal',
   'settings.cueStyle.minimalHint':
-    'Hides titles, keeps coloured backgrounds, and reduces cue text to 60%.',
+    'Hides section titles and backgrounds, applies section colors to text, and shows cues at 60%.',
   'settings.chordsShown': 'With chords',
   'settings.chordsHidden': 'Words only',
   'settings.accidentals': 'Sharp and flat notation',
@@ -1000,6 +1001,7 @@ const en: Record<TranslationKey, Entry> = {
   'settings.colors.apply': 'Apply',
   'settings.colors.themeDefault': 'Default',
   'settings.colors.noBackground': 'No background',
+  'settings.colors.noSectionColor': 'No section color',
   'settings.colors.reset': 'Reset theme to default',
   'settings.colors.resetPrompt': 'Reset theme to default?',
   'settings.colors.resetDetail':

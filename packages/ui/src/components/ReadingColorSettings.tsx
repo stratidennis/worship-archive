@@ -10,6 +10,7 @@ import {
   isReadingSectionColor,
   parseChordPro,
   type BlockType,
+  type CueStyle,
   type ReadingColorKey,
   type ReadingColors,
 } from '@worship/core';
@@ -17,7 +18,12 @@ import { usePrefs } from '../lib/settings.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
 import { cueAppearance } from '../lib/cueAppearance.js';
-import { readingColorStyle, SETUP_BACKGROUND } from '../lib/readingColors.js';
+import {
+  readingColorStyle,
+  sectionAccentInk,
+  SETUP_ACCENT,
+  SETUP_BACKGROUND,
+} from '../lib/readingColors.js';
 import { PerformanceInfo } from './PerformanceInfo.js';
 import { SongBody } from './SongBody.js';
 import { Button, Input, Select } from './ui.js';
@@ -48,6 +54,7 @@ export function DeviceReadingColorSettings() {
     <ReadingColorSettings
       colors={prefs.readingColors}
       theme={prefs.theme}
+      cueStyle={prefs.cueStyle}
       onChange={(key, value) => {
         const readingColors = { ...prefs.readingColors };
         if (value === undefined) delete readingColors[key];
@@ -67,6 +74,7 @@ export function ReadingColorSettings({
   inherited,
   inheritLabel,
   theme,
+  cueStyle,
   onChange,
   onReset,
 }: {
@@ -74,6 +82,7 @@ export function ReadingColorSettings({
   inherited?: ReadingColors;
   inheritLabel?: string;
   theme?: 'auto' | 'dark' | 'light';
+  cueStyle: CueStyle;
   onChange: ColorChange;
   onReset: () => void;
 }) {
@@ -136,6 +145,7 @@ export function ReadingColorSettings({
         override={colors[key]}
         inheritLabel={inheritLabel}
         theme={theme}
+        cueStyle={cueStyle}
         onChange={(value) => onChange(key, value)}
       />
       <Button className="mt-3" size="sm" onClick={() => void reset()}>
@@ -151,6 +161,7 @@ function ColorEditor({
   override,
   inheritLabel,
   theme,
+  cueStyle,
   onChange,
 }: {
   colorKey: ReadingColorKey;
@@ -158,6 +169,7 @@ function ColorEditor({
   override: string | null | undefined;
   inheritLabel: string | undefined;
   theme: 'auto' | 'light' | 'dark' | undefined;
+  cueStyle: CueStyle;
   onChange: (color: string | null | undefined) => void;
 }) {
   const { t } = useT();
@@ -166,7 +178,7 @@ function ColorEditor({
   const [defaultHex, setDefaultHex] = useState('#000000');
   const swatch = useRef<HTMLSpanElement>(null);
   const saved = colors[colorKey];
-  const themeColor = defaultColor(colorKey);
+  const themeColor = defaultColor(colorKey, cueStyle);
   const transparentDefault = themeColor === 'transparent';
   const transparent = saved === 'transparent' || (saved == null && transparentDefault);
   const pickerColor = isReadingColor(saved) ? saved : defaultHex;
@@ -184,7 +196,7 @@ function ColorEditor({
     ctx.fillRect(0, 0, 1, 1);
     const rgb = [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
     setDefaultHex('#' + rgb.map((value) => value.toString(16).padStart(2, '0')).join(''));
-  }, [colorKey, theme]);
+  }, [themeColor, theme]);
 
   const change = (value: string | null | undefined): void => {
     setDraft(null);
@@ -204,7 +216,7 @@ function ColorEditor({
           } as React.CSSProperties
         }
       >
-        <ReadingColorPreview colorKey={colorKey} />
+        <ReadingColorPreview colorKey={colorKey} cueStyle={cueStyle} />
       </div>
 
       <form
@@ -270,7 +282,11 @@ function ColorEditor({
               aria-hidden="true"
               className="size-5 rounded-full border border-dashed border-(--color-muted)"
             />
-            {t('settings.colors.noBackground')}
+            {t(
+              cueStyle === 'minimal' && colorKey !== 'background'
+                ? 'settings.colors.noSectionColor'
+                : 'settings.colors.noBackground',
+            )}
           </button>
         )}
         {PRESETS.map(([color, label]) => (
@@ -306,30 +322,44 @@ function ColorEditor({
   );
 }
 
-function defaultColor(key: ReadingColorKey): string {
+function defaultColor(key: ReadingColorKey, cueStyle: CueStyle): string {
+  const panel = cueAppearance(key);
+  const minimal = cueStyle === 'minimal';
   const base: Partial<Record<ReadingColorKey, string>> = {
     background: 'var(--color-stage-bg)',
     chords: 'var(--color-chord)',
     bass: 'var(--color-bass)',
     titles: 'var(--color-muted)',
-    info: SETUP_BACKGROUND,
+    info: minimal ? sectionAccentInk(SETUP_ACCENT) : SETUP_BACKGROUND,
     infoDetails: 'var(--color-muted)',
     Men: 'var(--color-singers-men)',
     Women: 'var(--color-singers-women)',
   };
   return (
     base[key] ??
-    cueAppearance(key)?.background ??
+    (panel && (minimal ? sectionAccentInk(panel.border) : panel.background)) ??
     (isReadingSectionColor(key) ? 'transparent' : 'var(--color-stage-fg)')
   );
 }
 
-function ReadingColorPreview({ colorKey }: { colorKey: ReadingColorKey }) {
+function ReadingColorPreview({
+  colorKey,
+  cueStyle,
+}: {
+  colorKey: ReadingColorKey;
+  cueStyle: CueStyle;
+}) {
   const { t } = useT();
   if (colorKey === 'info' || colorKey === 'infoDetails') {
     return (
       <div className="[&>section]:mb-0">
-        <PerformanceInfo performanceKey="G" displayedKey="D" transpose={0} capo={0} />
+        <PerformanceInfo
+          performanceKey="G"
+          displayedKey="D"
+          transpose={0}
+          capo={0}
+          cueStyle={cueStyle}
+        />
       </div>
     );
   }
@@ -356,7 +386,7 @@ function ReadingColorPreview({ colorKey }: { colorKey: ReadingColorKey }) {
       <SongBody
         song={{ ...SAMPLE_SONG, blocks: [block] }}
         options={{
-          cueStyle: colorKey === 'titles' ? 'full' : 'compact',
+          cueStyle: colorKey === 'titles' ? 'full' : cueStyle,
           showChords: true,
           showBass: true,
           capo: 0,

@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parseChordPro, type CueStyle } from '@worship/core';
 import { I18nProvider } from '../src/lib/i18n.js';
 import { hasVisibleChordRow, SongBody } from '../src/components/SongBody.js';
-import { cueAppearance } from '../src/lib/cueAppearance.js';
+import { cueAppearance, songSectionFontScale } from '../src/lib/cueAppearance.js';
+import { readingColorStyle } from '../src/lib/readingColors.js';
 
 describe('song line chord spacing', () => {
   it('does not reserve a chord row for a lyric-only line', () => {
@@ -29,21 +30,29 @@ describe('song cue blocks', () => {
     const appearances = ['Intro', 'Instrumental', 'Solo', 'Note', 'Bridge'].map((type) =>
       cueAppearance(type),
     );
-    expect(appearances.map((appearance) => appearance?.fontScale)).toEqual([
-      0.8, 0.8, 0.8, 0.8, 1,
-    ]);
     expect(new Set(appearances.map((appearance) => appearance?.background)).size).toBe(5);
     expect(cueAppearance('Verse')).toBeNull();
   });
 
-  it('scales down compact and minimal cues while retaining their background', () => {
-    expect(cueAppearance('Note', 'compact')).toMatchObject({
-      fontScale: 0.7,
-      background: 'var(--color-cue-note-bg)',
-    });
-    expect(cueAppearance('Note', 'minimal')).toMatchObject({
-      fontScale: 0.6,
-      background: 'var(--color-cue-note-bg)',
+  it.each([
+    ['full', 0.8],
+    ['compact', 0.7],
+    ['minimal', 0.6],
+  ] as const)('scales only the four small cues in %s', (style, scale) => {
+    for (const type of ['Intro', 'Instrumental', 'Note', 'Tag'] as const) {
+      expect(songSectionFontScale(type, style)).toBe(scale);
+    }
+    for (const type of ['Verse', 'Chorus', 'PreChorus', 'Bridge', 'Ending', 'Solo'] as const) {
+      expect(songSectionFontScale(type, style)).toBe(1);
+    }
+  });
+
+  it('derives the cue edge from a custom fill and keeps a transparent override readable', () => {
+    expect(readingColorStyle({ Bridge: '#3c74af', Solo: 'transparent' })).toMatchObject({
+      '--reading-Bridge-edge': 'color-mix(in oklab, #3c74af 65%, var(--color-stage-fg))',
+      '--reading-Bridge-ink': '#3c74af',
+      '--reading-Solo-edge': 'transparent',
+      '--reading-Solo-ink': 'var(--reading-lyrics, var(--color-stage-fg))',
     });
   });
 });
@@ -117,7 +126,7 @@ Guitar solo
     );
   });
 
-  it.each(['full', 'compact', 'minimal'] as const)(
+  it.each(['full', 'compact'] as const)(
     'applies section colors only as backgrounds in %s',
     (style) => {
       const html = render(style);
@@ -132,4 +141,13 @@ Guitar solo
       );
     },
   );
+  it('uses section ink without panels or headings in Minimal and keeps singer assignments', () => {
+    const html = render('minimal');
+    expect(html).toContain('color:var(--reading-Bridge-ink,');
+    expect(html).toContain('color:var(--reading-Solo-ink,');
+    expect(html).toContain('color:var(--reading-Men, var(--color-singers-men))');
+    expect(html).not.toContain('<h2');
+    expect(html).not.toContain('background-color:');
+    expect(html).not.toContain('border-color:');
+  });
 });

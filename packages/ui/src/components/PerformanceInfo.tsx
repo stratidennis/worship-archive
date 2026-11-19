@@ -1,6 +1,6 @@
 import type { CueStyle } from '@worship/core';
 import { useT } from '../lib/i18n.js';
-import { LYRIC_INK, SETUP_BACKGROUND } from '../lib/readingColors.js';
+import { readingSectionStyle, SETUP_ACCENT, SETUP_BACKGROUND } from '../lib/readingColors.js';
 
 function signed(value: number): string {
   return value > 0 ? `+${value}` : String(value);
@@ -46,13 +46,16 @@ export function PerformanceInfo({
   return (
     <section
       data-song-font-scale={leaderScale}
-      className="mb-[var(--song-section-gap,0.9em)] rounded-md border-l px-[0.45em] py-[0.24em]"
+      className={`mb-[var(--song-section-gap,0.9em)] ${
+        cueStyle === 'minimal' ? '' : 'rounded-md border-l px-[0.45em] py-[0.24em]'
+      }`}
       style={{
         breakInside: 'avoid',
         fontSize: `${leaderScale}em`,
-        color: LYRIC_INK,
-        borderColor: 'var(--reading-info-edge, var(--color-chord))',
-        backgroundColor: `var(--reading-info, ${SETUP_BACKGROUND})`,
+        ...readingSectionStyle('info', cueStyle, {
+          border: SETUP_ACCENT,
+          background: SETUP_BACKGROUND,
+        }),
       }}
     >
       {cueStyle === 'full' && (
@@ -70,10 +73,13 @@ export function PerformanceInfo({
       {mine.length > 0 && (
         <p
           data-song-font-scale={mineScale}
-          className="mt-[0.18em] leading-snug text-(--color-muted)"
+          className="mt-[0.18em] leading-snug"
           style={{
             fontSize: `${mineScale / leaderScale}em`,
-            color: 'var(--reading-infoDetails, var(--color-muted))',
+            color:
+              cueStyle === 'minimal'
+                ? 'var(--reading-infoDetails, inherit)'
+                : 'var(--reading-infoDetails, var(--color-muted))',
           }}
         >
           {mine.join(' · ')}

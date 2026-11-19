@@ -39,14 +39,14 @@ describe('Song setup cue styles', () => {
     expect(html).toContain('Capo 2');
   });
 
-  it('keeps the background in minimal and colors setup text separately', () => {
+  it('uses the setup color as ink in Minimal and allows a details override', () => {
     const html = render('minimal');
     expect(html).not.toContain('Song setup');
-    expect(html).toContain('background-color:var(--reading-info,');
+    expect(html).not.toContain('background-color:');
+    expect(html).not.toContain('border-color:');
     expect(html).toContain('data-song-font-scale="0.6"');
-    expect(html).toContain('color:var(--reading-lyrics, var(--color-stage-fg))');
-    expect(html).toContain('color:var(--reading-infoDetails, var(--color-muted))');
-    expect(html).not.toMatch(/(?:^|[;" ])color:var\(--reading-info,/);
+    expect(html).toContain('color:var(--reading-info-ink,');
+    expect(html).toContain('color:var(--reading-infoDetails, inherit)');
     expect(html).toContain('Performance key G');
   });
 });

@@ -421,6 +421,7 @@ export function SettingsPage() {
                   }}
                   inheritLabel={inherit}
                   theme={stage.theme ?? (selected ? shared.theme : null) ?? prefs.theme}
+                  cueStyle={stage.cueStyle ?? (selected ? shared.cueStyle : null) ?? 'full'}
                   onChange={(key, value) => {
                     const readingColors = readingColorsWithChords(
                       stage.readingColors,
