@@ -76,6 +76,15 @@ point, not a decision.
 | B25 | Split / merge blocks, reorder blocks by drag                                              | `HandGrab.cur`                  | KEEP                              |      |
 | B26 | Second language / translation lyric layer                                                 | `translation`                   | DROP                              | DROP |
 
+**Singer assignment (B8/B9).** Changing the singer in a section header applies that
+choice to every line in the section. It clears previous line overrides so that each
+line inherits the new section singer. You can then assign a different singer to any
+one line using its own dropdown.
+
+[Editor regression test](../packages/core/test/edit.test.ts) covers a four-line section
+with two explicit `All` overrides, changing the whole section to `Women`, and assigning
+one line to `Leader` afterward. The focused editor and ChordPro suites passed all 61 tests.
+
 ---
 
 ## C. Arrangement & Cues _(the biggest gap — 303 Misc blocks are workarounds)_

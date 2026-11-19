@@ -11,6 +11,7 @@ import {
   setLineText,
   shiftAnchors,
   splitBlock,
+  updateBlock,
   updateLine,
 } from '../src/edit.js';
 import {
@@ -50,6 +51,41 @@ function songWith(...blocks: { id: string; type?: BlockType; lines: string[] }[]
     rev: 0,
   };
 }
+
+describe('section singer assignment', () => {
+  it('applies the new section singer to every line and supports a later line override', () => {
+    const song = songWith(
+      { id: 'V1', lines: ['one', 'two', 'three', 'four'] },
+      { id: 'V2', lines: ['five'] },
+    );
+    const section = song.blocks[0]!;
+    section.singers = 'All';
+    section.lines[2]!.singers = 'All';
+    section.lines[3]!.singers = 'All';
+    section.lines[2]!.chords = [A(0)];
+
+    const changed = updateBlock(song, 'V1', { singers: 'Women' });
+    const changedSection = changed.blocks[0]!;
+    expect(changedSection.lines.map((line) => line.singers ?? changedSection.singers)).toEqual([
+      'Women',
+      'Women',
+      'Women',
+      'Women',
+    ]);
+    expect(changedSection.lines[2]!.chords).toEqual([A(0)]);
+    expect(changed.blocks[1]).toBe(song.blocks[1]);
+    expect(song.blocks[0]!.lines[2]!.singers).toBe('All');
+
+    const overridden = updateLine(changed, 'V1', 2, (line) => ({ ...line, singers: 'Leader' }));
+    const overriddenSection = overridden.blocks[0]!;
+    expect(
+      overriddenSection.lines.map((line) => line.singers ?? overriddenSection.singers),
+    ).toEqual(['Women', 'Women', 'Leader', 'Women']);
+    expect(
+      updateBlock(overridden, 'V1', { label: 'Verse 1' }).blocks[0]!.lines[2]!.singers,
+    ).toBe('Leader');
+  });
+});
 
 describe('shiftAnchors — chords must follow the text they sit on', () => {
   it('leaves anchors alone when nothing changed', () => {

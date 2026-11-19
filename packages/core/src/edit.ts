@@ -110,7 +110,16 @@ export function nextBlockId(song: Song, type: BlockType): string {
 export function updateBlock(song: Song, blockId: string, patch: Partial<Block>): Song {
   return {
     ...song,
-    blocks: song.blocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b)),
+    blocks: song.blocks.map((block) => {
+      if (block.id !== blockId) return block;
+      const updated = { ...block, ...patch };
+      if (patch.singers !== undefined && patch.singers !== block.singers) {
+        updated.lines = updated.lines.map((line) =>
+          line.singers === null ? line : { ...line, singers: null },
+        );
+      }
+      return updated;
+    }),
   };
 }
 

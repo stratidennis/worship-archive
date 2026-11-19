@@ -75,14 +75,14 @@ describe('fit-to-screen font floor', () => {
 });
 
 describe('largest readable fit', () => {
-  it('checks the exact minimum in two columns even when an intermediate fragmented layout overflows', async () => {
+  it('finds the largest size even across an intermediate range that overflows', async () => {
     const result = await chooseFit({
       minFontPx: 32,
       maxFittedFontPx: 72,
       columns: [1, 2],
       overflows: async (font, columns) => columns === 1 || (font > 32 && font < 54),
     });
-    expect(result).toMatchObject({ fontPx: 32, columns: 2, fits: true });
+    expect(result).toEqual({ fontPx: 72, columns: 2, fits: true });
   });
   it('uses a larger two-column fit even when a wide reader can fit in one at 18 px', async () => {
     const result = await chooseFit({
@@ -124,37 +124,50 @@ describe('largest readable fit', () => {
     expect(result).toEqual({ fontPx: 38, columns: 2, fits: true });
   });
 
-  it('keeps two columns when the third would only add one pixel', async () => {
+  it('uses a third column even when it only adds one pixel above the minimum', async () => {
     const result = await chooseFit({
       minFontPx: 22,
       columns: [1, 2, 3],
       overflows: async (font, columns) => font > (columns === 1 ? 21 : columns === 2 ? 22 : 23),
     });
-    expect(result).toEqual({ fontPx: 22, columns: 2, fits: true });
+    expect(result).toEqual({ fontPx: 23, columns: 3, fits: true });
   });
 
-  it.each([23, 24])('tries tighter section spacing at a %i px minimum', async (minFontPx) => {
+  it.each([22, 23, 24])(
+    'finds the largest compact fit with a %i px minimum',
+    async (minFontPx) => {
+      const result = await chooseFit({
+        minFontPx,
+        columns: [1, 2, 3],
+        overflows: async (font, columns, compactSpacing?: boolean) =>
+          font >
+          (columns === 1
+            ? 21
+            : columns === 2
+              ? compactSpacing
+                ? 23
+                : 22
+              : compactSpacing
+                ? 24
+                : 23),
+      });
+      expect(result).toEqual({
+        fontPx: 24,
+        columns: 3,
+        fits: true,
+        compactSpacing: true,
+      });
+    },
+  );
+
+  it('prefers compact spacing in fewer columns at the same size', async () => {
     const result = await chooseFit({
-      minFontPx,
-      columns: [1, 2, 3],
-      overflows: async (font, columns, compactSpacing?: boolean) =>
-        font >
-        (columns === 1
-          ? 21
-          : columns === 2
-            ? compactSpacing
-              ? 23
-              : 22
-            : compactSpacing
-              ? 24
-              : 23),
+      minFontPx: 22,
+      columns: [1, 2, 3, 4],
+      overflows: async (font, columns, compactSpacing) =>
+        font > (columns < 2 || (columns === 2 && !compactSpacing) ? 24 : 25),
     });
-    expect(result).toEqual({
-      fontPx: minFontPx,
-      columns: minFontPx === 23 ? 2 : 3,
-      fits: true,
-      compactSpacing: true,
-    });
+    expect(result).toEqual({ fontPx: 25, columns: 2, fits: true, compactSpacing: true });
   });
 
   it('uses three columns when one and two cannot preserve the minimum', async () => {

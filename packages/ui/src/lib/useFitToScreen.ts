@@ -14,8 +14,8 @@ import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
  * instead preserve the chosen size and scroll, because that is both possible and more
  * readable than silently shrinking the text.
  *
- * Find a readable size within the user's bounds and prefer fewer columns for
- * near-equal fits. Try tighter gaps between sections before scrolling or warning.
+ * Find the largest size within the user's bounds. At equal sizes, prefer fewer
+ * columns, then standard spacing.
  *
  * Each trial uses a fresh off-screen copy, never the visible song. Touch browsers get
  * rendering turns to apply the trial before its dimensions are read.
@@ -141,7 +141,7 @@ export function failedFit(
   };
 }
 
-/** Prefer fewer columns when adding one would increase the font by at most 1 px. */
+/** Check larger sizes first because column fragmentation can make fit non-monotonic. */
 export async function chooseFit({
   minFontPx,
   maxFittedFontPx = MAX_FITTED_FONT_DEFAULT,
@@ -154,40 +154,32 @@ export async function chooseFit({
   overflows: (fontPx: number, columns: number, compactSpacing?: boolean) => Promise<boolean>;
 }): Promise<FitChoice> {
   const ceiling = Math.max(minFontPx, maxFittedFontPx);
-  const fits: FitChoice[] = [];
-  let largest = minFontPx - 1;
-  for (const columnCount of columns) {
-    const floor = largest + 1;
-    if (floor > ceiling) break;
-    // Prove this layout fits at the search floor before trying larger sizes.
-    if (await overflows(floor, columnCount)) continue;
-    let low = floor + 1;
-    let high = ceiling;
-    let found = floor;
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-      if (await overflows(mid, columnCount)) high = mid - 1;
-      else {
-        found = mid;
-        low = mid + 1;
+  const batch: FitChoice[] = [];
+  for (
+    let fontPx = ceiling;
+    fontPx >= minFontPx;
+    fontPx = Math.max(minFontPx, Math.ceil(fontPx) - 1)
+  ) {
+    for (const columnCount of columns) {
+      batch.push({ fontPx, columns: columnCount, fits: true });
+      if (columnCount > 1) {
+        batch.push({ fontPx, columns: columnCount, fits: true, compactSpacing: true });
       }
     }
-    largest = found;
-    fits.push({ fontPx: found, columns: columnCount, fits: true });
-  }
-
-  const preferred = fits.find((fit) => fit.fontPx >= largest - 1);
-  const fontPx = preferred?.fontPx ?? minFontPx;
-  // Preserve lyric line spacing. Narrower gutters and gaps between sections can
-  // keep the same font in fewer columns or avoid scrolling at the minimum.
-  for (const columnCount of columns) {
-    if (columnCount === 1) continue;
-    if (preferred && columnCount >= preferred.columns) break;
-    if (!(await overflows(fontPx, columnCount, true))) {
-      return { fontPx, columns: columnCount, fits: true, compactSpacing: true };
+    // Let several touch-browser trials settle in the same rendering frames.
+    if (batch.length >= 8 || fontPx === minFontPx) {
+      const results = await Promise.allSettled(
+        batch.map((trial) => overflows(trial.fontPx, trial.columns, trial.compactSpacing)),
+      );
+      for (const [index, result] of results.entries()) {
+        if (result.status === 'rejected') throw result.reason;
+        if (!result.value) return batch[index]!;
+      }
+      batch.length = 0;
     }
+    if (fontPx === minFontPx) break;
   }
-  return preferred ?? { fontPx, columns: 1, fits: false };
+  return { fontPx: minFontPx, columns: 1, fits: false };
 }
 
 export function useFitToScreen(
@@ -220,7 +212,11 @@ export function useFitToScreen(
     let disposed = false;
     let running = false;
     let queued = false;
-    let activeProbe: HTMLElement | null = null;
+    const activeProbes = new Set<HTMLElement>();
+    const clearProbes = (): void => {
+      for (const probe of activeProbes) probe.remove();
+      activeProbes.clear();
+    };
     const pendingFrames = new Map<number, (active: boolean) => void>();
     const cancelled = Symbol('cancelled fit');
     const nextFrame = (): Promise<boolean> =>
@@ -294,12 +290,12 @@ export function useFitToScreen(
         columns: number,
         compactSpacing = false,
       ): Promise<boolean> => {
-        if (disposed) throw cancelled;
+        if (disposed || queued) throw cancelled;
         // Inherited em sizes on the actual tablet can remain from several earlier
         // trials. A new subtree starts with the requested font; there are no old
         // inherited styles to invalidate, and no trial ever changes the visible song.
         const probe = content.cloneNode(true) as HTMLElement;
-        activeProbe = probe;
+        activeProbes.add(probe);
         probe.removeAttribute('id');
         probe.setAttribute('aria-hidden', 'true');
         probe.style.position = 'fixed';
@@ -415,7 +411,7 @@ export function useFitToScreen(
           available,
         );
         probe.remove();
-        activeProbe = null;
+        activeProbes.delete(probe);
         return overflowing;
       };
 
@@ -425,6 +421,7 @@ export function useFitToScreen(
         columns: columnCandidates(width, phoneScreen),
         overflows,
       });
+      clearProbes();
 
       if (disposed) throw cancelled;
       const current = readSpace();
@@ -462,10 +459,9 @@ export function useFitToScreen(
         running = true;
         void measure()
           .catch((error: unknown) => {
+            clearProbes();
             if (disposed || error === cancelled) return;
             console.warn('Song fitting failed', String(error));
-            activeProbe?.remove();
-            activeProbe = null;
             fittedKey.current = options.key;
             // The old layout may belong to the previous setting or song. Keeping its
             // font here allowed a 26px result to survive after the Stage floor moved
@@ -514,8 +510,7 @@ export function useFitToScreen(
         resolve(false);
       }
       pendingFrames.clear();
-      activeProbe?.remove();
-      activeProbe = null;
+      clearProbes();
     };
     // `key` re-runs the fit when the content itself changed: transpose alters chord
     // widths, toggling chords changes line height, and both change what fits.
