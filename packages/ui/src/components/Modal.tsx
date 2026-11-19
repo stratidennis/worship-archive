@@ -28,6 +28,7 @@ const TONES: Record<Tone, { ring: string; Icon: typeof IconAlert }> = {
   warn: { ring: 'bg-(--color-cue)/15 text-(--color-cue)', Icon: IconAlert },
   danger: { ring: 'bg-red-500/15 text-red-500', Icon: IconTrash },
 };
+const overlays: HTMLElement[] = [];
 
 /**
  * The behaviour every overlay owes the keyboard, in one place.
@@ -44,11 +45,14 @@ export function useOverlay<T extends HTMLElement = HTMLDivElement>(
   dismiss.current = onDismiss;
 
   useEffect(() => {
+    const element = panel.current;
+    if (!element) return;
     const previous = document.activeElement as HTMLElement | null;
-    panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus();
+    overlays.push(element);
+    element.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus();
 
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || overlays.at(-1) !== element) return;
       event.preventDefault();
       event.stopPropagation();
       dismiss.current();
@@ -56,6 +60,7 @@ export function useOverlay<T extends HTMLElement = HTMLDivElement>(
     window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('keydown', onKey, true);
+      overlays.splice(overlays.indexOf(element), 1);
       previous?.focus?.();
     };
   }, []);

@@ -26,29 +26,30 @@ describe('song line chord spacing', () => {
 
 describe('song cue blocks', () => {
   it('gives every cue type its own colour in the full style', () => {
-    const appearances = ['Intro', 'Instrumental', 'Solo', 'Note'].map(cueAppearance);
-    expect(appearances.every((appearance) => appearance?.fontScale === 0.8)).toBe(true);
-    expect(appearances.every((appearance) => appearance?.coloured)).toBe(true);
-    expect(new Set(appearances.map((appearance) => appearance?.background)).size).toBe(4);
+    const appearances = ['Intro', 'Instrumental', 'Solo', 'Note', 'Bridge'].map((type) =>
+      cueAppearance(type),
+    );
+    expect(appearances.map((appearance) => appearance?.fontScale)).toEqual([
+      0.8, 0.8, 0.8, 0.8, 1,
+    ]);
+    expect(new Set(appearances.map((appearance) => appearance?.background)).size).toBe(5);
     expect(cueAppearance('Verse')).toBeNull();
   });
 
-  it('makes compact cues smaller and keeps minimal cues colour-coded through text', () => {
+  it('scales down compact and minimal cues while retaining their background', () => {
     expect(cueAppearance('Note', 'compact')).toMatchObject({
       fontScale: 0.7,
-      coloured: true,
-      text: null,
+      background: 'var(--color-cue-note-bg)',
     });
     expect(cueAppearance('Note', 'minimal')).toMatchObject({
       fontScale: 0.6,
-      coloured: false,
-      text: 'var(--color-cue-note)',
+      background: 'var(--color-cue-note-bg)',
     });
   });
 });
 
 describe('performance markings', () => {
-  const render = (cueStyle: CueStyle, highlightBridges = false, highlightSolos = false) => {
+  const render = (cueStyle: CueStyle) => {
     const song = parseChordPro(`
 {title: Example}
 {x_block_singers: Women}
@@ -83,8 +84,6 @@ Guitar solo
             transpose: 0,
             capo: 0,
             cueStyle,
-            highlightBridges,
-            highlightSolos,
           },
         }),
       ),
@@ -102,8 +101,8 @@ Guitar solo
     },
   );
 
-  it('inherits section singers, respects line assignments, and highlights bridges only when enabled', () => {
-    const html = render('full', true);
+  it('inherits section singers and respects line assignments over a Bridge background', () => {
+    const html = render('full');
     expect(html).toMatch(
       /color:var\(--reading-Women, var\(--color-singers-women\)\)[^>]*>.*?Women\. .*?>First /,
     );
@@ -113,23 +112,24 @@ Guitar solo
     expect(
       html.match(/color:var\(--reading-Women, var\(--color-singers-women\)\)/g),
     ).toHaveLength(2);
-    expect(html).toContain('color:var(--reading-Bridge, var(--color-bridge-ink))');
-    expect(render('full')).not.toContain(
-      'color:var(--reading-Bridge, var(--color-bridge-ink))',
+    expect(html).toMatch(
+      /<section[^>]*background-color:var\(--reading-Bridge, var\(--color-cue-bridge-bg\)\)[^>]*>.*?color:var\(--reading-Men,/,
     );
   });
 
   it.each(['full', 'compact', 'minimal'] as const)(
-    'highlights solos independently of bridges in %s',
+    'applies section colors only as backgrounds in %s',
     (style) => {
-      expect(render(style, true)).not.toContain(
-        'color:var(--reading-Solo, var(--color-solo-ink))',
+      const html = render(style);
+      expect(html).toContain(
+        'background-color:var(--reading-Bridge, var(--color-cue-bridge-bg))',
       );
-      const highlighted = render(style, false, true);
-      expect(highlighted).toMatch(
-        /<section[^>]*color:var\(--reading-Solo, var\(--color-solo-ink\)\)[^>]*>.*?Guitar /,
+      expect(html).toContain('background-color:var(--reading-Solo, var(--color-cue-solo-bg))');
+      expect(html).toContain('background-color:var(--reading-Verse, transparent)');
+      expect(html).not.toMatch(/(?:^|[;" ])color:var\(--reading-(Bridge|Solo|Verse)/);
+      expect(html).toMatch(
+        /<section[^>]*color:var\(--reading-lyrics, var\(--color-stage-fg\)\)[^>]*background-color:var\(--reading-Solo,[^>]*>.*?Guitar /,
       );
-      expect(highlighted).not.toContain('color:var(--reading-Bridge, var(--color-bridge-ink))');
     },
   );
 });

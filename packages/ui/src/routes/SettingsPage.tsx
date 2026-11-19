@@ -19,7 +19,6 @@ import {
   MaximumFontSize,
   MinimumFontSize,
   ThemeChoice,
-  StageSectionHighlight,
 } from '../components/DisplaySettings.js';
 import { useStageDisplay } from '../lib/stageDisplay.js';
 import {
@@ -27,6 +26,7 @@ import {
   DEFAULT_SONG_FONT_SIZE,
   MAX_FITTED_SONG_FONT_SIZE,
   DEFAULT_STAGE_DISPLAY,
+  READING_COLOR_KEYS,
   type StageDisplay,
   readingColorsWithChords,
 } from '@worship/core';
@@ -431,24 +431,17 @@ export function SettingsPage() {
                     setStage({
                       readingColors,
                       ...(key === 'chords' ? { chordColor: value ?? null } : {}),
-                      ...(value && key === 'Bridge' ? { highlightBridges: true } : {}),
-                      ...(value && key === 'Solo' ? { highlightSolos: true } : {}),
                     });
                   }}
-                >
-                  <StageSectionHighlight
-                    label={t('settings.highlightBridges')}
-                    value={stage.highlightBridges ?? null}
-                    onChange={(highlightBridges) => setStage({ highlightBridges })}
-                    inherit={inherit}
-                  />
-                  <StageSectionHighlight
-                    label={t('settings.highlightSolos')}
-                    value={stage.highlightSolos ?? null}
-                    onChange={(highlightSolos) => setStage({ highlightSolos })}
-                    inherit={inherit}
-                  />
-                </ReadingColorSettings>
+                  onReset={() =>
+                    setStage({
+                      readingColors: Object.fromEntries(
+                        READING_COLOR_KEYS.map((key) => [key, null]),
+                      ),
+                      chordColor: null,
+                    })
+                  }
+                />
               </>
             )}
           </Section>

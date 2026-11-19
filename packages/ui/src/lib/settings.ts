@@ -33,8 +33,6 @@ export interface Prefs {
   showChords: boolean;
   /** Visual density of song cues and section labels. */
   cueStyle: CueStyle;
-  highlightBridges: boolean;
-  highlightSolos: boolean;
   capo: number;
   /** Extra transposition on top of the song's performance key. */
   transpose: number;
@@ -77,8 +75,6 @@ export interface Prefs {
 export const DEFAULT_PREFS: Prefs = {
   showChords: true,
   cueStyle: 'full',
-  highlightBridges: false,
-  highlightSolos: false,
   capo: 0,
   transpose: 0,
   minFontPx: DEFAULT_SONG_FONT_SIZE,
@@ -100,6 +96,8 @@ const KEY = 'worship-archive:prefs';
 type StoredPrefs = Partial<Prefs> & {
   /** Preferences written before the three cue styles were introduced. */
   showBlockTitles?: boolean;
+  highlightBridges?: boolean;
+  highlightSolos?: boolean;
   /** Distinguishes the new ceiling from the retired pre-floor maxFontPx setting. */
   fontSizingVersion?: 2;
 };
@@ -109,6 +107,8 @@ export function normalisePrefs(value: unknown): Prefs {
   const saved = value as StoredPrefs;
   const legacyShowBlockTitles = saved.showBlockTitles;
   const currentSaved = { ...saved };
+  delete currentSaved.highlightBridges;
+  delete currentSaved.highlightSolos;
   delete currentSaved.showBlockTitles;
   delete currentSaved.fontSizingVersion;
   const theme =
@@ -149,8 +149,6 @@ export function normalisePrefs(value: unknown): Prefs {
       normaliseReadingColors(saved.readingColors),
       saved.chordColor ?? null,
     ),
-    highlightBridges: saved.highlightBridges === true,
-    highlightSolos: saved.highlightSolos === true,
     accidentalPreferences: {
       ...DEFAULT_ACCIDENTAL_PREFERENCES,
       ...(saved.accidentalPreferences ?? {}),

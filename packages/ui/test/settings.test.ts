@@ -18,6 +18,17 @@ describe('display preference migration', () => {
     ).toEqual({ chords: '#f59e0b', Women: '#bc4477' });
   });
 
+  it('keeps saved Bridge and Solo colors when dropping the old highlight toggles', () => {
+    const prefs = normalisePrefs({
+      highlightBridges: true,
+      highlightSolos: false,
+      readingColors: { Bridge: '#293e24', Solo: '#453247' },
+    });
+    expect(prefs.readingColors).toEqual({ Bridge: '#293e24', Solo: '#453247' });
+    expect(prefs).not.toHaveProperty('highlightBridges');
+    expect(prefs).not.toHaveProperty('highlightSolos');
+  });
+
   it('starts existing devices with the new minimum rather than reusing the old maximum', () => {
     const prefs = normalisePrefs({ maxFontPx: 26, showBlockTitles: true });
     expect(prefs.minFontPx).toBe(DEFAULT_PREFS.minFontPx);

@@ -655,8 +655,6 @@ export function EditPage() {
                   showChords: true,
                   showBass: false,
                   cueStyle: prefs.cueStyle,
-                  highlightBridges: prefs.highlightBridges,
-                  highlightSolos: prefs.highlightSolos,
                   capo: 0,
                   transpose: 0,
                   lineHeight: prefs.lineHeight,

@@ -12,6 +12,7 @@ function render(cueStyle?: CueStyle): string {
       null,
       createElement(PerformanceInfo, {
         performanceKey: 'G',
+        displayedKey: 'D',
         transpose: 0,
         capo: 2,
         cueStyle,
@@ -25,7 +26,7 @@ describe('Song setup cue styles', () => {
     const html = render('full');
     expect(html).toContain('Song setup');
     expect(html).toContain('<h2');
-    expect(html).toContain('background-color:color-mix');
+    expect(html).toContain('background-color:var(--reading-info,');
     expect(html).toContain('class="font-normal leading-snug"');
   });
 
@@ -33,17 +34,19 @@ describe('Song setup cue styles', () => {
     const html = render('compact');
     expect(html).not.toContain('Song setup');
     expect(html).not.toContain('<h2');
-    expect(html).toContain('background-color:color-mix');
+    expect(html).toContain('background-color:var(--reading-info,');
     expect(html).toContain('Performance key G');
     expect(html).toContain('Capo 2');
   });
 
-  it('removes the title and background while keeping a colour-coded minimal setup', () => {
+  it('keeps the background in minimal and colors setup text separately', () => {
     const html = render('minimal');
     expect(html).not.toContain('Song setup');
-    expect(html).not.toContain('background-color:color-mix');
+    expect(html).toContain('background-color:var(--reading-info,');
     expect(html).toContain('data-song-font-scale="0.6"');
-    expect(html).toContain('color:var(--reading-info, var(--color-chord))');
+    expect(html).toContain('color:var(--reading-lyrics, var(--color-stage-fg))');
+    expect(html).toContain('color:var(--reading-infoDetails, var(--color-muted))');
+    expect(html).not.toMatch(/(?:^|[;" ])color:var\(--reading-info,/);
     expect(html).toContain('Performance key G');
   });
 });

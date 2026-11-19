@@ -4,13 +4,16 @@ export const READING_TEXT_COLORS = [
   'chords',
   'bass',
   'lyrics',
-  'background',
   'titles',
   'repeats',
-  'info',
   'infoDetails',
 ] as const;
-export const READING_COLOR_KEYS = [...READING_TEXT_COLORS, ...BLOCK_TYPES, ...SINGERS] as const;
+export const READING_SECTION_COLORS = ['background', 'info', ...BLOCK_TYPES] as const;
+export const READING_COLOR_KEYS = [
+  ...READING_TEXT_COLORS,
+  ...READING_SECTION_COLORS,
+  ...SINGERS,
+] as const;
 export type ReadingColorKey = (typeof READING_COLOR_KEYS)[number];
 /** A missing entry inherits. An explicit null uses the theme default. */
 export type ReadingColors = Partial<Record<ReadingColorKey, string | null>>;

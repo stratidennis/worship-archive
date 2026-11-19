@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   BLOCK_TYPES,
+  READING_SECTION_COLORS,
   READING_TEXT_COLORS,
   SINGERS,
   emptyBlock,
@@ -13,10 +14,11 @@ import {
 } from '@worship/core';
 import { usePrefs } from '../lib/settings.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
-import { readingColorStyle } from '../lib/readingColors.js';
-import { SectionHighlight } from './DisplaySettings.js';
+import { confirmAction } from '../lib/confirm.js';
+import { cueAppearance } from '../lib/cueAppearance.js';
+import { readingColorStyle, SETUP_BACKGROUND } from '../lib/readingColors.js';
 import { PerformanceInfo } from './PerformanceInfo.js';
-import { SongBody, singerInk } from './SongBody.js';
+import { SongBody } from './SongBody.js';
 import { Button, Input, Select } from './ui.js';
 
 const PRESETS = [
@@ -32,17 +34,14 @@ const TEXT_LABELS: Record<(typeof READING_TEXT_COLORS)[number], TranslationKey> 
   chords: 'song.chords',
   bass: 'settings.colors.bass',
   lyrics: 'settings.colors.lyrics',
-  background: 'settings.colors.background',
   titles: 'settings.colors.titles',
   repeats: 'edit.repeats',
-  info: 'performance.title',
   infoDetails: 'settings.colors.infoDetails',
 };
 
 type ColorChange = (key: ReadingColorKey, color: string | null | undefined) => void;
 
 export function DeviceReadingColorSettings() {
-  const { t } = useT();
   const [prefs, setPrefs] = usePrefs();
   return (
     <ReadingColorSettings
@@ -55,22 +54,10 @@ export function DeviceReadingColorSettings() {
         setPrefs({
           readingColors,
           ...(key === 'chords' ? { chordColor: value ?? null } : {}),
-          ...(value && key === 'Bridge' ? { highlightBridges: true } : {}),
-          ...(value && key === 'Solo' ? { highlightSolos: true } : {}),
         });
       }}
-    >
-      <SectionHighlight
-        label={t('settings.highlightBridges')}
-        value={prefs.highlightBridges}
-        onChange={(highlightBridges) => setPrefs({ highlightBridges })}
-      />
-      <SectionHighlight
-        label={t('settings.highlightSolos')}
-        value={prefs.highlightSolos}
-        onChange={(highlightSolos) => setPrefs({ highlightSolos })}
-      />
-    </ReadingColorSettings>
+      onReset={() => setPrefs({ readingColors: {}, chordColor: null })}
+    />
   );
 }
 
@@ -80,19 +67,32 @@ export function ReadingColorSettings({
   inheritLabel,
   theme,
   onChange,
-  children,
+  onReset,
 }: {
   colors: ReadingColors;
   inherited?: ReadingColors;
   inheritLabel?: string;
   theme?: 'auto' | 'dark' | 'light';
   onChange: ColorChange;
-  children?: React.ReactNode;
+  onReset: () => void;
 }) {
   const { t, blockName, singerName } = useT();
   const id = useId();
   const [key, setKey] = useState<ReadingColorKey>('chords');
+  const [resetCount, setResetCount] = useState(0);
   const effective = { ...inherited, ...colors };
+  const reset = async (): Promise<void> => {
+    if (
+      !(await confirmAction({
+        message: t('settings.colors.resetPrompt'),
+        detail: t('settings.colors.resetDetail'),
+        confirmLabel: t('settings.colors.resetConfirm'),
+      }))
+    )
+      return;
+    onReset();
+    setResetCount((count) => count + 1);
+  };
   return (
     <section aria-labelledby={id} className="mt-5 border-t border-(--color-line) pt-4">
       <h3 id={id} className="text-base font-semibold">
@@ -109,9 +109,13 @@ export function ReadingColorSettings({
             ))}
           </optgroup>
           <optgroup label={t('settings.colors.sections')}>
-            {BLOCK_TYPES.map((item) => (
+            {READING_SECTION_COLORS.map((item) => (
               <option key={item} value={item}>
-                {blockName(item)}
+                {item === 'background'
+                  ? t('settings.colors.background')
+                  : item === 'info'
+                    ? t('performance.title')
+                    : blockName(item)}
               </option>
             ))}
           </optgroup>
@@ -125,7 +129,7 @@ export function ReadingColorSettings({
         </Select>
       </label>
       <ColorEditor
-        key={`${key}:${colors[key] ?? (colors[key] === null ? 'default' : 'inherited')}:${effective[key] ?? ''}`}
+        key={`${key}:${colors[key] ?? (colors[key] === null ? 'default' : 'inherited')}:${effective[key] ?? ''}:${resetCount}`}
         colorKey={key}
         colors={effective}
         override={colors[key]}
@@ -133,7 +137,9 @@ export function ReadingColorSettings({
         theme={theme}
         onChange={(value) => onChange(key, value)}
       />
-      <div className="mt-2 flex flex-wrap gap-x-5">{children}</div>
+      <Button className="mt-3" size="sm" onClick={() => void reset()}>
+        {t('settings.colors.reset')}
+      </Button>
     </section>
   );
 }
@@ -166,20 +172,21 @@ function ColorEditor({
   // A native color input takes sRGB hex. Sample the actual theme color, including
   // CSS colors such as oklch, so it opens at the color currently shown.
   useLayoutEffect(() => {
-    if (!swatch.current || saved) return;
+    if (!swatch.current) return;
     const ctx = document.createElement('canvas').getContext('2d');
     if (!ctx) return;
     ctx.fillStyle = getComputedStyle(swatch.current).color;
     ctx.fillRect(0, 0, 1, 1);
     const rgb = [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
     setDefaultHex('#' + rgb.map((value) => value.toString(16).padStart(2, '0')).join(''));
-  }, [colorKey, saved, theme]);
+  }, [colorKey, theme]);
 
   const change = (value: string | null | undefined): void => {
     setDraft(null);
     onChange(value);
   };
   const canApply = valid && draft !== null && hex.toLowerCase() !== override?.toLowerCase();
+  const isDefault = draft === null && (inheritLabel ? override === null : override == null);
   return (
     <div className="mt-3 grid max-w-xl gap-3">
       <div
@@ -193,12 +200,6 @@ function ColorEditor({
         }
       >
         <ReadingColorPreview colorKey={colorKey} />
-        <span
-          ref={swatch}
-          aria-hidden="true"
-          className="hidden"
-          style={{ color: previewInk(colorKey) }}
-        />
       </div>
 
       <form
@@ -232,7 +233,22 @@ function ColorEditor({
         </Button>
       </form>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          aria-pressed={isDefault}
+          className="flex h-9 items-center gap-1.5 rounded-full border border-(--color-line) px-2 text-xs hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
+          onClick={() => change(inheritLabel ? null : undefined)}
+        >
+          <span
+            ref={swatch}
+            aria-hidden="true"
+            data-reading-theme={theme === 'auto' ? undefined : theme}
+            className="size-5 rounded-full border border-black/15 bg-current"
+            style={{ color: defaultColor(colorKey) }}
+          />
+          {t('settings.colors.themeDefault')}
+        </button>
         {PRESETS.map(([color, label]) => (
           <button
             key={color}
@@ -240,7 +256,7 @@ function ColorEditor({
             title={t(`settings.colors.preset.${label}`)}
             aria-label={t(`settings.colors.preset.${label}`)}
             aria-pressed={hex.toLowerCase() === color}
-            className="grid size-8 place-items-center rounded-full border border-(--color-line) hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
+            className="grid size-9 place-items-center rounded-full border border-(--color-line) hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
             onClick={() => setDraft(color)}
           >
             <span
@@ -252,44 +268,36 @@ function ColorEditor({
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {inheritLabel && (
-          <Button
-            size="sm"
-            disabled={override === undefined && draft === null}
-            onClick={() => change(undefined)}
-          >
-            {inheritLabel}
-          </Button>
-        )}
+      {inheritLabel && (
         <Button
           size="sm"
-          disabled={(inheritLabel ? override === null : override == null) && draft === null}
-          onClick={() => change(inheritLabel ? null : undefined)}
+          className="justify-self-start"
+          disabled={override === undefined && draft === null}
+          onClick={() => change(undefined)}
         >
-          {t('settings.colors.themeDefault')}
+          {inheritLabel}
         </Button>
-      </div>
+      )}
     </div>
   );
 }
 
-function previewInk(key: ReadingColorKey): string {
+function defaultColor(key: ReadingColorKey): string {
   const base: Partial<Record<ReadingColorKey, string>> = {
-    background: 'var(--color-stage-bg)',
     chords: 'var(--color-chord)',
     bass: 'var(--color-bass)',
     titles: 'var(--color-muted)',
-    info: 'var(--color-chord)',
-    infoDetails: 'var(--reading-info, var(--color-muted))',
-    Intro: 'var(--color-cue-intro)',
-    Instrumental: 'var(--color-cue-instrumental)',
-    Note: 'var(--color-cue-note)',
-    Solo: 'var(--color-solo-ink)',
-    Bridge: 'var(--color-bridge-ink)',
+    info: SETUP_BACKGROUND,
+    infoDetails: 'var(--color-muted)',
+    Men: 'var(--color-singers-men)',
+    Women: 'var(--color-singers-women)',
   };
-  if (key === 'Men' || key === 'Women') return singerInk(key)!;
-  return `var(--reading-${key}, ${base[key] ?? 'var(--color-stage-fg)'})`;
+  const section = READING_SECTION_COLORS.some((item) => item === key);
+  return (
+    base[key] ??
+    cueAppearance(key)?.background ??
+    (section ? 'var(--color-stage-bg)' : 'var(--color-stage-fg)')
+  );
 }
 
 function ReadingColorPreview({ colorKey }: { colorKey: ReadingColorKey }) {
@@ -329,8 +337,6 @@ function ReadingColorPreview({ colorKey }: { colorKey: ReadingColorKey }) {
           showBass: true,
           capo: 0,
           transpose: 0,
-          highlightBridges: true,
-          highlightSolos: true,
         }}
       />
     </div>

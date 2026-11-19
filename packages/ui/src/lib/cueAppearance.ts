@@ -6,11 +6,12 @@ const CUE_COLOURS: Record<string, { border: string; background: string }> = {
     border: 'var(--color-cue-instrumental)',
     background: 'var(--color-cue-instrumental-bg)',
   },
+  Bridge: { border: 'var(--color-cue-bridge)', background: 'var(--color-cue-bridge-bg)' },
   Solo: { border: 'var(--color-cue-solo)', background: 'var(--color-cue-solo-bg)' },
   Note: { border: 'var(--color-cue-note)', background: 'var(--color-cue-note-bg)' },
 };
 
-/** Visual treatment shared by every place that renders a non-lyric song cue. */
+/** Default panel colors and the size of its text in the song reader. */
 export function cueAppearance(
   type: string,
   style: CueStyle = 'full',
@@ -18,20 +19,12 @@ export function cueAppearance(
   border: string;
   background: string;
   fontScale: number;
-  coloured: boolean;
-  text: string | null;
 } | null {
   const colours = CUE_COLOURS[type];
   if (!colours) return null;
-  if (style === 'minimal') {
-    // Keep the cue's semantic colour after removing its background. The border colour
-    // is the readable foreground counterpart of that background in both themes.
-    return { ...colours, fontScale: 0.6, coloured: false, text: colours.border };
-  }
+  const fontScale = { full: 0.8, compact: 0.7, minimal: 0.6 }[style];
   return {
     ...colours,
-    fontScale: style === 'compact' ? 0.7 : 0.8,
-    coloured: true,
-    text: null,
+    fontScale: type === 'Bridge' ? 1 : fontScale,
   };
 }

@@ -1,5 +1,6 @@
 import type { CueStyle } from '@worship/core';
 import { useT } from '../lib/i18n.js';
+import { LYRIC_INK, SETUP_BACKGROUND } from '../lib/readingColors.js';
 
 function signed(value: number): string {
   return value > 0 ? `+${value}` : String(value);
@@ -40,21 +41,18 @@ export function PerformanceInfo({
   ].filter(Boolean);
 
   if (leader.length === 0 && mine.length === 0) return null;
-  const coloured = cueStyle !== 'minimal';
   const leaderScale = cueStyle === 'full' ? 0.8 : cueStyle === 'compact' ? 0.7 : 0.6;
   const mineScale = cueStyle === 'full' ? 0.69 : cueStyle === 'compact' ? 0.61 : 0.52;
   return (
     <section
       data-song-font-scale={leaderScale}
-      className={`mb-[0.9em] ${coloured ? 'rounded-md border-l px-[0.45em] py-[0.24em]' : ''}`}
+      className="mb-[0.9em] rounded-md border-l px-[0.45em] py-[0.24em]"
       style={{
         breakInside: 'avoid',
         fontSize: `${leaderScale}em`,
-        color: `var(--reading-info, ${coloured ? 'var(--reading-lyrics, var(--color-stage-fg))' : 'var(--color-chord)'})`,
-        borderColor: coloured ? 'var(--reading-info, var(--color-chord))' : undefined,
-        backgroundColor: coloured
-          ? 'color-mix(in srgb, var(--reading-info, var(--color-chord)) 8%, transparent)'
-          : undefined,
+        color: LYRIC_INK,
+        borderColor: 'var(--color-chord)',
+        backgroundColor: `var(--reading-info, ${SETUP_BACKGROUND})`,
       }}
     >
       {cueStyle === 'full' && (
@@ -75,7 +73,7 @@ export function PerformanceInfo({
           className="mt-[0.18em] leading-snug text-(--color-muted)"
           style={{
             fontSize: `${mineScale / leaderScale}em`,
-            color: `var(--reading-infoDetails, ${coloured ? 'var(--reading-info, var(--color-muted))' : 'inherit'})`,
+            color: 'var(--reading-infoDetails, var(--color-muted))',
           }}
         >
           {mine.join(' · ')}

@@ -17,8 +17,8 @@
   --color-line: oklch(90% 0.005 260);
   --color-singers-women: #a32667;
   --color-singers-men: #075985;
-  --color-bridge-ink: #795500;
-  --color-solo-ink: #146039;
+  --color-cue-bridge: oklch(65% 0.13 95);
+  --color-cue-bridge-bg: oklch(96% 0.033 95);
   --color-cue-intro: oklch(67% 0.14 70);
   --color-cue-intro-bg: oklch(96% 0.025 70);
   --color-cue-instrumental: oklch(61% 0.12 235);
@@ -47,8 +47,8 @@
     --color-line: oklch(33% 0.005 265);
     --color-singers-women: #f5abd2;
     --color-singers-men: #79cef1;
-    --color-bridge-ink: #f5d674;
-    --color-solo-ink: #8ce4a6;
+    --color-cue-bridge: oklch(79% 0.12 95);
+    --color-cue-bridge-bg: oklch(29% 0.037 95);
     --color-cue-intro: oklch(74% 0.12 70);
     --color-cue-intro-bg: oklch(29% 0.025 70);
     --color-cue-instrumental: oklch(75% 0.11 235);
@@ -76,8 +76,8 @@
   --color-line: oklch(90% 0.005 260);
   --color-singers-women: #a32667;
   --color-singers-men: #075985;
-  --color-bridge-ink: #795500;
-  --color-solo-ink: #146039;
+  --color-cue-bridge: oklch(65% 0.13 95);
+  --color-cue-bridge-bg: oklch(96% 0.033 95);
   --color-cue-intro: oklch(67% 0.14 70);
   --color-cue-intro-bg: oklch(96% 0.025 70);
   --color-cue-instrumental: oklch(61% 0.12 235);
@@ -112,8 +112,8 @@
   --color-line: oklch(33% 0.005 265);
   --color-singers-women: #f5abd2;
   --color-singers-men: #79cef1;
-  --color-bridge-ink: #f5d674;
-  --color-solo-ink: #8ce4a6;
+  --color-cue-bridge: oklch(79% 0.12 95);
+  --color-cue-bridge-bg: oklch(29% 0.037 95);
   --color-cue-intro: oklch(74% 0.12 70);
   --color-cue-intro-bg: oklch(29% 0.025 70);
   --color-cue-instrumental: oklch(75% 0.11 235);
@@ -438,8 +438,8 @@ input[type='range']::-moz-range-thumb {
     --color-muted: oklch(42% 0 0);
     --color-singers-women: #a32667;
     --color-singers-men: #075985;
-    --color-bridge-ink: #795500;
-    --color-solo-ink: #146039;
+    --color-cue-bridge: oklch(48% 0.1 95);
+    --color-cue-bridge-bg: transparent;
     --color-line: oklch(78% 0 0);
     --color-cue: oklch(45% 0.13 70);
     --color-cue-bg: transparent;

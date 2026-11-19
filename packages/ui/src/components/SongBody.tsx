@@ -15,9 +15,8 @@ import {
 } from '@worship/core';
 import { useT } from '../lib/i18n.js';
 import { cueAppearance } from '../lib/cueAppearance.js';
+import { LYRIC_INK } from '../lib/readingColors.js';
 
-/** Block types that are cues rather than lyrics — rendered differently. */
-const CUE_TYPES = new Set(['Intro', 'Instrumental', 'Solo', 'Note']);
 const INDENTED_TYPES = new Set(['Chorus', 'PreChorus', 'Bridge', 'Ending']);
 
 export interface RenderOptions {
@@ -25,8 +24,6 @@ export interface RenderOptions {
   showBass: boolean;
   /** Full, compact or minimal treatment for section labels and coloured cues. */
   cueStyle?: CueStyle;
-  highlightBridges?: boolean;
-  highlightSolos?: boolean;
   capo: number;
   /** Unitless lyric line-height multiplier. */
   lineHeight?: number;
@@ -238,7 +235,6 @@ function BlockView({
   targetKey: string | null;
 }) {
   const { blockName, singerName, t } = useT();
-  const isCue = CUE_TYPES.has(block.type);
   const isIndented = INDENTED_TYPES.has(block.type);
   const cueStyle = options.cueStyle ?? 'full';
   const cue = cueAppearance(block.type, cueStyle);
@@ -246,53 +242,19 @@ function BlockView({
     ? `${blockName(block.type)} — ${block.label}`
     : blockName(block.type);
   const repeat = block.repeat ?? 1;
-  const lyricInk = 'var(--reading-lyrics, var(--color-stage-fg))';
-  let ink = `var(--reading-${block.type}, ${cue?.text ?? lyricInk})`;
-  if (block.type === 'Bridge') {
-    ink = options.highlightBridges
-      ? 'var(--reading-Bridge, var(--color-bridge-ink))'
-      : lyricInk;
-  }
-  const soloHighlighted = block.type === 'Solo' && options.highlightSolos;
-  if (block.type === 'Solo') {
-    ink = soloHighlighted
-      ? 'var(--reading-Solo, var(--color-solo-ink))'
-      : (cue?.text ?? lyricInk);
-  }
-  const cueAccent =
-    block.type === 'Solo' && !soloHighlighted
-      ? cue?.border
-      : `var(--reading-${block.type}, ${cue?.border})`;
-  const soloBackground =
-    'color-mix(in srgb, var(--reading-Solo, var(--color-solo-ink)) 10%, var(--reading-background, var(--color-stage-bg)))';
-  const cueBackground =
-    block.type === 'Solo'
-      ? soloHighlighted
-        ? soloBackground
-        : cue?.background
-      : `var(--reading-${block.type}-surface, ${cue?.background})`;
-
   return (
     <section
       data-song-font-scale={cue?.fontScale ?? 1}
-      className={`mb-[0.9em] ${
-        isCue && cue?.coloured
-          ? 'rounded-md border-l py-[0.18em] pl-[0.4em]'
-          : isIndented
-            ? 'ml-[1.3em]'
-            : ''
+      className={`mb-[0.9em] rounded-md ${isIndented ? 'ml-[1.3em]' : ''} ${
+        cue ? 'border-l px-[0.4em] py-[0.18em]' : ''
       }`}
       // Never let a block be split down the middle by a column break.
       style={{
         breakInside: 'avoid',
-        color: ink,
+        color: LYRIC_INK,
         fontSize: cue ? `${cue.fontScale}em` : undefined,
-        ...(cue?.coloured
-          ? {
-              borderColor: soloHighlighted ? ink : cueAccent,
-              backgroundColor: cueBackground,
-            }
-          : {}),
+        borderColor: cue?.border,
+        backgroundColor: `var(--reading-${block.type}, ${cue?.background ?? 'transparent'})`,
       }}
     >
       {cueStyle === 'full' && (

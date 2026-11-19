@@ -526,8 +526,6 @@ export function BandPage() {
                   showChords: prefs.showChords,
                   showBass: false,
                   cueStyle: prefs.cueStyle,
-                  highlightBridges: prefs.highlightBridges,
-                  highlightSolos: prefs.highlightSolos,
                   capo: capoFret,
                   transpose,
                   lineHeight: prefs.lineHeight,
