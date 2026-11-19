@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { IconAlert, IconSun, IconTrash } from './icons.js';
+import { useEffect, useId, useRef } from 'react';
+import { IconAlert, IconTrash } from './icons.js';
 
 /**
  * A dialog that has to be answered.
@@ -21,15 +21,10 @@ import { IconAlert, IconSun, IconTrash } from './icons.js';
  *    keyboard user at the top of the document.
  */
 
-/** What kind of answer is being asked for, which decides the mark beside the question. */
+/** Informational prompts are text-only. Warnings have an accent and an icon. */
 export type Tone = 'info' | 'warn' | 'danger';
 
-const TONES: Record<Tone, { accent: string; ring: string; Icon: typeof IconAlert }> = {
-  info: {
-    accent: 'bg-(--color-focus)',
-    ring: 'bg-(--color-focus)/15 text-(--color-focus)',
-    Icon: IconSun,
-  },
+const TONES = {
   warn: {
     accent: 'bg-(--color-cue)',
     ring: 'bg-(--color-cue)/15 text-(--color-cue)',
@@ -92,7 +87,8 @@ export function Modal({
   onDismiss: () => void;
 }) {
   const panel = useOverlay(onDismiss);
-  const { accent, ring, Icon } = TONES[tone];
+  const detailId = useId();
+  const appearance = tone === 'info' ? null : TONES[tone];
 
   return (
     <div
@@ -106,21 +102,31 @@ export function Modal({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
+        aria-describedby={detail ? detailId : undefined}
         className="modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-(--color-line) bg-(--color-surface) shadow-2xl"
       >
-        <div className={`h-1 ${accent}`} />
+        {appearance && <div className={`h-1 ${appearance.accent}`} />}
         <div className="flex gap-4 px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
-          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${ring}`}>
-            <Icon size={21} />
-          </span>
+          {appearance && (
+            <span
+              aria-hidden="true"
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${appearance.ring}`}
+            >
+              <appearance.Icon size={21} />
+            </span>
+          )}
           <div className="min-w-0 pt-0.5">
             <h2 className="text-lg font-bold leading-snug">{title}</h2>
             {detail && (
-              <p className="mt-2 text-sm leading-relaxed text-(--color-muted)">{detail}</p>
+              <p id={detailId} className="mt-2 text-sm leading-relaxed text-(--color-muted)">
+                {detail}
+              </p>
             )}
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2 border-t border-(--color-line) bg-(--color-raised) px-5 py-4 sm:px-6">
+        <div
+          className={`flex flex-wrap items-center gap-2 border-t border-(--color-line) bg-(--color-raised) px-5 py-4 sm:px-6 ${tone === 'info' ? 'justify-between' : 'justify-end'}`}
+        >
           {children}
         </div>
       </div>

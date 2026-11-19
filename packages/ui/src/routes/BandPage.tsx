@@ -761,8 +761,11 @@ export function BandPage() {
           tone="info"
           onDismiss={dismissThemeOffer}
         >
-          <Button onClick={dismissThemeOffer}>{t('band.themeOffer.decline')}</Button>
+          <Button className="min-h-11" onClick={dismissThemeOffer}>
+            {t('band.themeOffer.decline')}
+          </Button>
           <Button
+            className="ml-auto min-h-11 text-(--color-stage-bg)!"
             variant="primary"
             onClick={() => {
               // Finish any pending local palette edit before replacing the palette.
