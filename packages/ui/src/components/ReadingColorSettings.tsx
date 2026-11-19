@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   BLOCK_TYPES,
   READING_SECTION_COLORS,
@@ -47,6 +47,7 @@ const TEXT_LABELS: Record<(typeof READING_TEXT_COLORS)[number], TranslationKey> 
 };
 
 type ColorChange = (key: ReadingColorKey, color: string | null | undefined) => void;
+const COLOR_SAVE_DELAY_MS = 1000;
 
 export function DeviceReadingColorSettings() {
   const [prefs, setPrefs] = usePrefs();
@@ -89,7 +90,50 @@ export function ReadingColorSettings({
   const { t, blockName, singerName } = useT();
   const id = useId();
   const [key, setKey] = useState<ReadingColorKey>('chords');
-  const [resetCount, setResetCount] = useState(0);
+  const [draft, setDraft] = useState<string | null>(null);
+  const pending = useRef<{ key: ReadingColorKey; color: string; timer: number } | null>(null);
+  const save = useRef(onChange);
+  useLayoutEffect(() => {
+    save.current = onChange;
+  }, [onChange]);
+
+  const cancelPending = useCallback(() => {
+    const queued = pending.current;
+    pending.current = null;
+    if (queued) window.clearTimeout(queued.timer);
+    return queued;
+  }, []);
+
+  const savePending = useCallback(() => {
+    const queued = cancelPending();
+    if (queued) save.current(queued.key, queued.color);
+  }, [cancelPending]);
+
+  // Save the pending choice if the user closes settings or switches screens.
+  useLayoutEffect(() => savePending, [savePending]);
+
+  const editColor = (value: string): void => {
+    cancelPending();
+    const color = value.toLowerCase();
+    if (isReadingColor(color) && color === colors[key]?.toLowerCase()) {
+      setDraft(null);
+      return;
+    }
+    setDraft(value);
+    if (!isReadingColor(color)) return;
+    const timer = window.setTimeout(() => {
+      savePending();
+      setDraft(null);
+    }, COLOR_SAVE_DELAY_MS);
+    pending.current = { key, color, timer };
+  };
+
+  const changeColor = (value: string | null | undefined): void => {
+    cancelPending();
+    setDraft(null);
+    if (value !== colors[key]) onChange(key, value);
+  };
+
   const effective = { ...inherited, ...colors };
   const reset = async (): Promise<void> => {
     if (
@@ -100,8 +144,9 @@ export function ReadingColorSettings({
       }))
     )
       return;
+    cancelPending();
+    setDraft(null);
     onReset();
-    setResetCount((count) => count + 1);
   };
   return (
     <section aria-labelledby={id} className="mt-5 border-t border-(--color-line) pt-4">
@@ -110,7 +155,14 @@ export function ReadingColorSettings({
       </h3>
       <label className="mt-3 grid max-w-xl gap-1.5 text-sm">
         <span>{t('settings.colors.edit')}</span>
-        <Select value={key} onChange={(event) => setKey(event.target.value as ReadingColorKey)}>
+        <Select
+          value={key}
+          onChange={(event) => {
+            savePending();
+            setDraft(null);
+            setKey(event.target.value as ReadingColorKey);
+          }}
+        >
           <optgroup label={t('settings.colors.textAndMusic')}>
             {READING_TEXT_COLORS.map((item) => (
               <option key={item} value={item}>
@@ -139,14 +191,16 @@ export function ReadingColorSettings({
         </Select>
       </label>
       <ColorEditor
-        key={`${key}:${colors[key] ?? (colors[key] === null ? 'default' : 'inherited')}:${effective[key] ?? ''}:${resetCount}`}
+        key={key}
         colorKey={key}
         colors={effective}
         override={colors[key]}
+        draft={draft}
         inheritLabel={inheritLabel}
         theme={theme}
         cueStyle={cueStyle}
-        onChange={(value) => onChange(key, value)}
+        onEdit={editColor}
+        onChange={changeColor}
       />
       <Button className="mt-3" size="sm" onClick={() => void reset()}>
         {t('settings.colors.reset')}
@@ -159,22 +213,25 @@ function ColorEditor({
   colorKey,
   colors,
   override,
+  draft,
   inheritLabel,
   theme,
   cueStyle,
+  onEdit,
   onChange,
 }: {
   colorKey: ReadingColorKey;
   colors: ReadingColors;
   override: string | null | undefined;
+  draft: string | null;
   inheritLabel: string | undefined;
   theme: 'auto' | 'light' | 'dark' | undefined;
   cueStyle: CueStyle;
+  onEdit: (value: string) => void;
   onChange: (color: string | null | undefined) => void;
 }) {
   const { t } = useT();
   const hexId = useId();
-  const [draft, setDraft] = useState<string | null>(null);
   const [defaultHex, setDefaultHex] = useState('#000000');
   const swatch = useRef<HTMLSpanElement>(null);
   const saved = colors[colorKey];
@@ -198,11 +255,6 @@ function ColorEditor({
     setDefaultHex('#' + rgb.map((value) => value.toString(16).padStart(2, '0')).join(''));
   }, [themeColor, theme]);
 
-  const change = (value: string | null | undefined): void => {
-    setDraft(null);
-    onChange(value);
-  };
-  const canApply = valid && draft !== null && hex.toLowerCase() !== override?.toLowerCase();
   const isDefault = draft === null && (inheritLabel ? override === null : override == null);
   return (
     <div className="mt-3 grid max-w-xl gap-3">
@@ -219,18 +271,12 @@ function ColorEditor({
         <ReadingColorPreview colorKey={colorKey} cueStyle={cueStyle} />
       </div>
 
-      <form
-        className="flex flex-wrap items-end gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (canApply) change(hex.toLowerCase());
-        }}
-      >
+      <div className="flex flex-wrap items-end gap-2">
         <input
           type="color"
           aria-label={t('settings.colors.pick')}
           value={valid ? hex : pickerColor}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => onEdit(event.target.value)}
           className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border border-(--color-line) bg-(--color-surface) p-1"
         />
         <label className="grid gap-1 text-xs" htmlFor={hexId}>
@@ -242,21 +288,24 @@ function ColorEditor({
             placeholder={transparent ? '#RRGGBB' : undefined}
             spellCheck={false}
             maxLength={7}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => onEdit(event.target.value)}
             className="w-28 font-mono"
           />
         </label>
-        <Button type="submit" variant="primary" disabled={!canApply}>
-          {t('settings.colors.apply')}
-        </Button>
-      </form>
+        <span
+          role="status"
+          className="self-end rounded-md px-1 py-2 text-xs text-(--color-muted)"
+        >
+          {draft !== null && t(valid ? 'settings.colors.saving' : 'settings.colors.invalidHex')}
+        </span>
+      </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           aria-pressed={isDefault}
           className="flex h-9 items-center gap-1.5 rounded-full border border-(--color-line) px-2 text-xs hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
-          onClick={() => change(inheritLabel ? null : undefined)}
+          onClick={() => onChange(inheritLabel ? null : undefined)}
         >
           <span
             ref={swatch}
@@ -276,7 +325,7 @@ function ColorEditor({
             type="button"
             aria-pressed={draft === null && override === 'transparent'}
             className="flex h-9 items-center gap-1.5 rounded-full border border-(--color-line) px-2 text-xs hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
-            onClick={() => change('transparent')}
+            onClick={() => onChange('transparent')}
           >
             <span
               aria-hidden="true"
@@ -297,7 +346,7 @@ function ColorEditor({
             aria-label={t(`settings.colors.preset.${label}`)}
             aria-pressed={hex.toLowerCase() === color}
             className="grid size-9 place-items-center rounded-full border border-(--color-line) hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
-            onClick={() => setDraft(color)}
+            onClick={() => onChange(color)}
           >
             <span
               aria-hidden="true"
@@ -313,7 +362,7 @@ function ColorEditor({
           size="sm"
           className="justify-self-start"
           disabled={override === undefined && draft === null}
-          onClick={() => change(undefined)}
+          onClick={() => onChange(undefined)}
         >
           {inheritLabel}
         </Button>

@@ -64,6 +64,8 @@ export function useStageDisplay(): StageSettings {
   const [unnamed, setUnnamed] = useState(0);
   const [reachable, setReachable] = useState(true);
   const quietUntil = useRef(0);
+  const writes = useRef(Promise.resolve());
+  const pendingWrites = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +83,7 @@ export function useStageDisplay(): StageSettings {
             .map((device) => ({ id: device.deviceId!, name: device.name.trim() }));
           setUnnamed(stages.length - connected.length);
 
-          if (Date.now() < quietUntil.current) return;
+          if (pendingWrites.current > 0 || Date.now() < quietUntil.current) return;
           setShared(body.state?.stage ?? DEFAULT_STAGE_DISPLAY);
           const stable = body.state?.stageByDevice ?? {};
           const legacy = body.state?.stageBy ?? {};
@@ -149,23 +151,33 @@ export function useStageDisplay(): StageSettings {
 
       // The patch itself, not the merged result: `undefined` disappears in JSON, which
       // is exactly "leave that one alone", while an explicit null survives and clears.
-      void fetch('/api/session/stage', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(
-          screenId
-            ? screenId.startsWith('legacy:')
-              ? { ...patch, screen: screenId.slice('legacy:'.length) }
-              : {
-                  ...patch,
-                  deviceId: screenId,
-                  screen: screens.find((candidate) => candidate.id === screenId)?.name ?? '',
-                }
-            : patch,
-        ),
-      })
+      const body = JSON.stringify(
+        screenId
+          ? screenId.startsWith('legacy:')
+            ? { ...patch, screen: screenId.slice('legacy:'.length) }
+            : {
+                ...patch,
+                deviceId: screenId,
+                screen: screens.find((candidate) => candidate.id === screenId)?.name ?? '',
+              }
+          : patch,
+      );
+      // A palette write contains the entire palette. Keep rapid choices in order.
+      pendingWrites.current++;
+      writes.current = writes.current
+        .then(() =>
+          fetch('/api/session/stage', {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body,
+          }),
+        )
         .then((response) => setReachable(response.ok))
-        .catch(() => setReachable(false));
+        .catch(() => setReachable(false))
+        .finally(() => {
+          pendingWrites.current--;
+          quietUntil.current = Date.now() + SETTLE_MS;
+        });
     },
     [screens],
   );
