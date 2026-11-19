@@ -15,11 +15,15 @@ export const READING_COLOR_KEYS = [
   ...SINGERS,
 ] as const;
 export type ReadingColorKey = (typeof READING_COLOR_KEYS)[number];
-/** A missing entry inherits. An explicit null uses the theme default. */
+/** A missing entry inherits. Null uses the theme default. Sections also accept transparent. */
 export type ReadingColors = Partial<Record<ReadingColorKey, string | null>>;
 
 export function isReadingColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+}
+
+export function isReadingSectionColor(key: ReadingColorKey): boolean {
+  return READING_SECTION_COLORS.some((section) => section === key);
 }
 
 export function normaliseReadingColors(value: unknown): ReadingColors {
@@ -28,7 +32,12 @@ export function normaliseReadingColors(value: unknown): ReadingColors {
   const result: ReadingColors = {};
   for (const key of READING_COLOR_KEYS) {
     const color = input[key];
-    if (color === null || isReadingColor(color)) result[key] = color;
+    if (
+      color === null ||
+      isReadingColor(color) ||
+      (color === 'transparent' && isReadingSectionColor(key))
+    )
+      result[key] = color;
   }
   return result;
 }

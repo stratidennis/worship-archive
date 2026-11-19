@@ -51,7 +51,7 @@ export function PerformanceInfo({
         breakInside: 'avoid',
         fontSize: `${leaderScale}em`,
         color: LYRIC_INK,
-        borderColor: 'var(--color-chord)',
+        borderColor: 'var(--reading-info-edge, var(--color-chord))',
         backgroundColor: `var(--reading-info, ${SETUP_BACKGROUND})`,
       }}
     >

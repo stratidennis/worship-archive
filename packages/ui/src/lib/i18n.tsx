@@ -390,11 +390,10 @@ const ro = {
   'settings.themeDark': 'Întunecat',
   'settings.display': 'Afișare',
   'settings.minFont': 'Mărimea minimă a textului',
-  'settings.minFontHint':
-    'Textul rămâne într-o singură coloană cât timp încape fără să treacă sub această mărime. Numai apoi poate folosi mai multe coloane.',
+  'settings.minFontHint': 'Textul nu va fi micșorat sub această mărime.',
   'settings.maxFont': 'Mărimea maximă a textului',
   'settings.maxFontHint':
-    'Textul se mărește pentru a folosi spațiul disponibil, dar nu va trece peste această mărime.',
+    'Textul se mărește până la această limită. Ecranele late pot folosi mai multe coloane.',
   'settings.lineSpacing': 'Spațierea rândurilor',
   'settings.lineSpacingHint':
     'Mai strâns lasă loc pentru text mai mare; mai aerisit separă mai clar rândurile.',
@@ -453,6 +452,7 @@ const ro = {
   'settings.colors.hex': 'Cod hexazecimal',
   'settings.colors.apply': 'Aplică',
   'settings.colors.themeDefault': 'Implicită',
+  'settings.colors.noBackground': 'Fără fundal',
   'settings.colors.reset': 'Restabilește culorile temei',
   'settings.colors.resetPrompt': 'Restabilești culorile temei?',
   'settings.colors.resetDetail':
@@ -937,11 +937,10 @@ const en: Record<TranslationKey, Entry> = {
   'settings.themeDark': 'Dark',
   'settings.display': 'Display',
   'settings.minFont': 'Minimum text size',
-  'settings.minFontHint':
-    'The song stays in one column while it can fit without crossing this size. Only then may it use more columns.',
+  'settings.minFontHint': 'Text stays at or above this size.',
   'settings.maxFont': 'Maximum text size',
   'settings.maxFontHint':
-    'Text grows to use the available space, but will not grow beyond this size.',
+    'Text grows to fit, up to this size. Wider screens can use more columns.',
   'settings.lineSpacing': 'Line spacing',
   'settings.lineSpacingHint':
     'Tighter spacing leaves room for larger text; looser spacing separates the lines more clearly.',
@@ -1000,6 +999,7 @@ const en: Record<TranslationKey, Entry> = {
   'settings.colors.hex': 'Hex code',
   'settings.colors.apply': 'Apply',
   'settings.colors.themeDefault': 'Default',
+  'settings.colors.noBackground': 'No background',
   'settings.colors.reset': 'Reset theme to default',
   'settings.colors.resetPrompt': 'Reset theme to default?',
   'settings.colors.resetDetail':

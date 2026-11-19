@@ -133,8 +133,6 @@ export function StagePage() {
   }, [viewing, performanceKey, state.transpose]);
 
   const fit = useFitToScreen(container, content, {
-    // Stage text may start generously large, but it remains one continuous column as
-    // long as it can stay above this screen's readability floor.
     preferredFontPx: STAGE_PREFERRED_FONT,
     minFontPx: stage.minFontPx ?? DEFAULT_SONG_FONT_SIZE,
     maxFittedFontPx: stage.maxFontPx ?? MAX_FITTED_SONG_FONT_SIZE,

@@ -253,7 +253,7 @@ function BlockView({
         breakInside: 'avoid',
         color: LYRIC_INK,
         fontSize: cue ? `${cue.fontScale}em` : undefined,
-        borderColor: cue?.border,
+        borderColor: cue ? `var(--reading-${block.type}-edge, ${cue.border})` : undefined,
         backgroundColor: `var(--reading-${block.type}, ${cue?.background ?? 'transparent'})`,
       }}
     >

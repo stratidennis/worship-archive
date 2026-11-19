@@ -14,13 +14,9 @@ import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
  * instead preserve the chosen size and scroll, because that is both possible and more
  * readable than silently shrinking the text.
  *
- * Strategy, in order of preference:
- *   1. one continuous column, enlarged to use its available space and never reduced
- *      past the chosen minimum
- *   2. only when one column would have to cross that floor, allow more columns
- *   3. use the first column count that preserves the minimum, then enlarge within it
- *   4. if nothing fits even at the minimum, report `fits: false` so the caller can
- *      offer block mode rather than rendering something illegible
+ * Find the largest size that fits the viewport within the user's bounds. Prefer
+ * fewer columns at the same size. If nothing fits at the minimum, the caller can
+ * enable scrolling or show a warning while keeping the selected minimum.
  *
  * Each trial uses a fresh off-screen copy, never the visible song. Touch browsers get
  * rendering turns to apply the trial before its dimensions are read.
@@ -112,10 +108,7 @@ export function fittedSongOverflowClass(fits: boolean, allowFallbackScroll: bool
 }
 
 /**
- * Column counts worth trying at a given width. Columns are useless on a phone.
- *
- * These are only considered after a single column has failed at the selected minimum.
- * Within that fallback, the search keeps the text as large as the available width allows.
+ * Column counts worth trying at a given width. Phones use one column.
  */
 export function columnCandidates(width: number, phoneViewport: boolean): number[] {
   if (phoneViewport || width < NARROW_SCREEN_WIDTH) return [1];
@@ -145,13 +138,7 @@ export function failedFit(
   };
 }
 
-/**
- * Pick a layout without knowing anything about the DOM.
- *
- * Keeping this decision separate from measurement makes its most important promise
- * explicit and testable: no multi-column trial can win while one column still fits at
- * or above the selected minimum.
- */
+/** Search from fewer to more columns and let a wider layout win only at a larger font. */
 export async function chooseFit({
   minFontPx,
   maxFittedFontPx = MAX_FITTED_FONT_DEFAULT,
@@ -163,14 +150,16 @@ export async function chooseFit({
   columns: number[];
   overflows: (fontPx: number, columns: number) => Promise<boolean>;
 }): Promise<FitChoice> {
-  const largestFit = async (columnCount: number): Promise<number> => {
-    // Column fragmentation can change discontinuously as a whole block moves
-    // between columns. A binary search alone may miss a fitting minimum after
-    // an intermediate size overflows, incorrectly showing Stage's warning.
-    if (await overflows(minFontPx, columnCount)) return 0;
-    let low = minFontPx;
-    let high = Math.max(minFontPx, maxFittedFontPx);
-    let found = minFontPx;
+  const ceiling = Math.max(minFontPx, maxFittedFontPx);
+  let best: FitChoice = { fontPx: minFontPx, columns: 1, fits: false };
+  for (const columnCount of columns) {
+    const floor = best.fits ? best.fontPx + 1 : minFontPx;
+    if (floor > ceiling) break;
+    // Prove this layout fits at the search floor before trying larger sizes.
+    if (await overflows(floor, columnCount)) continue;
+    let low = floor + 1;
+    let high = ceiling;
+    let found = floor;
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
       if (await overflows(mid, columnCount)) high = mid - 1;
@@ -179,19 +168,9 @@ export async function chooseFit({
         low = mid + 1;
       }
     }
-    return found;
-  };
-
-  const oneColumn = await largestFit(1);
-  if (oneColumn > 0) return { fontPx: oneColumn, columns: 1, fits: true };
-
-  for (const columnCount of columns.filter((candidate) => candidate > 1)) {
-    const found = await largestFit(columnCount);
-    // Column count is a fallback, not a way to chase ever-larger text. Stop at the
-    // first layout that preserves the selected minimum, then enlarge within it.
-    if (found > 0) return { fontPx: found, columns: columnCount, fits: true };
+    best = { fontPx: found, columns: columnCount, fits: true };
   }
-  return { fontPx: minFontPx, columns: 1, fits: false };
+  return best;
 }
 
 export function useFitToScreen(
@@ -380,7 +359,26 @@ export function useFitToScreen(
           parent has horizontal padding, so comparing with the container width would
           incorrectly grant that padding as usable song space.
         */
-        const overflowing = exceedsAvailableSpace(probe, available);
+        let scrollHeight = probe.scrollHeight;
+        if (columns > 1 && scrollHeight > available + 1) {
+          // WebKit can include unfragmented flow in scrollHeight even when every
+          // section fits in its column. Check where the sections actually landed.
+          const sections = probe.querySelectorAll('section');
+          if (sections.length > 0) {
+            const top = probe.getBoundingClientRect().top;
+            scrollHeight = 0;
+            for (const section of sections) {
+              scrollHeight = Math.max(
+                scrollHeight,
+                section.getBoundingClientRect().bottom - top,
+              );
+            }
+          }
+        }
+        const overflowing = exceedsAvailableSpace(
+          { scrollHeight, scrollWidth: probe.scrollWidth, clientWidth: probe.clientWidth },
+          available,
+        );
         probe.remove();
         activeProbe = null;
         return overflowing;

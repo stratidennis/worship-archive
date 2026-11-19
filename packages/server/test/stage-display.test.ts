@@ -134,7 +134,15 @@ describe('the stage screens’ appearance', () => {
     });
     expect(host.statusCode).toBe(200);
     await put({ readingColors: { Women: '#cc3366', Intro: 'invalid' } });
-    await put({ deviceId: 'drums', readingColors: { chords: null, Chorus: '#22bb44' } });
+    await put({
+      deviceId: 'drums',
+      readingColors: {
+        chords: null,
+        Chorus: '#22bb44',
+        Intro: 'transparent',
+        Women: 'transparent',
+      },
+    });
     const state = hub.getState();
     expect(resolveStageDisplay(state, null).readingColors).toEqual({
       chords: '#ff6600',
@@ -144,7 +152,7 @@ describe('the stage screens’ appearance', () => {
     expect(resolveStageDisplay(state, null, 'drums').readingColors).toEqual({
       chords: null,
       Women: '#cc3366',
-      Intro: '#eab308',
+      Intro: 'transparent',
       Chorus: '#22bb44',
     });
     await put({ deviceId: 'drums', readingColors: {} });

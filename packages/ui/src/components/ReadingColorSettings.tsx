@@ -7,6 +7,7 @@ import {
   emptyBlock,
   emptyLine,
   isReadingColor,
+  isReadingSectionColor,
   parseChordPro,
   type BlockType,
   type ReadingColorKey,
@@ -165,7 +166,11 @@ function ColorEditor({
   const [defaultHex, setDefaultHex] = useState('#000000');
   const swatch = useRef<HTMLSpanElement>(null);
   const saved = colors[colorKey];
-  const hex = draft ?? saved ?? defaultHex;
+  const themeColor = defaultColor(colorKey);
+  const transparentDefault = themeColor === 'transparent';
+  const transparent = saved === 'transparent' || (saved == null && transparentDefault);
+  const pickerColor = isReadingColor(saved) ? saved : defaultHex;
+  const hex = draft ?? (transparent ? '' : pickerColor);
   const valid = isReadingColor(hex);
   const draftColors = valid && draft !== null ? { ...colors, [colorKey]: hex } : colors;
 
@@ -212,7 +217,7 @@ function ColorEditor({
         <input
           type="color"
           aria-label={t('settings.colors.pick')}
-          value={valid ? hex : (saved ?? defaultHex)}
+          value={valid ? hex : pickerColor}
           onChange={(event) => setDraft(event.target.value)}
           className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border border-(--color-line) bg-(--color-surface) p-1"
         />
@@ -221,7 +226,8 @@ function ColorEditor({
           <Input
             id={hexId}
             value={hex}
-            aria-invalid={!valid || undefined}
+            aria-invalid={(draft !== null && !valid) || undefined}
+            placeholder={transparent ? '#RRGGBB' : undefined}
             spellCheck={false}
             maxLength={7}
             onChange={(event) => setDraft(event.target.value)}
@@ -244,11 +250,29 @@ function ColorEditor({
             ref={swatch}
             aria-hidden="true"
             data-reading-theme={theme === 'auto' ? undefined : theme}
-            className="size-5 rounded-full border border-black/15 bg-current"
-            style={{ color: defaultColor(colorKey) }}
+            className={`size-5 rounded-full border ${
+              transparentDefault
+                ? 'border-dashed border-(--color-muted)'
+                : 'border-black/15 bg-current'
+            }`}
+            style={{ color: transparentDefault ? 'var(--color-stage-bg)' : themeColor }}
           />
           {t('settings.colors.themeDefault')}
         </button>
+        {isReadingSectionColor(colorKey) && (
+          <button
+            type="button"
+            aria-pressed={draft === null && override === 'transparent'}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-(--color-line) px-2 text-xs hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
+            onClick={() => change('transparent')}
+          >
+            <span
+              aria-hidden="true"
+              className="size-5 rounded-full border border-dashed border-(--color-muted)"
+            />
+            {t('settings.colors.noBackground')}
+          </button>
+        )}
         {PRESETS.map(([color, label]) => (
           <button
             key={color}
@@ -284,6 +308,7 @@ function ColorEditor({
 
 function defaultColor(key: ReadingColorKey): string {
   const base: Partial<Record<ReadingColorKey, string>> = {
+    background: 'var(--color-stage-bg)',
     chords: 'var(--color-chord)',
     bass: 'var(--color-bass)',
     titles: 'var(--color-muted)',
@@ -292,11 +317,10 @@ function defaultColor(key: ReadingColorKey): string {
     Men: 'var(--color-singers-men)',
     Women: 'var(--color-singers-women)',
   };
-  const section = READING_SECTION_COLORS.some((item) => item === key);
   return (
     base[key] ??
     cueAppearance(key)?.background ??
-    (section ? 'var(--color-stage-bg)' : 'var(--color-stage-fg)')
+    (isReadingSectionColor(key) ? 'transparent' : 'var(--color-stage-fg)')
   );
 }
 
