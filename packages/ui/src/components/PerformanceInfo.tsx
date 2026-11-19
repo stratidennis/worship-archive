@@ -46,7 +46,7 @@ export function PerformanceInfo({
   return (
     <section
       data-song-font-scale={leaderScale}
-      className="mb-[0.9em] rounded-md border-l px-[0.45em] py-[0.24em]"
+      className="mb-[var(--song-section-gap,0.9em)] rounded-md border-l px-[0.45em] py-[0.24em]"
       style={{
         breakInside: 'avoid',
         fontSize: `${leaderScale}em`,

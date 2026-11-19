@@ -14,9 +14,8 @@ import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
  * instead preserve the chosen size and scroll, because that is both possible and more
  * readable than silently shrinking the text.
  *
- * Find the largest size that fits the viewport within the user's bounds. Prefer
- * fewer columns at the same size. If nothing fits at the minimum, the caller can
- * enable scrolling or show a warning while keeping the selected minimum.
+ * Find a readable size within the user's bounds and prefer fewer columns for
+ * near-equal fits. Try tighter gaps between sections before scrolling or warning.
  *
  * Each trial uses a fresh off-screen copy, never the visible song. Touch browsers get
  * rendering turns to apply the trial before its dimensions are read.
@@ -30,23 +29,24 @@ export interface FitOptions {
   maxFittedFontPx?: number;
   /** Change this when the content changes, to force a re-fit. */
   key?: unknown;
+  /** A warning beside the reader that disappears whenever the song fits. */
+  overflowNotice?: RefObject<HTMLElement | null>;
 }
 
-export interface FitResult {
-  fontPx: number;
-  columns: number;
+export interface FitResult extends FitChoice {
   /** Stable measured content height used by deterministic multi-column flow. */
   heightPx: number;
   /** Phone behavior is based on the device screen, not transient browser chrome. */
   phone: boolean;
-  /** False when the song overflows even at the minimum size — the honest failure. */
-  fits: boolean;
   /** True while measuring, so the caller can avoid showing a flash of wrong sizes. */
   measuring: boolean;
 }
 
 const MIN_DEFAULT = 12;
 const PREFERRED_DEFAULT = 26;
+const STANDARD_COLUMN_GAP = '2.5em';
+const COMPACT_COLUMN_GAP = '1.5em';
+const COMPACT_SECTION_GAP = '0.5em';
 /** Large enough to fill a short song without producing display-sized novelty text. */
 export const MAX_FITTED_FONT_DEFAULT = MAX_FITTED_SONG_FONT_SIZE;
 /*
@@ -93,7 +93,8 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
   return {
     fontSize: `${fit.fontPx}px`,
     columnCount: fit.columns,
-    columnGap: '2.5em',
+    columnGap: fit.compactSpacing ? COMPACT_COLUMN_GAP : STANDARD_COLUMN_GAP,
+    ...(fit.compactSpacing ? { '--song-section-gap': COMPACT_SECTION_GAP } : {}),
     height: constrained ? `${fit.heightPx}px` : undefined,
     columnFill: constrained ? 'auto' : undefined,
     visibility: fit.measuring ? 'hidden' : 'visible',
@@ -121,6 +122,7 @@ export interface FitChoice {
   fontPx: number;
   columns: number;
   fits: boolean;
+  compactSpacing?: boolean;
 }
 
 /** A failed browser measurement must still honour the selected readability floor. */
@@ -134,11 +136,12 @@ export function failedFit(
     fontPx: Math.min(maxFontPx, Math.max(previous.fontPx, minFontPx)),
     columns: 1,
     fits: false,
+    compactSpacing: false,
     measuring: false,
   };
 }
 
-/** Search from fewer to more columns and let a wider layout win only at a larger font. */
+/** Prefer fewer columns when adding one would increase the font by at most 1 px. */
 export async function chooseFit({
   minFontPx,
   maxFittedFontPx = MAX_FITTED_FONT_DEFAULT,
@@ -148,12 +151,13 @@ export async function chooseFit({
   minFontPx: number;
   maxFittedFontPx?: number;
   columns: number[];
-  overflows: (fontPx: number, columns: number) => Promise<boolean>;
+  overflows: (fontPx: number, columns: number, compactSpacing?: boolean) => Promise<boolean>;
 }): Promise<FitChoice> {
   const ceiling = Math.max(minFontPx, maxFittedFontPx);
-  let best: FitChoice = { fontPx: minFontPx, columns: 1, fits: false };
+  const fits: FitChoice[] = [];
+  let largest = minFontPx - 1;
   for (const columnCount of columns) {
-    const floor = best.fits ? best.fontPx + 1 : minFontPx;
+    const floor = largest + 1;
     if (floor > ceiling) break;
     // Prove this layout fits at the search floor before trying larger sizes.
     if (await overflows(floor, columnCount)) continue;
@@ -168,9 +172,22 @@ export async function chooseFit({
         low = mid + 1;
       }
     }
-    best = { fontPx: found, columns: columnCount, fits: true };
+    largest = found;
+    fits.push({ fontPx: found, columns: columnCount, fits: true });
   }
-  return best;
+
+  const preferred = fits.find((fit) => fit.fontPx >= largest - 1);
+  const fontPx = preferred?.fontPx ?? minFontPx;
+  // Preserve lyric line spacing. Narrower gutters and gaps between sections can
+  // keep the same font in fewer columns or avoid scrolling at the minimum.
+  for (const columnCount of columns) {
+    if (columnCount === 1) continue;
+    if (preferred && columnCount >= preferred.columns) break;
+    if (!(await overflows(fontPx, columnCount, true))) {
+      return { fontPx, columns: columnCount, fits: true, compactSpacing: true };
+    }
+  }
+  return preferred ?? { fontPx, columns: 1, fits: false };
 }
 
 export function useFitToScreen(
@@ -184,6 +201,7 @@ export function useFitToScreen(
     maxFittedFont,
     Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT),
   );
+  const { overflowNotice } = options;
   const [result, setResult] = useState<FitResult>({
     fontPx: preferredFont,
     columns: 1,
@@ -215,26 +233,35 @@ export function useFitToScreen(
         pendingFrames.set(id, resolve);
       });
 
+    const readSpace = (): { width: number; available: number } => {
+      // Measure the space the chart would have after its overflow warning and
+      // scrollbars disappear. Otherwise a warning can prevent its own dismissal.
+      const box = getComputedStyle(container);
+      const { width, height } = container.getBoundingClientRect();
+      const px = (value: string): number => parseFloat(value) || 0;
+      return {
+        width:
+          width -
+          px(box.paddingLeft) -
+          px(box.paddingRight) -
+          px(box.borderLeftWidth) -
+          px(box.borderRightWidth),
+        available:
+          height -
+          px(box.paddingTop) -
+          px(box.paddingBottom) -
+          px(box.borderTopWidth) -
+          px(box.borderBottomWidth) +
+          (overflowNotice?.current?.getBoundingClientRect().height ?? 0),
+      };
+    };
+
     const measure = async (): Promise<void> => {
       // The final fitted subtree is remounted with its chosen size. ResizeObserver
       // must read that current subtree, not the detached node from the initial fit.
       const content = contentRef.current;
       if (!content) return;
-      /*
-        The *content* box, not `clientHeight`.
-
-        `clientHeight` includes the container's own padding, so a song was allowed to
-        grow into it — the last line of a long song sat flush against the bottom edge of
-        the screen with the padding underneath it doing nothing. Subtracting it back out
-        is what makes the breathing room actually exist, on every view that fits a song:
-        the set preview, the song page, the band view and the stage.
-      */
-      const box = getComputedStyle(container);
-      const available =
-        container.clientHeight -
-        (parseFloat(box.paddingTop) || 0) -
-        (parseFloat(box.paddingBottom) || 0);
-      const width = container.clientWidth;
+      const { width, available } = readSpace();
       // `innerHeight` changes as mobile browser chrome hides and returns. The CSSOM
       // screen size is stable, and is expressed in CSS pixels on browsers and Electron.
       const native = androidViewport();
@@ -261,9 +288,12 @@ export function useFitToScreen(
         return;
       }
 
-      const contentWidth = content.getBoundingClientRect().width;
       const phoneScreen = isPhoneScreen(screenWidth, screenHeight, touchBrowser);
-      const overflows = async (fontPx: number, columns: number): Promise<boolean> => {
+      const overflows = async (
+        fontPx: number,
+        columns: number,
+        compactSpacing = false,
+      ): Promise<boolean> => {
         if (disposed) throw cancelled;
         // Inherited em sizes on the actual tablet can remain from several earlier
         // trials. A new subtree starts with the requested font; there are no old
@@ -275,11 +305,16 @@ export function useFitToScreen(
         probe.style.position = 'fixed';
         probe.style.left = '-100000px';
         probe.style.top = '0';
-        probe.style.width = `${contentWidth}px`;
+        probe.style.width = `${width}px`;
         probe.style.visibility = 'hidden';
         probe.style.pointerEvents = 'none';
         probe.style.fontSize = `${fontPx}px`;
         probe.style.columnCount = String(columns);
+        probe.style.columnGap = compactSpacing ? COMPACT_COLUMN_GAP : STANDARD_COLUMN_GAP;
+        probe.style.setProperty(
+          '--song-section-gap',
+          compactSpacing ? COMPACT_SECTION_GAP : '',
+        );
         /*
           Do not rely on `column-fill: balance` with an automatically sized element.
           Huawei Browser's mobile Chromium build can leave all content in one column,
@@ -392,12 +427,8 @@ export function useFitToScreen(
       });
 
       if (disposed) throw cancelled;
-      const currentBox = getComputedStyle(container);
-      const currentAvailable =
-        container.clientHeight -
-        (parseFloat(currentBox.paddingTop) || 0) -
-        (parseFloat(currentBox.paddingBottom) || 0);
-      if (container.clientWidth !== width || currentAvailable !== available) {
+      const current = readSpace();
+      if (current.width !== width || current.available !== available) {
         // A rotation while awaiting layout invalidates every trial in this search.
         // Keep trials hidden and measure again using the new available area.
         queued = true;
@@ -408,6 +439,7 @@ export function useFitToScreen(
       setResult((previous) =>
         previous.fontPx === best.fontPx &&
         previous.columns === best.columns &&
+        previous.compactSpacing === best.compactSpacing &&
         previous.fits === best.fits &&
         previous.heightPx === available &&
         previous.phone === phoneScreen &&
@@ -452,17 +484,14 @@ export function useFitToScreen(
     };
 
     setResult((previous) => (previous.measuring ? previous : { ...previous, measuring: true }));
-    let observedWidth = container.clientWidth;
-    let observedHeight = container.clientHeight;
+    let observed = readSpace();
     schedule();
     const observer = new ResizeObserver(() => {
-      const nextWidth = container.clientWidth;
-      const nextHeight = container.clientHeight;
+      const next = readSpace();
       // ResizeObserver always sends an initial notification. It must not launch a
       // second search just after the first search has displayed its final result.
-      if (nextWidth === observedWidth && nextHeight === observedHeight) return;
-      observedWidth = nextWidth;
-      observedHeight = nextHeight;
+      if (next.width === observed.width && next.available === observed.available) return;
+      observed = next;
       schedule();
     });
     observer.observe(container);
@@ -490,7 +519,15 @@ export function useFitToScreen(
     };
     // `key` re-runs the fit when the content itself changed: transpose alters chord
     // widths, toggling chords changes line height, and both change what fits.
-  }, [containerRef, contentRef, minFont, preferredFont, maxFittedFont, options.key]);
+  }, [
+    containerRef,
+    contentRef,
+    minFont,
+    preferredFont,
+    maxFittedFont,
+    overflowNotice,
+    options.key,
+  ]);
 
   return fittedKey.current === options.key ? result : { ...result, measuring: true };
 }

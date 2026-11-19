@@ -124,6 +124,39 @@ describe('largest readable fit', () => {
     expect(result).toEqual({ fontPx: 38, columns: 2, fits: true });
   });
 
+  it('keeps two columns when the third would only add one pixel', async () => {
+    const result = await chooseFit({
+      minFontPx: 22,
+      columns: [1, 2, 3],
+      overflows: async (font, columns) => font > (columns === 1 ? 21 : columns === 2 ? 22 : 23),
+    });
+    expect(result).toEqual({ fontPx: 22, columns: 2, fits: true });
+  });
+
+  it.each([23, 24])('tries tighter section spacing at a %i px minimum', async (minFontPx) => {
+    const result = await chooseFit({
+      minFontPx,
+      columns: [1, 2, 3],
+      overflows: async (font, columns, compactSpacing?: boolean) =>
+        font >
+        (columns === 1
+          ? 21
+          : columns === 2
+            ? compactSpacing
+              ? 23
+              : 22
+            : compactSpacing
+              ? 24
+              : 23),
+    });
+    expect(result).toEqual({
+      fontPx: minFontPx,
+      columns: minFontPx === 23 ? 2 : 3,
+      fits: true,
+      compactSpacing: true,
+    });
+  });
+
   it('uses three columns when one and two cannot preserve the minimum', async () => {
     const result = await chooseFit({
       minFontPx: 23,

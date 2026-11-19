@@ -47,6 +47,7 @@ export function SongPage() {
 
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const overflowNotice = useRef<HTMLParagraphElement>(null);
 
   useHeader({ back: true });
 
@@ -84,6 +85,7 @@ export function SongPage() {
   // loading, so the refs are null and there is nothing to measure. Without it the
   // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
+    overflowNotice,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
     key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
@@ -221,7 +223,10 @@ export function SongPage() {
       </main>
 
       {!fit.fits && (
-        <p className="shrink-0 border-t border-(--color-line) px-4 py-1.5 text-center text-xs text-(--color-muted) print:hidden">
+        <p
+          ref={overflowNotice}
+          className="shrink-0 border-t border-(--color-line) px-4 py-1.5 text-center text-xs text-(--color-muted) print:hidden"
+        >
           {t('song.doesNotFit')}
         </p>
       )}

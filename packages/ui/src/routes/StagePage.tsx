@@ -112,6 +112,7 @@ export function StagePage() {
 
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const overflowNotice = useRef<HTMLParagraphElement>(null);
 
   const viewing = songAt(live.set, live.songs, state.itemIndex);
 
@@ -133,6 +134,7 @@ export function StagePage() {
   }, [viewing, performanceKey, state.transpose]);
 
   const fit = useFitToScreen(container, content, {
+    overflowNotice,
     preferredFontPx: STAGE_PREFERRED_FONT,
     minFontPx: stage.minFontPx ?? DEFAULT_SONG_FONT_SIZE,
     maxFittedFontPx: stage.maxFontPx ?? MAX_FITTED_SONG_FONT_SIZE,
@@ -224,6 +226,7 @@ export function StagePage() {
 
       {!fit.fits && state.output !== 'cleared' && song && (
         <p
+          ref={overflowNotice}
           role="status"
           className="shrink-0 border-t border-(--color-line) px-4 py-1.5 text-center text-xs font-medium text-(--color-cue-intro)"
         >

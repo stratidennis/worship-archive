@@ -245,7 +245,7 @@ function BlockView({
   return (
     <section
       data-song-font-scale={cue?.fontScale ?? 1}
-      className={`mb-[0.9em] rounded-md ${isIndented ? 'ml-[1.3em]' : ''} ${
+      className={`mb-[var(--song-section-gap,0.9em)] rounded-md ${isIndented ? 'ml-[1.3em]' : ''} ${
         cue ? 'border-l px-[0.4em] py-[0.18em]' : ''
       }`}
       // Never let a block be split down the middle by a column break.

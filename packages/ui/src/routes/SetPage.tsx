@@ -1467,6 +1467,7 @@ function Preview({
   const [prefs] = usePrefs();
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const overflowNotice = useRef<HTMLParagraphElement>(null);
 
   // Held in a ref because it is a fresh closure on every render: as an effect
   // dependency it would refetch the song forever.
@@ -1490,6 +1491,7 @@ function Preview({
   // refs are null and there is nothing to measure. Without it the fit would never re-run
   // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
+    overflowNotice,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
     key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
@@ -1560,7 +1562,10 @@ function Preview({
         </div>
       </div>
       {!fit.fits && (
-        <p className="shrink-0 border-t border-(--color-line) px-3 py-1 text-center text-xs text-(--color-muted)">
+        <p
+          ref={overflowNotice}
+          className="shrink-0 border-t border-(--color-line) px-3 py-1 text-center text-xs text-(--color-muted)"
+        >
           {t('song.doesNotFit')}
         </p>
       )}
