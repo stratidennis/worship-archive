@@ -13,8 +13,9 @@ export const SETUP_BACKGROUND =
   'color-mix(in srgb, var(--color-chord) 8%, var(--color-stage-bg))';
 export const SETUP_ACCENT = 'var(--color-chord)';
 
-export function sectionAccentInk(accent: string): string {
-  return `color-mix(in oklab, ${accent} 50%, var(--color-stage-fg))`;
+export function sectionAccentInk(key: ReadingColorKey, accent: string): string {
+  const mixed = `color-mix(in oklab, ${accent} var(--minimal-accent-share, 38%), var(--color-minimal-ink-base, var(--color-stage-fg)))`;
+  return `var(--minimal-${key}-ink, ${mixed})`;
 }
 
 export function readingSectionStyle(
@@ -24,7 +25,7 @@ export function readingSectionStyle(
 ): CSSProperties {
   if (mode === 'minimal') {
     return {
-      color: `var(--reading-${key}-ink, ${panel ? sectionAccentInk(panel.border) : LYRIC_INK})`,
+      color: `var(--reading-${key}-ink, ${panel ? sectionAccentInk(key, panel.border) : LYRIC_INK})`,
     };
   }
   return {

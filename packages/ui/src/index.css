@@ -70,6 +70,14 @@
 [data-reading-theme='light'] {
   --color-stage-bg: oklch(99% 0.003 260);
   --color-stage-fg: oklch(20% 0.01 260);
+  --color-minimal-ink-base: #000;
+  --minimal-accent-share: 55%;
+  --minimal-Bridge-ink: initial;
+  --minimal-Intro-ink: initial;
+  --minimal-Instrumental-ink: initial;
+  --minimal-Solo-ink: initial;
+  --minimal-Note-ink: initial;
+  --minimal-info-ink: initial;
   --color-chord: oklch(48% 0.16 255);
   --color-bass: oklch(52% 0.14 155);
   --color-muted: oklch(52% 0.012 260);
@@ -159,11 +167,40 @@
 */
 :root {
   color-scheme: light;
+  --minimal-dark-gold: oklch(93% 0.13 96);
+  --minimal-dark-orange: oklch(92% 0.105 68);
+  --minimal-dark-cyan: oklch(92% 0.095 220);
+  --minimal-dark-orchid: oklch(92% 0.105 325);
+  --minimal-dark-mint: oklch(92% 0.12 155);
+  --minimal-dark-blue: oklch(92% 0.095 245);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
+  }
+}
+
+@media screen {
+  :root[data-theme='dark'],
+  [data-reading-theme='dark'] {
+    --minimal-Bridge-ink: var(--minimal-dark-gold);
+    --minimal-Intro-ink: var(--minimal-dark-orange);
+    --minimal-Instrumental-ink: var(--minimal-dark-cyan);
+    --minimal-Solo-ink: var(--minimal-dark-orchid);
+    --minimal-Note-ink: var(--minimal-dark-mint);
+    --minimal-info-ink: var(--minimal-dark-blue);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --minimal-Bridge-ink: var(--minimal-dark-gold);
+      --minimal-Intro-ink: var(--minimal-dark-orange);
+      --minimal-Instrumental-ink: var(--minimal-dark-cyan);
+      --minimal-Solo-ink: var(--minimal-dark-orchid);
+      --minimal-Note-ink: var(--minimal-dark-mint);
+      --minimal-info-ink: var(--minimal-dark-blue);
+    }
   }
 }
 
@@ -432,6 +469,7 @@ input[type='range']::-moz-range-thumb {
   :root {
     --color-stage-bg: #fff;
     --color-stage-fg: #000;
+    --color-minimal-ink-base: #000;
     --color-chord: oklch(38% 0.16 255);
     --color-chord-ink: oklch(38% 0.16 255) !important;
     --color-bass: oklch(40% 0.14 155);

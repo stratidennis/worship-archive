@@ -330,14 +330,14 @@ function defaultColor(key: ReadingColorKey, cueStyle: CueStyle): string {
     chords: 'var(--color-chord)',
     bass: 'var(--color-bass)',
     titles: 'var(--color-muted)',
-    info: minimal ? sectionAccentInk(SETUP_ACCENT) : SETUP_BACKGROUND,
+    info: minimal ? sectionAccentInk(key, SETUP_ACCENT) : SETUP_BACKGROUND,
     infoDetails: 'var(--color-muted)',
     Men: 'var(--color-singers-men)',
     Women: 'var(--color-singers-women)',
   };
   return (
     base[key] ??
-    (panel && (minimal ? sectionAccentInk(panel.border) : panel.background)) ??
+    (panel && (minimal ? sectionAccentInk(key, panel.border) : panel.background)) ??
     (isReadingSectionColor(key) ? 'transparent' : 'var(--color-stage-fg)')
   );
 }
