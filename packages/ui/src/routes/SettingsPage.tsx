@@ -34,6 +34,7 @@ import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
 import { desktop, pickTextFiles, saveTextFile, type DesktopState } from '../lib/desktop.js';
 import { androidLeader } from '../lib/androidBand.js';
+import { isHost } from '../lib/hostAppearance.js';
 
 /**
  * Everything that is a setting, in one place.
@@ -293,7 +294,7 @@ export function SettingsPage() {
                   value={prefs.cueStyle}
                   onChange={(cueStyle) => setPrefs({ cueStyle })}
                 />
-                <DeviceReadingColorSettings />
+                <DeviceReadingColorSettings shareTheme={isHost(false)} />
               </>
             ) : (
               <>

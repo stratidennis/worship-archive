@@ -132,6 +132,66 @@ try {
   const full = await request(`/api/sets/${encodeURIComponent(set.id)}/full`);
   assert.equal(full.songs[song.id].title, song.title, 'Set API includes its song');
 
+  const { protocol } = await request('/api/network/ping');
+  const theme = { theme: 'dark', readingColors: { Chorus: '#345678', Intro: 'transparent' } };
+  const peers = ['band', 'stage'].map((role) => {
+    const ws = new WebSocket(origin.replace('http:', 'ws:') + '/ws');
+    const received = [];
+    ws.addEventListener('message', ({ data }) => received.push(JSON.parse(data)));
+    ws.addEventListener('open', () =>
+      ws.send(
+        JSON.stringify({
+          t: 'hello',
+          role,
+          name: role,
+          deviceId: 'theme-smoke-' + role,
+          protocolVersion: protocol,
+          ...(role === 'band' ? { themeOffers: true } : {}),
+        }),
+      ),
+    );
+    return { ws, received };
+  });
+  try {
+    await waitFor(async () => {
+      const { devices } = await request('/api/session');
+      return ['band', 'stage'].every((role) =>
+        devices.some(({ deviceId }) => deviceId === 'theme-smoke-' + role),
+      );
+    }, 'theme recipients connected');
+    assert.deepEqual(
+      await request('/api/session/share-theme', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(theme),
+      }),
+      { stage: 1, band: 1 },
+    );
+    const offer = await waitFor(
+      () => peers[0].received.find(({ t }) => t === 'theme-offer'),
+      'Band theme offer',
+    );
+    assert.equal(offer.theme.readingColors.Intro, 'transparent');
+    const applied = await waitFor(
+      () =>
+        peers[1].received.find(
+          (message) =>
+            message.state?.stageByDevice?.['theme-smoke-stage']?.display?.theme === 'dark',
+        ),
+      'Stage theme applied',
+    );
+    assert.equal(
+      applied.state.stageByDevice['theme-smoke-stage'].display.readingColors.Chorus,
+      '#345678',
+    );
+    assert.equal(
+      peers[1].received.some(({ t }) => t === 'theme-offer'),
+      false,
+    );
+  } finally {
+    for (const { ws } of peers) ws.close();
+  }
+
   const pid = adb('shell', 'pidof', 'com.worshiparchive.leader').trim();
   assert.ok(pid, 'Leader process is running');
   screenshot('leader-home');

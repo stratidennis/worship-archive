@@ -10,6 +10,7 @@ import type { AccidentalPreferences } from './key.js';
 import {
   normaliseReadingColors,
   readingColorsWithChords,
+  type ReadingTheme,
   type ReadingColors,
 } from './reading-colors.js';
 
@@ -385,6 +386,7 @@ export type ServerMessage =
   | { t: 'devices'; devices: DeviceInfo[] }
   | { t: 'pong'; clientTime: number; serverTime: number }
   | { t: 'reload'; reason: 'library' }
+  | { t: 'theme-offer'; theme: ReadingTheme }
   | { t: 'incompatible'; serverProtocol: number; clientProtocol: number };
 
 /** Fields that only the host may derive; no WebSocket client is allowed to set them. */
@@ -400,6 +402,7 @@ export type ClientMessage =
       name: string;
       deviceId?: string;
       protocolVersion: number;
+      themeOffers?: true;
     }
   | { t: 'patch'; patch: SessionPatch }
   | { t: 'ping'; clientTime: number };

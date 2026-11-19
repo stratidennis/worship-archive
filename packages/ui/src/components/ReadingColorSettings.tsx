@@ -9,12 +9,14 @@ import {
   isReadingColor,
   isReadingSectionColor,
   parseChordPro,
+  readingColorsWithChords,
   type BlockType,
   type CueStyle,
   type ReadingColorKey,
   type ReadingColors,
+  type ReadingTheme,
 } from '@worship/core';
-import { usePrefs } from '../lib/settings.js';
+import { getPrefs, usePrefs } from '../lib/settings.js';
 import { useT, type TranslationKey } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
 import { cueAppearance } from '../lib/cueAppearance.js';
@@ -48,8 +50,29 @@ const TEXT_LABELS: Record<(typeof READING_TEXT_COLORS)[number], TranslationKey> 
 
 type ColorChange = (key: ReadingColorKey, color: string | null | undefined) => void;
 const COLOR_SAVE_DELAY_MS = 1000;
+type ThemeShareResult = { stage: number; band: number };
 
-export function DeviceReadingColorSettings() {
+async function shareReadingTheme(): Promise<ThemeShareResult> {
+  const { theme, readingColors, chordColor } = getPrefs();
+  const resolved =
+    theme === 'auto'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : theme;
+  const response = await fetch('/api/session/share-theme', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      theme: resolved,
+      readingColors: readingColorsWithChords(readingColors, chordColor),
+    } satisfies ReadingTheme),
+  });
+  if (!response.ok) throw new Error('Theme share failed');
+  return response.json() as Promise<ThemeShareResult>;
+}
+
+export function DeviceReadingColorSettings({ shareTheme = false }: { shareTheme?: boolean }) {
   const [prefs, setPrefs] = usePrefs();
   return (
     <ReadingColorSettings
@@ -66,6 +89,7 @@ export function DeviceReadingColorSettings() {
         });
       }}
       onReset={() => setPrefs({ readingColors: {}, chordColor: null })}
+      onShare={shareTheme ? shareReadingTheme : undefined}
     />
   );
 }
@@ -78,6 +102,7 @@ export function ReadingColorSettings({
   cueStyle,
   onChange,
   onReset,
+  onShare,
 }: {
   colors: ReadingColors;
   inherited?: ReadingColors;
@@ -86,11 +111,14 @@ export function ReadingColorSettings({
   cueStyle: CueStyle;
   onChange: ColorChange;
   onReset: () => void;
+  onShare?: (() => Promise<ThemeShareResult>) | undefined;
 }) {
   const { t, blockName, singerName } = useT();
   const id = useId();
   const [key, setKey] = useState<ReadingColorKey>('chords');
   const [draft, setDraft] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareResult, setShareResult] = useState<ThemeShareResult | 'error' | null>(null);
   const pending = useRef<{ key: ReadingColorKey; color: string; timer: number } | null>(null);
   const save = useRef(onChange);
   useLayoutEffect(() => {
@@ -135,6 +163,20 @@ export function ReadingColorSettings({
   };
 
   const effective = { ...inherited, ...colors };
+  const share = async (): Promise<void> => {
+    if (!onShare || sharing) return;
+    savePending();
+    setDraft(null);
+    setSharing(true);
+    setShareResult(null);
+    try {
+      setShareResult(await onShare());
+    } catch {
+      setShareResult('error');
+    } finally {
+      setSharing(false);
+    }
+  };
   const reset = async (): Promise<void> => {
     if (
       !(await confirmAction({
@@ -202,9 +244,29 @@ export function ReadingColorSettings({
         onEdit={editColor}
         onChange={changeColor}
       />
-      <Button className="mt-3" size="sm" onClick={() => void reset()}>
-        {t('settings.colors.reset')}
-      </Button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => void reset()}>
+          {t('settings.colors.reset')}
+        </Button>
+        {onShare && (
+          <Button size="sm" disabled={sharing} onClick={() => void share()}>
+            {t(sharing ? 'settings.colors.sharing' : 'settings.colors.share')}
+          </Button>
+        )}
+      </div>
+      {onShare && (
+        <p role="status" className="mt-1.5 text-xs text-(--color-muted)">
+          {shareResult === 'error'
+            ? t('settings.colors.shareFailed')
+            : shareResult &&
+              (shareResult.stage || shareResult.band
+                ? t('settings.colors.shareSent', {
+                    stage: shareResult.stage,
+                    band: shareResult.band,
+                  })
+                : t('settings.colors.shareEmpty'))}
+        </p>
+      )}
     </section>
   );
 }

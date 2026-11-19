@@ -183,7 +183,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 /** The same object identity until something actually changes, as the hook requires. */
-function snapshot(): Prefs {
+export function getPrefs(): Prefs {
   return current;
 }
 
@@ -196,7 +196,7 @@ export function updatePrefs(patch: Partial<Prefs>): void {
 }
 
 export function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
-  const prefs = useSyncExternalStore(subscribe, snapshot, snapshot);
+  const prefs = useSyncExternalStore(subscribe, getPrefs, getPrefs);
   const update = useCallback((patch: Partial<Prefs>) => updatePrefs(patch), []);
   return [prefs, update];
 }

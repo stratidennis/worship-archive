@@ -7,6 +7,7 @@ import WebSocket from 'ws';
 import {
   DEFAULT_STAGE_DISPLAY,
   SESSION_PROTOCOL_VERSION,
+  resolveStageDisplay,
   type ClientMessage,
   type ServerMessage,
 } from '@worship/core';
@@ -68,7 +69,7 @@ function identify(
   client: Client,
   role: 'leader' | 'band' | 'stage',
   deviceId: string,
-  name = role,
+  name: string = role,
 ): void {
   send(client, {
     t: 'hello',
@@ -236,6 +237,59 @@ describe('joining', () => {
     await waitFor(watcher, 'devices', (m) => m.devices.every((d) => d.name !== 'Altul'));
     watcher.ws.close();
   });
+});
+
+it('shares colors with connected Stage and consent-capable Band devices only', async () => {
+  const stage = await connect();
+  const band = await connect();
+  const oldBand = await connect();
+  identify(stage, 'stage', 'monitor', 'Monitor');
+  identify(oldBand, 'band', 'old');
+  send(band, {
+    t: 'hello',
+    role: 'band',
+    deviceId: 'new',
+    name: 'Band',
+    protocolVersion: SESSION_PROTOCOL_VERSION,
+    themeOffers: true,
+  });
+  await waitFor(band, 'devices', ({ devices }) =>
+    ['monitor', 'old', 'new'].every((id) => devices.some((device) => device.deviceId === id)),
+  );
+  hub.patch({
+    stageBy: {
+      Monitor: { ...DEFAULT_STAGE_DISPLAY, minFontPx: 21, lineHeight: 1.4, showChords: false },
+    },
+    stageByDevice: {
+      offline: { name: 'Offline', display: { ...DEFAULT_STAGE_DISPLAY, theme: 'light' } },
+    },
+    stage: { ...DEFAULT_STAGE_DISPLAY, readingColors: { Bridge: '#eeeeee' }, theme: 'light' },
+  });
+  const theme = {
+    theme: 'dark' as const,
+    readingColors: { Chorus: '#456789', Intro: 'transparent' },
+  };
+  expect(hub.shareTheme(theme)).toEqual({ stage: 1, band: 1 });
+  expect(await waitFor(band, 'theme-offer')).toEqual({ t: 'theme-offer', theme });
+  const { state } = await waitFor(
+    stage,
+    'session',
+    ({ state }) => state.stageByDevice.monitor !== undefined,
+  );
+  expect(resolveStageDisplay(state, 'Monitor', 'monitor')).toMatchObject({
+    theme: 'dark',
+    minFontPx: 21,
+    lineHeight: 1.4,
+    showChords: false,
+    readingColors: { Bridge: null, Chorus: '#456789', Intro: 'transparent' },
+  });
+  expect(state.stageByDevice.offline?.display.theme).toBe('light');
+  expect(state.stage.theme).toBe('light');
+  expect(oldBand.received.some(({ t }) => t === 'theme-offer')).toBe(false);
+  expect(stage.received.some(({ t }) => t === 'theme-offer')).toBe(false);
+  const lateBand = await connect();
+  await waitFor(lateBand, 'session');
+  expect(lateBand.received.some(({ t }) => t === 'theme-offer')).toBe(false);
 });
 
 describe('driving the service', () => {

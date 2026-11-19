@@ -87,6 +87,54 @@ final class LeaderSessionHub implements Closeable {
         return text.substring(0, Math.min(text.length(), limit));
     }
 
+    synchronized JSONObject shareTheme(JSONObject settings) throws JSONException {
+        String theme = settings.optString("theme");
+        JSONObject supplied = settings.optJSONObject("readingColors");
+        if (supplied == null || !("light".equals(theme) || "dark".equals(theme))) return null;
+        JSONObject colors = new JSONObject();
+        for (String key : new String[]{"chords", "bass", "lyrics", "titles", "repeats", "infoDetails",
+                "Leader", "All", "Women", "Men", "Choir", "Children", "Adults", "Congregation"}) {
+            colors.put(key, themeColor(supplied.opt(key), false));
+        }
+        for (String key : new String[]{"background", "info", "Verse", "Chorus", "PreChorus", "Bridge",
+                "Ending", "Tag", "Intro", "Instrumental", "Solo", "Note"}) {
+            colors.put(key, themeColor(supplied.opt(key), true));
+        }
+
+        JSONObject byDevice = new JSONObject(state.getJSONObject("stageByDevice").toString());
+        JSONObject byName = new JSONObject(state.getJSONObject("stageBy").toString());
+        JSONObject offer = new JSONObject().put("t", "theme-offer")
+                .put("theme", new JSONObject().put("theme", theme).put("readingColors", colors));
+        int stage = 0;
+        int band = 0;
+        for (Client client : new ArrayList<>(clients.values())) {
+            if (!client.identified || client.socket.isClosed()) continue;
+            String role = client.device.optString("role");
+            if ("band".equals(role) && client.themeOffers) {
+                try { client.send(offer); band++; } catch (IOException error) { client.close(); }
+            } else if ("stage".equals(role)) {
+                String id = stageTarget(client.device, "deviceId", 100);
+                String name = stageTarget(client.device, "name", 60);
+                if (id.isEmpty() && name.isEmpty()) continue;
+                JSONObject saved = byDevice.optJSONObject(id);
+                JSONObject display = saved == null ? byName.optJSONObject(name) : saved.optJSONObject("display");
+                JSONObject next = display == null ? emptyStageDisplay() : new JSONObject(display.toString());
+                next.put("theme", theme).put("readingColors", colors).put("chordColor", colors.get("chords"));
+                if (id.isEmpty()) byName.put(name, next);
+                else byDevice.put(id, new JSONObject().put("name", name).put("display", next));
+                stage++;
+            }
+        }
+        if (stage > 0) patch(new JSONObject().put("stageByDevice", byDevice).put("stageBy", byName), false);
+        return new JSONObject().put("stage", stage).put("band", band);
+    }
+
+    private static Object themeColor(Object color, boolean section) {
+        if (color instanceof String && (((String) color).matches("#[0-9a-fA-F]{6}")
+                || (section && "transparent".equals(color)))) return color;
+        return JSONObject.NULL;
+    }
+
     private void restore() {
         if (!stateFile.isFile()) return;
         try { JSONObject saved = new JSONObject(new String(java.nio.file.Files.readAllBytes(stateFile.toPath()), StandardCharsets.UTF_8)); for (Iterator<String> i = state.keys(); i.hasNext();) { String key = i.next(); if (saved.has(key)) state.put(key, saved.get(key)); } state.put("rev", state.optInt("rev") + 1); }
@@ -128,7 +176,7 @@ final class LeaderSessionHub implements Closeable {
 
     private final class Client {
         final String id = UUID.randomUUID().toString(); final Socket socket; final boolean canLead; final InputStream input; final OutputStream output;
-        JSONObject device; boolean identified; boolean alive=true;
+        JSONObject device; boolean identified; boolean alive=true; boolean themeOffers;
         Client(Socket socket, boolean canLead) throws Exception {
             this.socket = socket; this.canLead = canLead; input = socket.getInputStream(); output = socket.getOutputStream();
             device = new JSONObject().put("id", id).put("deviceId", JSONObject.NULL).put("name", "").put("role", "band").put("protocolVersion", Protocol.VERSION).put("since", Instant.now().toString());
@@ -149,7 +197,7 @@ final class LeaderSessionHub implements Closeable {
                     String persistent = message.optString("deviceId", "");
                     synchronized (LeaderSessionHub.this) {
                         if (!persistent.isEmpty()) for (Client other : new ArrayList<>(clients.values())) if (other != this && persistent.equals(other.device.optString("deviceId"))) drop(other);
-                        device.put("deviceId", persistent.isEmpty() ? JSONObject.NULL : persistent).put("name", message.optString("name")).put("role", role).put("protocolVersion", protocol); identified = true; broadcastDevices();
+                        device.put("deviceId", persistent.isEmpty() ? JSONObject.NULL : persistent).put("name", message.optString("name")).put("role", role).put("protocolVersion", protocol); identified = true; themeOffers = Boolean.TRUE.equals(message.opt("themeOffers")); broadcastDevices();
                     }
                 } else if ("patch".equals(type) && identified && "leader".equals(device.optString("role"))) patch(message.getJSONObject("patch"), true);
                 else if ("ping".equals(type)) send(new JSONObject().put("t", "pong").put("clientTime", message.optLong("clientTime")).put("serverTime", System.currentTimeMillis()));

@@ -26,7 +26,7 @@ import { androidBand, androidLeader } from './androidBand.js';
  */
 
 /** Which devices are allowed to speak for the room. */
-function isHost(leading: boolean): boolean {
+export function isHost(leading: boolean): boolean {
   // The Android shell also serves its UI on loopback, but never owns the room.
   if (androidBand()) return Boolean(androidLeader());
   if (leading) return true;

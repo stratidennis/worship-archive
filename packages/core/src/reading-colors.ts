@@ -18,6 +18,24 @@ export type ReadingColorKey = (typeof READING_COLOR_KEYS)[number];
 /** A missing entry inherits. Null uses the theme default. Sections also accept transparent. */
 export type ReadingColors = Partial<Record<ReadingColorKey, string | null>>;
 
+export interface ReadingTheme {
+  theme: 'light' | 'dark';
+  readingColors: ReadingColors;
+}
+
+export function normaliseReadingTheme(value: unknown): ReadingTheme | null {
+  if (!value || typeof value !== 'object') return null;
+  const { theme, readingColors } = value as Record<string, unknown>;
+  if (
+    (theme !== 'light' && theme !== 'dark') ||
+    !readingColors ||
+    typeof readingColors !== 'object' ||
+    Array.isArray(readingColors)
+  )
+    return null;
+  return { theme, readingColors: normaliseReadingColors(readingColors) };
+}
+
 export function isReadingColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 }

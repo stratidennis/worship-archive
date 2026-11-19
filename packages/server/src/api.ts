@@ -27,6 +27,7 @@ import {
   isStageDisplayEmpty,
   patchStageDisplay,
   normaliseReadingColors,
+  normaliseReadingTheme,
   type ServiceSet,
   type Song,
   type StageDisplay,
@@ -702,6 +703,13 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const stage = patchStageDisplay(state.stage, sharedPatch);
     options.hub.patch({ stage });
     return { stage };
+  });
+
+  app.post('/api/session/share-theme', async (request, reply) => {
+    if (!options.hub) return reply.code(503).send({ error: 'no session' });
+    const theme = normaliseReadingTheme(request.body);
+    if (!theme) return reply.code(400).send({ error: 'bad theme' });
+    return options.hub.shareTheme(theme);
   });
 
   /*

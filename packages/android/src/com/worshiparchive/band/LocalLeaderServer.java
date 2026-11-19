@@ -83,6 +83,12 @@ final class LocalLeaderServer implements Closeable {
         if ("GET".equals(method) && "/api/host".equals(path)) { JSONArray addresses = addresses(); json(socket, 200, new JSONObject().put("addresses", addresses).put("interfaces", interfaces()).put("port", port()).put("hostname", "android-leader").put("friendlyHostname", JSONObject.NULL).put("mdns", "published").put("mdnsError", JSONObject.NULL).put("servesInterface", true)); return; }
         if ("GET".equals(method) && "/api/network/ping".equals(path)) { json(socket, 200, new JSONObject().put("ok", true).put("leaderId", hub.state().optString("leaderId")).put("protocol", Protocol.VERSION).put("at", Instant.now().toString())); return; }
         if ("GET".equals(method) && "/api/session".equals(path)) { json(socket, 200, new JSONObject().put("state", hub.state()).put("devices", hub.devices())); return; }
+        if ("POST".equals(method) && "/api/session/share-theme".equals(path)) {
+            JSONObject result = hub.shareTheme(body);
+            if (result == null) json(socket, 400, error("bad theme"));
+            else json(socket, 200, result);
+            return;
+        }
         if ("PUT".equals(method) && "/api/session/host".equals(path)) { json(socket, 200, hub.patch(new JSONObject().put("host", body), false)); return; }
         if ("PUT".equals(method) && "/api/session/stage".equals(path)) { json(socket, 200, hub.patchStage(body)); return; }
         if ("GET".equals(method) && "/api/cloud-sync".equals(path)) { json(socket, 200, cloud.status()); return; }

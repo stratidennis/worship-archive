@@ -47,6 +47,17 @@ const put = (body: Record<string, unknown>) =>
   app.inject({ method: 'PUT', url: '/api/session/stage', payload: body as object });
 
 describe('the stage screens’ appearance', () => {
+  it('validates theme shares and refuses requests from Band or Stage on the network', async () => {
+    const request = { method: 'POST' as const, url: '/api/session/share-theme' };
+    const payload = { theme: 'dark', readingColors: {} };
+    expect(
+      (await app.inject({ ...request, remoteAddress: '192.168.1.99', payload })).statusCode,
+    ).toBe(403);
+    expect(
+      (await app.inject({ ...request, payload: { ...payload, theme: 'auto' } })).statusCode,
+    ).toBe(400);
+    expect((await app.inject({ ...request, payload })).json()).toEqual({ stage: 0, band: 0 });
+  });
   it('starts out entirely unset, so each screen keeps its own', () => {
     expect(hub.getState().stage).toEqual(DEFAULT_STAGE_DISPLAY);
   });

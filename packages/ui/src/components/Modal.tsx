@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { IconAlert, IconTrash } from './icons.js';
+import { IconAlert, IconSun, IconTrash } from './icons.js';
 
 /**
  * A dialog that has to be answered.
@@ -22,11 +22,20 @@ import { IconAlert, IconTrash } from './icons.js';
  */
 
 /** What kind of answer is being asked for, which decides the mark beside the question. */
-export type Tone = 'warn' | 'danger';
+export type Tone = 'info' | 'warn' | 'danger';
 
-const TONES: Record<Tone, { ring: string; Icon: typeof IconAlert }> = {
-  warn: { ring: 'bg-(--color-cue)/15 text-(--color-cue)', Icon: IconAlert },
-  danger: { ring: 'bg-red-500/15 text-red-500', Icon: IconTrash },
+const TONES: Record<Tone, { accent: string; ring: string; Icon: typeof IconAlert }> = {
+  info: {
+    accent: 'bg-(--color-focus)',
+    ring: 'bg-(--color-focus)/15 text-(--color-focus)',
+    Icon: IconSun,
+  },
+  warn: {
+    accent: 'bg-(--color-cue)',
+    ring: 'bg-(--color-cue)/15 text-(--color-cue)',
+    Icon: IconAlert,
+  },
+  danger: { accent: 'bg-red-500', ring: 'bg-red-500/15 text-red-500', Icon: IconTrash },
 };
 const overlays: HTMLElement[] = [];
 
@@ -83,7 +92,7 @@ export function Modal({
   onDismiss: () => void;
 }) {
   const panel = useOverlay(onDismiss);
-  const { ring, Icon } = TONES[tone];
+  const { accent, ring, Icon } = TONES[tone];
 
   return (
     <div
@@ -99,11 +108,8 @@ export function Modal({
         aria-label={title}
         className="modal-panel w-full max-w-md overflow-hidden rounded-2xl border border-(--color-line) bg-(--color-surface) shadow-2xl"
       >
-        <div className={`h-1 ${tone === 'danger' ? 'bg-red-500' : 'bg-(--color-cue)'}`} />
+        <div className={`h-1 ${accent}`} />
         <div className="flex gap-4 px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
-          {/* A mark, not decoration: it says at a glance whether this is "you will lose
-              something" or "you are about to destroy something", before the sentence is
-              read. */}
           <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${ring}`}>
             <Icon size={21} />
           </span>

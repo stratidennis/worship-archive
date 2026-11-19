@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
   isMinorKey,
@@ -35,6 +36,7 @@ import { BeatLed } from '../components/BeatLed.js';
 import { Shortcuts } from '../components/Shortcuts.js';
 import { StatusDot } from '../components/StatusDot.js';
 import { Button, Checkbox, IconButton, Input, Select } from '../components/ui.js';
+import { Modal } from '../components/Modal.js';
 import { Sheet } from '../components/Sheet.js';
 import {
   AccidentalChoice,
@@ -108,7 +110,7 @@ export function BandPage() {
     true,
     params.get('device') ?? undefined,
   );
-  const { state, status, clockOffset, libraryRev } = session;
+  const { state, status, clockOffset, libraryRev, themeOffer, dismissThemeOffer } = session;
   const live = useLiveSet(state.active ? state.setId : null, libraryRev);
   const [prefs, setPrefs] = usePrefs();
 
@@ -751,6 +753,30 @@ export function BandPage() {
             onDismiss={() => setPowerpointsOpen(false)}
           />
         </Suspense>
+      )}
+      {themeOffer && (
+        <Modal
+          title={t('band.themeOffer.title')}
+          detail={t('band.themeOffer.detail')}
+          tone="info"
+          onDismiss={dismissThemeOffer}
+        >
+          <Button onClick={dismissThemeOffer}>{t('band.themeOffer.decline')}</Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              // Finish any pending local palette edit before replacing the palette.
+              if (settingsOpen) flushSync(() => setSettingsOpen(false));
+              setPrefs({
+                ...themeOffer,
+                chordColor: themeOffer.readingColors.chords ?? null,
+              });
+              dismissThemeOffer();
+            }}
+          >
+            {t('band.themeOffer.accept')}
+          </Button>
+        </Modal>
       )}
     </div>
   );

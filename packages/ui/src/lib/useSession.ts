@@ -3,10 +3,12 @@ import {
   INITIAL_SESSION,
   SESSION_PROTOCOL_VERSION,
   estimateClockOffset,
+  normaliseReadingTheme,
   randomId,
   type ClientMessage,
   type DeviceInfo,
   type DeviceRole,
+  type ReadingTheme,
   type SessionPatch,
   type ServerMessage,
   type SessionState,
@@ -37,6 +39,8 @@ export interface Session {
   patch: (patch: SessionPatch) => void;
   /** Bumped when the host says the library changed on disk. */
   libraryRev: number;
+  themeOffer: ReadingTheme | null;
+  dismissThemeOffer: () => void;
   /**
    * True once the host's state has actually arrived.
    *
@@ -101,6 +105,8 @@ export function useSession(
   const [clockOffset, setClockOffset] = useState(0);
   const [libraryRev, setLibraryRev] = useState(0);
   const [synced, setSynced] = useState(false);
+  const [themeOffer, setThemeOffer] = useState<ReadingTheme | null>(null);
+  const dismissThemeOffer = useCallback(() => setThemeOffer(null), []);
 
   const socket = useRef<WebSocket | null>(null);
   const backoff = useRef(MIN_BACKOFF);
@@ -117,6 +123,7 @@ export function useSession(
       setDevices([]);
       setSynced(false);
       setState(INITIAL_SESSION);
+      setThemeOffer(null);
       return;
     }
     closed.current = false;
@@ -152,6 +159,7 @@ export function useSession(
             name: identity.current.name,
             deviceId: myDeviceId.current,
             protocolVersion: SESSION_PROTOCOL_VERSION,
+            ...(identity.current.role === 'band' ? { themeOffers: true } : {}),
           } satisfies ClientMessage),
         );
         ws.send(JSON.stringify({ t: 'ping', clientTime: Date.now() } satisfies ClientMessage));
@@ -193,6 +201,12 @@ export function useSession(
           case 'reload':
             setLibraryRev((n) => n + 1);
             break;
+          case 'theme-offer': {
+            if (identity.current.role !== 'band') break;
+            const theme = normaliseReadingTheme(message.theme);
+            if (theme) setThemeOffer(theme);
+            break;
+          }
           case 'incompatible':
             setStatus('incompatible');
             closed.current = true;
@@ -206,6 +220,7 @@ export function useSession(
         socket.current = null;
         setStatus('offline');
         setSynced(false);
+        setThemeOffer(null);
         schedule();
       };
       ws.onerror = () => ws.close();
@@ -275,6 +290,7 @@ export function useSession(
         name,
         deviceId: myDeviceId.current,
         protocolVersion: SESSION_PROTOCOL_VERSION,
+        ...(role === 'band' ? { themeOffers: true } : {}),
       } satisfies ClientMessage),
     );
   }, [enabled, role, name, status]);
@@ -304,6 +320,8 @@ export function useSession(
     clockOffset,
     patch,
     libraryRev,
+    themeOffer,
+    dismissThemeOffer,
     synced,
   };
 }

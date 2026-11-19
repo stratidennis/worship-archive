@@ -13,7 +13,10 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
   DEFAULT_STAGE_DISPLAY,
   INITIAL_SESSION,
+  READING_COLOR_KEYS,
   SESSION_PROTOCOL_VERSION,
+  patchStageDisplay,
+  type ReadingTheme,
   type ClientMessage,
   type DeviceInfo,
   type SessionPatch,
@@ -28,6 +31,7 @@ interface Client {
   alive: boolean;
   identified: boolean;
   canLead: boolean;
+  themeOffers: boolean;
 }
 
 /** Map the palette removed in 0.1 back to the ordinary dark theme on restored data. */
@@ -181,6 +185,48 @@ export class SessionHub {
     return [...this.clients.values()].map((c) => c.device);
   }
 
+  shareTheme(theme: ReadingTheme): { stage: number; band: number } {
+    const readingColors = Object.fromEntries(
+      READING_COLOR_KEYS.map((key) => [key, theme.readingColors[key] ?? null]),
+    );
+    const colours = { ...theme, readingColors, chordColor: theme.readingColors.chords ?? null };
+    const byDevice = new Map(Object.entries(this.state.stageByDevice));
+    const byName = new Map(Object.entries(this.state.stageBy));
+    const recipients = [...this.clients.values()].filter(
+      (client) => client.identified && client.socket.readyState === client.socket.OPEN,
+    );
+    let stage = 0;
+    let band = 0;
+    for (const { device } of recipients) {
+      if (device.role !== 'stage' || (!device.deviceId && !device.name)) continue;
+      const legacy = byName.get(device.name);
+      if (device.deviceId) {
+        const saved = byDevice.get(device.deviceId)?.display ?? legacy;
+        byDevice.set(device.deviceId, {
+          name: device.name,
+          display: patchStageDisplay(saved ?? DEFAULT_STAGE_DISPLAY, colours),
+        });
+      } else {
+        byName.set(device.name, patchStageDisplay(legacy ?? DEFAULT_STAGE_DISPLAY, colours));
+      }
+      stage++;
+    }
+    if (stage > 0) {
+      this.patch({
+        stageByDevice: Object.fromEntries(byDevice),
+        stageBy: Object.fromEntries(byName),
+      });
+    }
+    const offer = JSON.stringify({ t: 'theme-offer', theme } satisfies ServerMessage);
+    for (const client of recipients) {
+      if (client.device.role === 'band' && client.themeOffers) {
+        client.socket.send(offer);
+        band++;
+      }
+    }
+    return { stage, band };
+  }
+
   /** Apply a patch and push the result. `rev` is the hub's to set. */
   patch(patch: SessionPatch): SessionState {
     this.state = { ...this.state, ...patch, rev: this.state.rev + 1 };
@@ -264,6 +310,7 @@ export class SessionHub {
       alive: true,
       identified: false,
       canLead: isLoopbackAddress(request.socket.remoteAddress),
+      themeOffers: false,
     };
     this.clients.set(id, client);
 
@@ -320,6 +367,7 @@ export class SessionHub {
             protocolVersion: message.protocolVersion,
           };
           client.identified = true;
+          client.themeOffers = message.themeOffers === true;
           this.broadcastDevices();
           break;
         }
