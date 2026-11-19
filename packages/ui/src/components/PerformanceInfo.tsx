@@ -45,6 +45,7 @@ export function PerformanceInfo({
   const mineScale = cueStyle === 'full' ? 0.69 : cueStyle === 'compact' ? 0.61 : 0.52;
   return (
     <section
+      data-song-column-group=""
       data-song-font-scale={leaderScale}
       className={`mb-[var(--song-section-gap,0.9em)] ${
         cueStyle === 'minimal' ? '' : 'rounded-md border-l px-[0.45em] py-[0.24em]'

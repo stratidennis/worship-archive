@@ -82,6 +82,19 @@ export function exceedsAvailableSpace(
   );
 }
 
+/** A group can have several visual fragments even with `break-inside: avoid`. */
+export function crossesColumnBoundary(
+  rects: ArrayLike<Pick<DOMRectReadOnly, 'left' | 'height'>>,
+): boolean {
+  let firstLeft: number | undefined;
+  for (const rect of Array.from(rects)) {
+    if (rect.height === 0) continue;
+    firstLeft ??= rect.left;
+    if (Math.abs(rect.left - firstLeft) > 1) return true;
+  }
+  return false;
+}
+
 /** Multi-column songs use a fixed-height flow instead of browser-specific balancing. */
 export function usesConstrainedColumnFlow(columns: number): boolean {
   return columns > 1;
@@ -406,10 +419,15 @@ export function useFitToScreen(
             }
           }
         }
-        const overflowing = exceedsAvailableSpace(
-          { scrollHeight, scrollWidth: probe.scrollWidth, clientWidth: probe.clientWidth },
-          available,
-        );
+        const overflowing =
+          exceedsAvailableSpace(
+            { scrollHeight, scrollWidth: probe.scrollWidth, clientWidth: probe.clientWidth },
+            available,
+          ) ||
+          (columns > 1 &&
+            Array.from(probe.querySelectorAll('[data-song-column-group]')).some((group) =>
+              crossesColumnBoundary(group.getClientRects()),
+            ));
         probe.remove();
         activeProbes.delete(probe);
         return overflowing;

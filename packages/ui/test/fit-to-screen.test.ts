@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   chooseFit,
   columnCandidates,
+  crossesColumnBoundary,
   exceedsAvailableSpace,
   fittedSongOverflowClass,
   fittedSongStyle,
@@ -221,6 +222,34 @@ describe('phone font-size control', () => {
 });
 
 describe('fit overflow measurement', () => {
+  it('rejects a split chorus or linked group even when both fragments are visible', async () => {
+    const result = await chooseFit({
+      minFontPx: 20,
+      maxFittedFontPx: 30,
+      columns: [1, 2, 3],
+      overflows: async (font, columns) =>
+        columns < 3 ||
+        crossesColumnBoundary(
+          font > 27
+            ? [
+                { left: 320, height: 375 },
+                { left: 640, height: 110 },
+              ]
+            : [{ left: 320, height: 365 }],
+        ),
+    });
+    expect(result).toEqual({ fontPx: 27, columns: 3, fits: true });
+  });
+
+  it('ignores empty fragments at a column break', () => {
+    expect(
+      crossesColumnBoundary([
+        { left: 10, height: 180 },
+        { left: 300, height: 0 },
+      ]),
+    ).toBe(false);
+  });
+
   it('scrolls an unfitted interactive song on any device but keeps Stage clipped', () => {
     expect(fittedSongOverflowClass(false, true)).toContain('overflow-y-auto');
     expect(fittedSongOverflowClass(false, false)).toContain('overflow-hidden');

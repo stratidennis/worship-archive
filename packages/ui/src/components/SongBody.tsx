@@ -347,7 +347,7 @@ export function SongBody({
   return (
     <>
       {groups.map((group, i) => (
-        <div key={i} style={{ breakInside: 'avoid' }}>
+        <div key={i} data-song-column-group="" style={{ breakInside: 'avoid' }}>
           {group.map((block, j) => (
             <BlockView
               key={`${block.id}-${j}`}
