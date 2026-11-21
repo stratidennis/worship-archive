@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { emptyBlock, emptyLine, type BlockType, type Song } from '@worship/core';
 import {
+  createMissingPowerPoints,
   createPowerPoint,
   comparableName,
   findPowerPoints,
@@ -179,6 +180,26 @@ describe('PowerPoint names and matching', () => {
 });
 
 describe('PowerPoint generation', () => {
+  it('writes the other decks in a set when one song has an unresolved repeat', async () => {
+    const blocked = song([{ type: 'Verse', lines: ['Unresolved lyric :/'] }], 'Needs review');
+    const ready = song([{ type: 'Verse', lines: ['An independent lyric'] }], 'Ready to show');
+    ready.id = 'song-2';
+
+    const { results } = await createMissingPowerPoints(dir, [blocked, ready]);
+
+    expect(results[0]).toMatchObject({
+      status: 'missing',
+      file: null,
+      error: expect.stringContaining('unmatched or unsupported lyric repeat'),
+    });
+    expect(results[1]).toMatchObject({ status: 'found' });
+    expect(existsSync(join(dir, generatedPowerPointName(blocked)))).toBe(false);
+    expect(
+      readFileSync(join(dir, generatedPowerPointName(ready)))
+        .subarray(0, 2)
+        .toString(),
+    ).toBe('PK');
+  });
   it('creates a real pptx package for audience blocks', async () => {
     const value = song([
       { type: 'Verse', lines: ['Splendoare de-mpărat', 'În măreția Ta'] },

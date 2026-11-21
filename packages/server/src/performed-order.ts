@@ -1,5 +1,5 @@
 /** Presentation-only interpretation. Never edits the source song or its notes. */
-import { parseChord, type Block, type Song } from '@worship/core';
+import { parseChord, type Block, type BlockType, type Song } from '@worship/core';
 import { parseArrangementText } from '@worship/importers';
 
 const SUNG = new Set(['Verse', 'Chorus', 'PreChorus', 'Bridge', 'Ending', 'Tag']);
@@ -14,6 +14,64 @@ export interface PerformedOrder {
 const count = (n: number | null | undefined): number =>
   Number.isInteger(n) && n! >= 1 && n! <= 20 ? n! : 1;
 const same = (a: string[], b: string[]): boolean => a.join('\0') === b.join('\0');
+
+const SECTION_NAMES = new Map<string, BlockType>([
+  ['refren', 'Chorus'],
+  ['chorus', 'Chorus'],
+  ['punte', 'Bridge'],
+  ['bridge', 'Bridge'],
+  ['final', 'Ending'],
+  ['ending', 'Ending'],
+  ['strofa', 'Verse'],
+  ['strofă', 'Verse'],
+  ['verse', 'Verse'],
+]);
+
+interface SectionReference {
+  target: { id: string } | { type: BlockType; ordinal: number | undefined };
+  repeat: number | undefined;
+}
+
+function parseSectionReference(text: string): SectionReference | null {
+  const prefix = /^(?:(\d+)\s*[x×]|[x×]\s*(\d+))\s+(?:refren|chorus)$/i.exec(text);
+  if (prefix) {
+    return {
+      target: { type: 'Chorus', ordinal: undefined },
+      repeat: Number(prefix[1] ?? prefix[2]),
+    };
+  }
+  const match = /^([a-ză]+)\s*(\d+)?\s*(?:[x×]\s*(\d+))?$/i.exec(text);
+  if (!match) return null;
+
+  const name = match[1]!;
+  const type = SECTION_NAMES.get(name.toLowerCase());
+  const ordinal = match[2] === undefined ? undefined : Number(match[2]);
+  const repeat = match[3];
+  const target = type
+    ? { type, ordinal }
+    : ordinal !== undefined && /^[VCPBET]$/i.test(name)
+      ? { id: name.toUpperCase() + match[2] }
+      : null;
+  return target ? { target, repeat: repeat === undefined ? undefined : Number(repeat) } : null;
+}
+
+function referenceTargets(reference: SectionReference, usable: Block[]): Block[] {
+  const { target } = reference;
+  if ('id' in target) return usable.filter((block) => block.id === target.id);
+  const matching = usable.filter((block) => block.type === target.type);
+  return target.ordinal === undefined
+    ? matching
+    : matching.slice(Math.max(0, target.ordinal - 1), target.ordinal);
+}
+
+function blockReference(block: Block): SectionReference | null {
+  const text = block.lines
+    .map((line) => line.text)
+    .join('\n')
+    .trim();
+  if (text.includes('\n')) return null;
+  return parseSectionReference(text.replace(/^(?:final|ending)\s*:\s*/i, ''));
+}
 
 /** Strip known display metadata, retaining punctuation and numbers in sung text. */
 function cleanLine(raw: string, first: boolean): string {
@@ -43,9 +101,16 @@ function cleanLine(raw: string, first: boolean): string {
 /** Repository repeat syntax: /: ... :/ [xN], or % ... % [xN]. */
 function lyricLines(block: Block, issues: string[]): { lines: string[]; wholeRepeat: number } {
   const raw = block.lines.flatMap((line) => line.text.split('\n'));
-  let text = raw.join('\n');
+  // Some legacy songs close a repeat with /: at the end of a lyric row.
+  // Require an earlier opener and lyrics on the row that ends with the marker.
+  let text = raw
+    .join('\n')
+    .replace(
+      /(\/:(?:(?!\/:|:\/)[\s\S])*?[^\s/:][ \t]*)\/:(?=[ \t]*(?:[x×][ \t]*\d+)?[ \t]*(?:\n|$))/gi,
+      '$1:/',
+    );
   let wholeRepeat = 1;
-  const spans = /\/:([\s\S]*?):\/\s*(?:[x×]\s*(\d+))?|%([^%]*?)%\s*(?:[x×]\s*(\d+))?/gi;
+  const spans = /\/:([\s\S]*?):\/(?:\s*[x×]\s*(\d+))?|%([^%]*?)%(?:\s*[x×]\s*(\d+))?/gi;
   const matches = [...text.matchAll(spans)];
   for (const match of matches.reverse()) {
     const body = (match[1] ?? match[3] ?? '').trim();
@@ -58,8 +123,10 @@ function lyricLines(block: Block, issues: string[]): { lines: string[]; wholeRep
     let remaining = after.trimStart();
     let expanded = 0;
     while (body && remaining.startsWith(body)) {
+      const tail = remaining.slice(body.length);
+      if (!/^[ \t]*(?:\r?\n|$)/.test(tail)) break;
       expanded++;
-      remaining = remaining.slice(body.length).trimStart();
+      remaining = tail.trimStart();
     }
     if (!before.trim() && !remaining.trim()) {
       wholeRepeat = Math.max(times, expanded + 1);
@@ -86,66 +153,134 @@ function lyricLines(block: Block, issues: string[]): { lines: string[]; wholeRep
 
 /** Discovery uses the same lyric cleanup as generation, without rejecting ambiguous orders. */
 export function firstSungLine(block: Block): string | null {
+  if (blockReference(block)) return null;
   return lyricLines(block, []).lines[0] ?? null;
+}
+
+interface Occurrence {
+  id: string;
+  repeat?: number | undefined;
+}
+
+/** Resolve cues in the order in which the musician sees them in the source. */
+function sourceOccurrences(
+  blocks: Block[],
+  usable: Block[],
+  references: Map<string, SectionReference>,
+  notes: Map<string, SectionReference[]>,
+  inferOrder: boolean,
+  issues: string[],
+): { order: Occurrence[]; aliases: Map<string, Occurrence>; defaults: Map<string, number> } {
+  const authored = new Map<string, Occurrence>(usable.map((b) => [b.id, { id: b.id }]));
+  const order: Occurrence[] = [];
+  const aliases = new Map<string, Occurrence>();
+  const defaults = new Map<string, number>();
+  for (const [index, block] of blocks.entries()) {
+    const occurrence = authored.get(block.id);
+    if (occurrence) {
+      order.push(occurrence);
+      continue;
+    }
+    const alias = references.get(block.id);
+    for (const reference of alias ? [alias] : (notes.get(block.id) ?? [])) {
+      const targets = referenceTargets(reference, usable);
+      const recent = order.findLast((one) => targets.some((target) => target.id === one.id));
+      const target = targets.find((one) => one.id === recent?.id) ?? targets[0];
+      if (!target) {
+        if (inferOrder || !alias)
+          issues.push(`${block.id}: repeat has no matching lyric section`);
+        continue;
+      }
+      const repeat = reference.repeat;
+      if (alias) {
+        const resolved = { id: target.id, repeat };
+        aliases.set(block.id, resolved);
+        order.push(resolved);
+        continue;
+      }
+      if (repeat !== undefined && count(repeat) !== repeat) {
+        issues.push(`${block.id}: unsupported repeat count ${repeat}`);
+        continue;
+      }
+      const previous = order.at(-1);
+      if (inferOrder && previous && target.type === 'Chorus') {
+        // A cue beside an authored chorus sets that appearance's count. A cue
+        // after another section can bring the chorus back at that point.
+        const next = blocks.slice(index + 1).find((one) => authored.has(one.id));
+        const adjacent =
+          previous.id === target.id
+            ? previous
+            : next && targets.some((one) => one.id === next.id)
+              ? authored.get(next.id)
+              : undefined;
+        if (!adjacent) order.push({ id: target.id, repeat });
+        else if (repeat !== undefined) {
+          if (adjacent.repeat !== undefined && adjacent.repeat !== repeat)
+            issues.push(`Conflicting repeats: ${adjacent.id}`);
+          adjacent.repeat = repeat;
+        }
+      } else if (repeat !== undefined) {
+        // Header notes and non-chorus repeat instructions retain their
+        // section-wide meaning.
+        for (const { id } of targets) {
+          const existing = defaults.get(id);
+          if (existing !== undefined && existing !== repeat)
+            issues.push(`Conflicting repeats: ${id}`);
+          defaults.set(id, repeat);
+        }
+      }
+    }
+  }
+  return { order, aliases, defaults };
 }
 
 export function resolvePerformedOrder(song: Song): PerformedOrder {
   const issues: string[] = [];
-  const usable = song.blocks.filter((b) => SUNG.has(b.type) && !b.bandOnly);
+  const audience = song.blocks.filter((b) => SUNG.has(b.type) && !b.bandOnly);
+  const references = new Map<string, SectionReference>();
+  for (const block of audience) {
+    const reference = blockReference(block);
+    if (reference) references.set(block.id, reference);
+  }
+  const usable = audience.filter((b) => !references.has(b.id));
   const byId = new Map(usable.map((b) => [b.id, b]));
-  const notes = song.blocks
-    .filter((b) => b.type === 'Note')
-    .flatMap((b) => b.lines.map((l) => l.text.trim()));
   const structures: string[][] = [];
-  const noteRepeats = new Map<string, number>();
+  const notes = new Map<string, SectionReference[]>();
   let suppress = false;
-  for (const note of notes) {
-    const structure = /^(?:STRUCTURA|STRUCTURĂ|ORDER|ARRANGEMENT)\s*:\s*(.+)$/i.exec(note);
-    if (structure) {
-      const parsed = parseArrangementText(structure[1]!);
-      const ids = parsed?.map((id) => {
-        if (song.blocks.some((b) => b.id === id)) return id;
-        const candidates = usable.filter((b) => b.id[0] === id[0]);
-        return candidates.length === 1 ? candidates[0]!.id : id;
-      });
-      if (ids && ids.every((id) => song.blocks.some((b) => b.id === id))) structures.push(ids);
-      else issues.push(`Cannot resolve arrangement note: ${note}`);
-      continue;
-    }
-    if (/^(?:fără refren|fara refren|no chorus|omit chorus)$/i.test(note)) {
-      suppress = true;
-      continue;
-    }
-    const repeat =
-      /^(V\d+|C\d+|B\d+|E\d+|P\d+|T\d+|refren|chorus|bridge|punte|final|ending|strofa|verse)\s*[x×]\s*(\d+)$/i.exec(
-        note,
-      );
-    if (repeat) {
-      const types: Record<string, string> = {
-        refren: 'Chorus',
-        chorus: 'Chorus',
-        bridge: 'Bridge',
-        punte: 'Bridge',
-        final: 'Ending',
-        ending: 'Ending',
-        strofa: 'Verse',
-        verse: 'Verse',
-      };
-      const targets = usable.filter(
-        (b) => b.id === repeat[1]!.toUpperCase() || b.type === types[repeat[1]!.toLowerCase()],
-      );
-      if (!targets.length) issues.push(`Unknown repeat target: ${note}`);
-      for (const b of targets) {
-        const authoredCount = Number(repeat[2]);
-        if (count(authoredCount) !== authoredCount)
-          issues.push(`Unsupported repeat count: ${note}`);
-        const n = count(authoredCount);
-        if (noteRepeats.has(b.id) && noteRepeats.get(b.id) !== n)
-          issues.push(`Conflicting repeats: ${b.id}`);
-        noteRepeats.set(b.id, n);
+  const knownIds = new Set(song.blocks.map((block) => block.id));
+  for (const block of song.blocks) {
+    if (block.type !== 'Note') continue;
+    const directives: SectionReference[] = [];
+    for (const raw of block.lines.flatMap((line) => line.text.split('\n'))) {
+      const note = raw.trim();
+      const structure = /^(?:STRUCTURA|STRUCTURĂ|ORDER|ARRANGEMENT)\s*:\s*(.+)$/i.exec(note);
+      if (structure) {
+        const parsed = parseArrangementText(structure[1]!);
+        const ids = parsed?.map((id) => {
+          if (knownIds.has(id)) return id;
+          const candidates = usable.filter((b) => b.id[0] === id[0]);
+          return candidates.length === 1 ? candidates[0]!.id : id;
+        });
+        if (ids && ids.every((id) => knownIds.has(id))) structures.push(ids);
+        else issues.push(`Cannot resolve arrangement note: ${note}`);
+        continue;
       }
-    } else if (/\b(?:refren|chorus|repet|repeat|structur|ordine)\b|\bx\d+\b/i.test(note))
-      issues.push(`Review ambiguous instruction: ${note}`);
+      if (/^(?:fără refren|fara refren|no chorus|omit chorus)$/i.test(note)) {
+        suppress = true;
+        continue;
+      }
+      if (/^(?:intro|instrumental|solo)\s*:/i.test(note)) continue;
+      const reference = parseSectionReference(note);
+      if (
+        reference &&
+        (reference.repeat !== undefined ||
+          ('type' in reference.target && reference.target.type === 'Chorus'))
+      )
+        directives.push(reference);
+      else if (/\b(?:refren|chorus|repet|repeat|structur|ordine)\b|\bx\d+\b/i.test(note))
+        issues.push(`Review ambiguous instruction: ${note}`);
+    }
+    if (directives.length) notes.set(block.id, directives);
   }
   const reviewed = song.arrangementSource === 'reviewed';
   const inferred =
@@ -162,7 +297,7 @@ export function resolvePerformedOrder(song: Song): PerformedOrder {
       : null;
   if (reviewed) {
     issues.length = 0;
-    noteRepeats.clear();
+    notes.clear();
     suppress = false;
   } // Reviewed order supersedes note interpretations.
   if (!ids && structures.length) {
@@ -171,43 +306,56 @@ export function resolvePerformedOrder(song: Song): PerformedOrder {
     else ids = structures[0]!;
   }
   const explicit = ids !== null;
-  if (!ids) {
-    ids = [];
+  const source = sourceOccurrences(song.blocks, usable, references, notes, !explicit, issues);
+  let order: Occurrence[];
+  if (ids) {
+    order = ids.map((id) => source.aliases.get(id) ?? { id });
+  } else {
+    order = [];
     let chorus: Block | undefined = usable.find((b) => b.type === 'Chorus');
-    for (let i = 0; i < usable.length; i++) {
-      const b = usable[i]!;
+    for (let i = 0; i < source.order.length; i++) {
+      const current = source.order[i]!;
+      const b = byId.get(current.id)!;
       if (suppress && b.type === 'Chorus') continue;
       if (b.type === 'Chorus') chorus = b;
-      ids.push(b.id);
+      order.push(current);
       if (b.type !== 'Verse') continue;
       // Prechoruses belong with the verse before a chorus is inserted.
-      while (usable[i + 1]?.type === 'PreChorus') ids.push(usable[++i]!.id);
-      if (suppress || usable[i + 1]?.type === 'Chorus') continue;
-      if (chorus) ids.push(chorus.id);
+      while (byId.get(source.order[i + 1]?.id ?? '')?.type === 'PreChorus')
+        order.push(source.order[++i]!);
+      if (suppress || byId.get(source.order[i + 1]?.id ?? '')?.type === 'Chorus') continue;
+      if (chorus) order.push({ id: chorus.id });
     }
   }
   const sections: PerformedSection[] = [];
-  for (const [index, id] of ids.entries()) {
+  for (const [index, { id, repeat }] of order.entries()) {
     const b = byId.get(id);
     if (!b) {
-      if (!song.blocks.some((block) => block.id === id))
-        issues.push(`Unknown arrangement section: ${id}`);
+      if (references.has(id)) issues.push(`${id}: repeat has no matching lyric section`);
+      else if (!knownIds.has(id)) issues.push(`Unknown arrangement section: ${id}`);
       continue;
     }
     if (b.repeat !== null && count(b.repeat) !== b.repeat)
       issues.push(`${id}: unsupported block repeat count ${b.repeat}`);
+    if (repeat !== undefined && count(repeat) !== repeat)
+      issues.push(`${id}: unsupported repeat count ${repeat}`);
     const lyric = lyricLines(b, issues);
+    const sourceId = ids?.[index] ?? id;
     const represented =
-      reviewed || (explicit && (ids[index - 1] === id || ids[index + 1] === id));
+      reviewed ||
+      (ids !== null && (ids[index - 1] === sourceId || ids[index + 1] === sourceId));
     // Legacy paste/import paths sometimes expanded the same complete block while
     // retaining its repeat metadata. Recognise only exact, whole-block copies.
     let runStart = index;
     let runEnd = index + 1;
-    while (ids[runStart - 1] === id) runStart--;
-    while (ids[runEnd] === id) runEnd++;
+    if (ids && represented) {
+      while (ids[runStart - 1] === sourceId) runStart--;
+      while (ids[runEnd] === sourceId) runEnd++;
+    }
+    const defaultRepeat = source.defaults.get(id);
     const encodedCount = Math.max(
       count(b.repeat),
-      noteRepeats.get(id) ?? 1,
+      count(repeat ?? defaultRepeat),
       represented ? runEnd - runStart : 1,
     );
     if (
@@ -223,13 +371,15 @@ export function resolvePerformedOrder(song: Song): PerformedOrder {
     const counts = [
       b.repeat,
       lyric.wholeRepeat > 1 ? lyric.wholeRepeat : null,
-      noteRepeats.get(id),
+      defaultRepeat,
     ].filter((n): n is number => n != null && n > 1);
-    if (!represented && new Set(counts).size > 1)
+    if (!represented && repeat === undefined && new Set(counts).size > 1)
       issues.push(`${id}: conflicting repeat counts`);
     const repeats = represented
       ? 1
-      : Math.max(count(b.repeat), lyric.wholeRepeat, noteRepeats.get(id) ?? 1);
+      : repeat !== undefined
+        ? count(repeat)
+        : Math.max(count(b.repeat), lyric.wholeRepeat, count(defaultRepeat));
     if (lyric.lines.length)
       for (let n = 0; n < repeats; n++) sections.push({ id, lines: [...lyric.lines] });
   }

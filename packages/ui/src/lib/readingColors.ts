@@ -1,6 +1,8 @@
 import {
+  BLOCK_TYPES,
   READING_COLOR_KEYS,
   READING_SECTIONS,
+  isReadingColor,
   normaliseReadingColors,
   sectionBackground,
   sectionText,
@@ -10,6 +12,7 @@ import {
   type ReadingSection,
 } from '@worship/core';
 import type { CSSProperties } from 'react';
+import { cueAppearance } from './cueAppearance.js';
 
 export const LYRIC_INK = 'var(--reading-lyrics, var(--color-stage-fg))';
 export const SETUP_BACKGROUND =
@@ -34,8 +37,16 @@ export function readingSectionStyle(
   return {
     color: `var(--reading-${key}Text, ${LYRIC_INK})`,
     backgroundColor: `var(--reading-${key}-background, ${panel?.background ?? 'transparent'})`,
-    borderColor: panel ? `var(--reading-${key}-edge, ${panel.border})` : undefined,
+    borderColor: `var(--reading-${key}-edge, ${panel?.border ?? 'transparent'})`,
   };
+}
+
+/** Refit a live chart when a background adds or removes a padded panel. */
+export function sectionPanelLayoutKey(colors: ReadingColors, mode: CueStyle = 'full'): string {
+  if (mode === 'minimal') return '';
+  return BLOCK_TYPES.filter(
+    (type) => !cueAppearance(type) && isReadingColor(sectionBackground(colors, type)),
+  ).join(',');
 }
 
 /** Scope Stage and previews independently from the device's own reader. */
@@ -49,6 +60,7 @@ export function readingColorStyle(colors: ReadingColors): CSSProperties {
     const color = sectionBackground(safe, key);
     const text = sectionText(safe, key, true);
     style[`--reading-${key}-background`] = color ?? 'initial';
+    style[`--reading-${key}-panel`] = color && color !== 'transparent' ? '1' : 'initial';
     style[`--reading-${key}-edge`] =
       color === 'transparent'
         ? 'transparent'

@@ -101,6 +101,63 @@ describe('performed order before pagination', () => {
     song.arrangement = ['V1', 'C1', 'C1', 'V2', 'C1', 'C1'];
     expect(order(song)).toEqual(song.arrangement);
   });
+  it('uses each chorus repeat cue where it appears, including after a bridge', () => {
+    const song = make([
+      ['V1', 'Verse', 'First verse'],
+      ['C1', 'Chorus', 'Sung chorus'],
+      ['V2', 'Verse', 'Second verse'],
+      ['M1', 'Note', 'Refren x1'],
+      ['V3', 'Verse', 'Third verse'],
+      ['M2', 'Note', 'Refren x2'],
+      ['B1', 'Bridge', 'Sung bridge'],
+      ['M3', 'Note', 'Refren x1'],
+    ]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(order(song)).toEqual(['V1', 'C1', 'V2', 'C1', 'V3', 'C1', 'C1', 'B1', 'C1']);
+  });
+  it('plays numbered chorus cues and reference-only sections using their lyric blocks', () => {
+    const song = make([
+      ['V1', 'Verse', 'First verse'],
+      ['V7', 'Chorus', 'First chorus'],
+      ['V2', 'Verse', 'Second verse'],
+      ['C1', 'Chorus', 'Alternate chorus'],
+      ['M1', 'Note', 'Refren 1'],
+      ['E1', 'Ending', 'Final: Refren x2'],
+    ]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(text(song)).toEqual([
+      'First verse',
+      'First chorus',
+      'Second verse',
+      'Alternate chorus',
+      'First chorus',
+      'First chorus',
+      'First chorus',
+    ]);
+  });
+  it('applies a reference section repeat in an explicit order with distinct section IDs', () => {
+    const song = make([
+      ['V1', 'Verse', 'First verse'],
+      ['C1', 'Chorus', 'Sung chorus'],
+      ['C2', 'Chorus', 'Refren x2'],
+    ]);
+    song.arrangement = ['C1', 'C2', 'V1'];
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(order(song)).toEqual(['C1', 'C1', 'C1', 'V1']);
+  });
+  it('recognizes a legacy repeat bracket written backwards at the end of a lyric', () => {
+    const song = make([['V1', 'Verse', 'Opening\n/: Sing\nWith joy /:']]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(text(song)).toEqual(['Opening\nSing\nWith joy\nSing\nWith joy']);
+  });
+  it('still flags different repeat counts for the same chorus appearance', () => {
+    const song = base();
+    song.blocks.splice(2, 0, {
+      ...emptyBlock('M1', 'Note'),
+      lines: [emptyLine('Refren x1'), emptyLine('Refren x2')],
+    });
+    expect(resolvePerformedOrder(song).issues).toContain('Conflicting repeats: C1');
+  });
   it('reads clear notes, keeps inferred provenance and flags ambiguity', () => {
     const song = base();
     song.blocks.push({

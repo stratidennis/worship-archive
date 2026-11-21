@@ -49,6 +49,7 @@ export interface PowerPointSongResult {
   firstLine: string | null;
   status: 'found' | 'missing';
   file: PowerPointFile | null;
+  error?: string;
 }
 
 export interface PowerPointReport {
@@ -387,12 +388,23 @@ export async function createMissingPowerPoints(
   options: PresentationOptions = {},
 ): Promise<PowerPointReport> {
   const before = findPowerPoints(root, songs);
+  const failures = new Map<string, string>();
   for (const result of before.results) {
     if (result.status !== 'missing') continue;
     const song = songs.find((one) => one.id === result.songId);
-    if (song) await createPowerPoint(root, song, options);
+    if (!song) continue;
+    try {
+      await createPowerPoint(root, song, options);
+    } catch (error) {
+      failures.set(result.songId, error instanceof Error ? error.message : String(error));
+    }
   }
-  return findPowerPoints(root, songs);
+  const report = findPowerPoints(root, songs);
+  for (const result of report.results) {
+    const failure = failures.get(result.songId);
+    if (result.status === 'missing' && failure !== undefined) result.error = failure;
+  }
+  return report;
 }
 
 /** Resolve an API-supplied relative path without allowing it outside the folder. */

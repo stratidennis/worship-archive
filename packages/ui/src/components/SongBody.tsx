@@ -242,6 +242,7 @@ function BlockView({
   const isIndented = INDENTED_TYPES.has(block.type);
   const cueStyle = options.cueStyle ?? 'full';
   const cue = cueAppearance(block.type);
+  const panel = `var(--reading-${block.type}-panel, ${cue ? 1 : 0})`;
   const fontScale = songSectionFontScale(block.type, cueStyle);
   const label = block.label
     ? `${blockName(block.type)} — ${block.label}`
@@ -250,13 +251,16 @@ function BlockView({
   return (
     <section
       data-song-font-scale={fontScale}
-      className={`mb-[var(--song-section-gap,0.9em)] rounded-md ${isIndented ? 'ml-[1.3em]' : ''} ${
-        cue && cueStyle !== 'minimal' ? 'border-l px-[0.4em] py-[0.18em]' : ''
-      }`}
+      className={`mb-[var(--song-section-gap,0.9em)] rounded-md ${isIndented ? 'ml-[1.3em]' : ''}`}
       // Never let a block be split down the middle by a column break.
       style={{
         breakInside: 'avoid',
         fontSize: fontScale === 1 ? undefined : `${fontScale}em`,
+        ...(cueStyle !== 'minimal' && {
+          borderLeftWidth: `calc(1px * ${panel})`,
+          paddingInline: `calc(0.4em * ${panel})`,
+          paddingBlock: `calc(0.18em * ${panel})`,
+        }),
         ...readingSectionStyle(block.type, cueStyle, cue),
       }}
     >

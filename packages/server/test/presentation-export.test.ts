@@ -110,6 +110,28 @@ it('expands partial inline repeats and rejects ambiguous instructions before wri
   await expect(generatePowerPoint(song)).rejects.toThrow('Review');
 });
 
+it.each([
+  ['/:', ':/'],
+  ['/:', '/:'],
+  ['%', '%'],
+])('keeps a separate lyric row after an unnumbered %s … %s repeat', (open, close) => {
+  const song = example();
+  song.blocks[0]!.repeat = null;
+  song.blocks[0]!.lines = ['Before', `${open} Sing`, `With joy ${close}`, 'After'].map(
+    emptyLine,
+  );
+  expect(presentationPages(song)).toEqual([
+    ['Before', 'Sing', 'With joy', 'Sing', 'With joy', 'After'],
+  ]);
+});
+
+it('counts only complete lyric rows as already-expanded copies', () => {
+  const song = example();
+  song.blocks[0]!.repeat = null;
+  song.blocks[0]!.lines = ['Before', '/: Sing :/ x2', 'Sing praises'].map(emptyLine);
+  expect(presentationPages(song)).toEqual([['Before', 'Sing', 'Sing', 'Sing praises']]);
+});
+
 it('publishes complete packages with no-clobber collisions and explicit replacement', async () => {
   const dir = await directory(),
     target = join(dir, 'song.pptx');

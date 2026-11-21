@@ -10,6 +10,11 @@ import { Button } from './ui.js';
 import { IconCheck, IconClose, IconPresentation } from './icons.js';
 import { useOverlay } from './Modal.js';
 
+function exportErrorMessage(reason: unknown): string {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  return message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+}
+
 /**
  * One review step between a set and the operating system.
  *
@@ -68,6 +73,18 @@ export function PowerPointDialog({
   const found = report?.results.filter((result) => result.status === 'found') ?? [];
   const missing = report?.results.filter((result) => result.status === 'missing') ?? [];
 
+  const setSongError = (songId: string, message?: string): void => {
+    setReport(
+      (current) =>
+        current && {
+          ...current,
+          results: current.results.map((result) =>
+            result.songId === songId ? { ...result, error: message } : result,
+          ),
+        },
+    );
+  };
+
   const createMissing = async (): Promise<void> => {
     setBusy(true);
     setError(null);
@@ -89,16 +106,21 @@ export function PowerPointDialog({
     if (!selected) return;
     setBusy(true);
     setError(null);
+    setSongError(songId);
     try {
-      if (band) {
-        await band.createPowerPoints([selected], options);
-        setReport(await band.findPowerPoints(songs));
-      } else {
-        await api.createPowerPoints([songId], arrangements, options);
-        setReport(await api.findPowerPoints(ids, arrangements));
-      }
+      const created = band
+        ? await band.createPowerPoints([selected], options)
+        : await api.createPowerPoints([songId], arrangements, options);
+      const failure = created.results.find((result) => result.songId === songId)?.error;
+      if (failure) setSongError(songId, failure);
+      else
+        setReport(
+          band
+            ? await band.findPowerPoints(songs)
+            : await api.findPowerPoints(ids, arrangements),
+        );
     } catch (reason) {
-      setError(String(reason));
+      setSongError(songId, exportErrorMessage(reason));
     } finally {
       setBusy(false);
     }
@@ -114,6 +136,7 @@ export function PowerPointDialog({
     setBusy(true);
     setError(null);
     setNotice(null);
+    setSongError(songId);
     try {
       const result = await native.exportPresentation(song, options, action, candidate);
       if (result.status !== 'cancelled') {
@@ -129,7 +152,7 @@ export function PowerPointDialog({
         );
       }
     } catch (reason) {
-      setError(String(reason));
+      setSongError(songId, exportErrorMessage(reason));
     } finally {
       setBusy(false);
     }
@@ -239,6 +262,11 @@ export function PowerPointDialog({
                     <p className="break-all text-xs text-(--color-muted)">
                       {result.file?.relativePath ?? t('powerpoint.missing')}
                     </p>
+                    {result.error && (
+                      <p role="alert" className="mt-1 break-words text-sm">
+                        {result.error}
+                      </p>
+                    )}
                   </div>
                   <div className="flex max-w-full flex-wrap justify-end gap-1.5">
                     {nativeExport && (

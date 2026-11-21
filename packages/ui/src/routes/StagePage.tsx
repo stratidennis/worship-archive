@@ -19,7 +19,7 @@ import {
 import { useStablePerformanceHeight } from '../lib/useStablePerformanceHeight.js';
 import { setLanguageOverride, useT } from '../lib/i18n.js';
 import { applyTheme } from '../lib/theme.js';
-import { readingColorStyle } from '../lib/readingColors.js';
+import { readingColorStyle, sectionPanelLayoutKey } from '../lib/readingColors.js';
 import { usePrefs } from '../lib/settings.js';
 import { clientDesktop, type ClientDesktopState } from '../lib/clientDesktop.js';
 import { SongBody } from '../components/SongBody.js';
@@ -98,6 +98,7 @@ export function StagePage() {
     what this screen would have done on its own.
   */
   const stage = resolveStageDisplay(state, screen || null, deviceId);
+  const cueStyle = stage.cueStyle ?? 'full';
   const showChords = stage.showChords ?? clientState?.showChords ?? localShowChords;
   const accidentalPreferences =
     state.host?.accidentalPreferences ?? prefs.accidentalPreferences;
@@ -134,13 +135,14 @@ export function StagePage() {
     return (semitonesBetween(nativeKey, performanceKey) ?? 0) - state.transpose;
   }, [viewing, performanceKey, state.transpose]);
 
+  const readingColors = layerReadingColors(prefs.readingColors, stage.readingColors);
   const fit = useFitToScreen(container, content, {
     song: state.output === 'cleared' ? null : song,
     overflowNotice,
     preferredFontPx: STAGE_PREFERRED_FONT,
     minFontPx: stage.minFontPx ?? DEFAULT_SONG_FONT_SIZE,
     maxFittedFontPx: stage.maxFontPx ?? MAX_FITTED_SONG_FONT_SIZE,
-    key: `${song?.id}:${lang}:${showChords}:${showBass}:${stage.cueStyle}:${extraTranspose}:${capo}:${performanceKey}:${state.transpose}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${song?.id}:${lang}:${showChords}:${showBass}:${cueStyle}:${extraTranspose}:${capo}:${performanceKey}:${state.transpose}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}:${sectionPanelLayoutKey(readingColors, cueStyle)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.
@@ -174,7 +176,7 @@ export function StagePage() {
         ref={container}
         style={
           {
-            ...readingColorStyle(layerReadingColors(prefs.readingColors, stage.readingColors)),
+            ...readingColorStyle(readingColors),
             '--color-chord-ink':
               stage.readingColors?.chords === null
                 ? 'var(--color-chord)'
@@ -194,7 +196,7 @@ export function StagePage() {
           >
             {showChords && (
               <PerformanceInfo
-                cueStyle={stage.cueStyle ?? 'full'}
+                cueStyle={cueStyle}
                 performanceKey={preferredKeyName(performanceKey, accidentalPreferences)}
                 transpose={state.transpose}
                 capo={capo}
@@ -205,7 +207,7 @@ export function StagePage() {
               options={{
                 showChords,
                 showBass,
-                cueStyle: stage.cueStyle ?? 'full',
+                cueStyle,
                 capo,
                 transpose: extraTranspose,
                 lineHeight: stage.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT,

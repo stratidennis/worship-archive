@@ -56,6 +56,7 @@ export interface PowerPointSongResult {
   firstLine: string | null;
   status: 'found' | 'missing';
   file: PowerPointFile | null;
+  error?: string | undefined;
 }
 
 export interface PowerPointReport {

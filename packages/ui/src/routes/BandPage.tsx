@@ -13,6 +13,7 @@ import {
 import { useSession } from '../lib/useSession.js';
 import { useLiveSet, songAt, useSongIndices } from '../lib/useLiveSet.js';
 import { usePrefs } from '../lib/settings.js';
+import { sectionPanelLayoutKey } from '../lib/readingColors.js';
 import { DeviceReadingColorSettings } from '../components/ReadingColorSettings.js';
 import {
   fittedSongOverflowClass,
@@ -305,7 +306,7 @@ export function BandPage() {
     song: viewing?.song,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
-    key: `${viewing?.song.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${performanceKey}:${leaderTranspose}:${leaderCapo}:${!!localOverride}:${instrumentTranspose}:${instrumentCapo}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${performanceKey}:${leaderTranspose}:${leaderCapo}:${!!localOverride}:${instrumentTranspose}:${instrumentCapo}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}:${sectionPanelLayoutKey(prefs.readingColors, prefs.cueStyle)}`,
   });
 
   return (
