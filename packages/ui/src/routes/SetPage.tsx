@@ -1463,7 +1463,7 @@ function Preview({
   returnTo: string;
   children?: React.ReactNode;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [prefs] = usePrefs();
   const container = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -1487,14 +1487,12 @@ function Preview({
     (transposeTo && native ? (semitonesBetween(native, transposeTo) ?? 0) : 0) -
     (keyboardTranspose ?? 0);
 
-  // `song?.id` belongs in the key: on the first render the song is still loading, so the
-  // refs are null and there is nothing to measure. Without it the fit would never re-run
-  // once the content arrived, and the pane would stay blank.
   const fit = useFitToScreen(container, content, {
+    song,
     overflowNotice,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    key: `${song?.id}:${lang}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (!song) return <p className="p-6 text-sm text-(--color-muted)">{t('app.loading')}</p>;

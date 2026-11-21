@@ -302,9 +302,10 @@ export function BandPage() {
   }, []);
 
   const fit = useFitToScreen(container, content, {
+    song: viewing?.song,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
-    key: `${viewing?.song.id ?? ''}:${viewing?.song.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${viewing?.song.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${transpose}:${capoFret}:${displayedKey}:${performanceKey}:${leaderTranspose}:${leaderCapo}:${!!localOverride}:${instrumentTranspose}:${instrumentCapo}:${prefs.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   return (

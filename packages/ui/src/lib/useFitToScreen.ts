@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { settleSongLayout, songFontsApplied } from './settleSongLayout.js';
 import { androidViewport, ANDROID_VIEWPORT_EVENT } from './androidBand.js';
-import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
+import { MAX_FITTED_SONG_FONT_SIZE, type Song } from '@worship/core';
 
 /**
  * Fit a whole song onto one screen.
@@ -17,18 +17,19 @@ import { MAX_FITTED_SONG_FONT_SIZE } from '@worship/core';
  * Find the largest size within the user's bounds. At equal sizes, prefer fewer
  * columns, then standard spacing.
  *
- * Each trial uses a fresh off-screen copy, never the visible song. Touch browsers get
- * rendering turns to apply the trial before its dimensions are read.
+ * Trials never use the visible song. Desktop measures an off-screen copy in place;
+ * touch browsers get a fresh copy and rendering turns to settle inherited styles.
  */
 
 export interface FitOptions {
+  song: Song | null | undefined;
   minFontPx?: number;
   /** Initial size while the available area is being measured. */
   preferredFontPx?: number;
   /** Safety ceiling for automatic fit-to-screen enlargement. */
   maxFittedFontPx?: number;
-  /** Change this when the content changes, to force a re-fit. */
-  key?: unknown;
+  /** Identify the song and anything besides the song itself that affects layout. */
+  key: string;
   /** A warning beside the reader that disappears whenever the song fits. */
   overflowNotice?: RefObject<HTMLElement | null>;
 }
@@ -47,6 +48,8 @@ const PREFERRED_DEFAULT = 26;
 const STANDARD_COLUMN_GAP = '2.5em';
 const COMPACT_COLUMN_GAP = '1.5em';
 const COMPACT_SECTION_GAP = '0.5em';
+const DESKTOP_MEASUREMENT_BUDGET_MS = 12;
+const RECENT_LAYOUT_LIMIT = 16;
 /** Large enough to fill a short song without producing display-sized novelty text. */
 export const MAX_FITTED_FONT_DEFAULT = MAX_FITTED_SONG_FONT_SIZE;
 /*
@@ -110,6 +113,7 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
     ...(fit.compactSpacing ? { '--song-section-gap': COMPACT_SECTION_GAP } : {}),
     height: constrained ? `${fit.heightPx}px` : undefined,
     columnFill: constrained ? 'auto' : undefined,
+    display: fit.measuring ? 'none' : undefined,
     visibility: fit.measuring ? 'hidden' : 'visible',
   };
 }
@@ -154,51 +158,101 @@ export function failedFit(
   };
 }
 
+interface MinimumGroupHeight {
+  heightInEm: number;
+  rows: number;
+}
+
+interface RecentLayout {
+  song: Song;
+  width: number;
+  pixelRatio: number;
+  minFont: number;
+  maxFont: number;
+  fit: FitResult;
+}
+
+/**
+ * Pack a lower bound: one row per lyric line, no headings or gaps, and up to two
+ * pixels per row of rounding slack. A valid layout can never split a linked group.
+ */
+export function canFitSongRows(
+  groups: readonly MinimumGroupHeight[],
+  fontPx: number,
+  availableHeight: number,
+  columns: number,
+): boolean {
+  const capacity = availableHeight + 1;
+  let remaining = capacity;
+  let usedColumns = 1;
+  for (const group of groups) {
+    const height = Math.max(0, group.heightInEm * fontPx - 2 * group.rows);
+    if (height > capacity) return false;
+    if (height > remaining) {
+      if (++usedColumns > columns) return false;
+      remaining = capacity;
+    }
+    remaining -= height;
+  }
+  return true;
+}
+
 /** Check larger sizes first because column fragmentation can make fit non-monotonic. */
 export async function chooseFit({
   minFontPx,
   maxFittedFontPx = MAX_FITTED_FONT_DEFAULT,
   columns,
+  canFit,
+  batchSize = 8,
   overflows,
 }: {
   minFontPx: number;
   maxFittedFontPx?: number;
   columns: number[];
+  canFit?: (fontPx: number, columns: number) => boolean;
+  batchSize?: number;
   overflows: (fontPx: number, columns: number, compactSpacing?: boolean) => Promise<boolean>;
 }): Promise<FitChoice> {
-  const ceiling = Math.max(minFontPx, maxFittedFontPx);
   const batch: FitChoice[] = [];
+  const measureBatch = async (): Promise<FitChoice | undefined> => {
+    const results = await Promise.allSettled(
+      batch.map((trial) => overflows(trial.fontPx, trial.columns, trial.compactSpacing)),
+    );
+    for (const [index, result] of results.entries()) {
+      if (result.status === 'rejected') throw result.reason;
+      if (!result.value) return batch[index];
+    }
+    batch.length = 0;
+    return undefined;
+  };
   for (
-    let fontPx = ceiling;
+    let fontPx = Math.max(minFontPx, maxFittedFontPx);
     fontPx >= minFontPx;
     fontPx = Math.max(minFontPx, Math.ceil(fontPx) - 1)
   ) {
-    for (const columnCount of columns) {
-      batch.push({ fontPx, columns: columnCount, fits: true });
-      if (columnCount > 1) {
-        batch.push({ fontPx, columns: columnCount, fits: true, compactSpacing: true });
+    for (const count of columns) {
+      if (canFit && !canFit(fontPx, count)) continue;
+      for (const compactSpacing of count > 1 ? [false, true] : [false]) {
+        batch.push({
+          fontPx,
+          columns: count,
+          fits: true,
+          ...(compactSpacing && { compactSpacing }),
+        });
+        if (batch.length < batchSize) continue;
+        const match = await measureBatch();
+        if (match) return match;
       }
-    }
-    // Let several touch-browser trials settle in the same rendering frames.
-    if (batch.length >= 8 || fontPx === minFontPx) {
-      const results = await Promise.allSettled(
-        batch.map((trial) => overflows(trial.fontPx, trial.columns, trial.compactSpacing)),
-      );
-      for (const [index, result] of results.entries()) {
-        if (result.status === 'rejected') throw result.reason;
-        if (!result.value) return batch[index]!;
-      }
-      batch.length = 0;
     }
     if (fontPx === minFontPx) break;
   }
-  return { fontPx: minFontPx, columns: 1, fits: false };
+  return (await measureBatch()) ?? { fontPx: minFontPx, columns: 1, fits: false };
 }
 
 export function useFitToScreen(
   containerRef: RefObject<HTMLElement | null>,
   contentRef: RefObject<HTMLElement | null>,
-  options: FitOptions = {},
+  options: FitOptions,
 ): FitResult {
   const minFont = options.minFontPx ?? MIN_DEFAULT;
   const maxFittedFont = Math.max(minFont, options.maxFittedFontPx ?? MAX_FITTED_FONT_DEFAULT);
@@ -206,7 +260,7 @@ export function useFitToScreen(
     maxFittedFont,
     Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT),
   );
-  const { overflowNotice } = options;
+  const { key, song, overflowNotice } = options;
   const [result, setResult] = useState<FitResult>({
     fontPx: preferredFont,
     columns: 1,
@@ -216,11 +270,29 @@ export function useFitToScreen(
     measuring: true,
   });
   const frame = useRef<number | null>(null);
-  const fittedKey = useRef<unknown>(Symbol('unmeasured song'));
+  const fittedContent = useRef<{ key: string; song: Song } | null>(null);
+  const recentLayouts = useRef(new Map<string, RecentLayout>());
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container || !contentRef.current) return;
+    if (!song || !container || !contentRef.current) return;
+
+    const identity = { key, song };
+    const layouts = recentLayouts.current;
+    const showFit = (fit: FitResult): void => {
+      fittedContent.current = identity;
+      setResult((previous) =>
+        previous.fontPx === fit.fontPx &&
+        previous.columns === fit.columns &&
+        previous.compactSpacing === fit.compactSpacing &&
+        previous.fits === fit.fits &&
+        previous.heightPx === fit.heightPx &&
+        previous.phone === fit.phone &&
+        !previous.measuring
+          ? previous
+          : fit,
+      );
+    };
 
     let disposed = false;
     let running = false;
@@ -284,7 +356,7 @@ export function useFitToScreen(
           !window.worshipClient &&
           window.matchMedia('(pointer: coarse)').matches);
       if (available <= 0 || width <= 0) {
-        fittedKey.current = options.key;
+        fittedContent.current = identity;
         // Nothing to measure against yet (hidden tab, zero-height parent). Show the
         // content at the preferred size rather than leaving it invisible — an
         // unmeasured song is far better than a blank screen. Still clamp an older
@@ -298,25 +370,52 @@ export function useFitToScreen(
       }
 
       const phoneScreen = isPhoneScreen(screenWidth, screenHeight, touchBrowser);
+      const pixelRatio = window.devicePixelRatio;
+      const cached = layouts.get(key);
+      if (
+        cached &&
+        cached.song === song &&
+        cached.width === width &&
+        cached.fit.heightPx === available &&
+        cached.pixelRatio === pixelRatio &&
+        cached.fit.phone === phoneScreen &&
+        cached.minFont === minFont &&
+        cached.maxFont === maxFittedFont
+      ) {
+        layouts.delete(key);
+        layouts.set(key, cached);
+        showFit(cached.fit);
+        return;
+      }
+      let desktopSliceStarted = performance.now();
+      let desktopProbe: HTMLElement | undefined;
       const overflows = async (
         fontPx: number,
         columns: number,
         compactSpacing = false,
       ): Promise<boolean> => {
+        if (
+          !touchBrowser &&
+          performance.now() - desktopSliceStarted >= DESKTOP_MEASUREMENT_BUDGET_MS
+        ) {
+          if (!(await nextFrame())) throw cancelled;
+          desktopSliceStarted = performance.now();
+        }
         if (disposed || queued) throw cancelled;
-        // Inherited em sizes on the actual tablet can remain from several earlier
-        // trials. A new subtree starts with the requested font; there are no old
-        // inherited styles to invalidate, and no trial ever changes the visible song.
-        const probe = content.cloneNode(true) as HTMLElement;
-        activeProbes.add(probe);
-        probe.removeAttribute('id');
-        probe.setAttribute('aria-hidden', 'true');
-        probe.style.position = 'fixed';
-        probe.style.left = '-100000px';
-        probe.style.top = '0';
-        probe.style.width = `${width}px`;
-        probe.style.visibility = 'hidden';
-        probe.style.pointerEvents = 'none';
+        const probe = desktopProbe ?? (content.cloneNode(true) as HTMLElement);
+        if (!desktopProbe) {
+          activeProbes.add(probe);
+          probe.removeAttribute('id');
+          probe.setAttribute('aria-hidden', 'true');
+          probe.style.position = 'fixed';
+          probe.style.left = '-100000px';
+          probe.style.top = '0';
+          probe.style.width = `${width}px`;
+          probe.style.display = '';
+          probe.style.visibility = 'hidden';
+          probe.style.pointerEvents = 'none';
+          if (!touchBrowser) desktopProbe = probe;
+        }
         probe.style.fontSize = `${fontPx}px`;
         probe.style.columnCount = String(columns);
         probe.style.columnGap = compactSpacing ? COMPACT_COLUMN_GAP : STANDARD_COLUMN_GAP;
@@ -338,7 +437,7 @@ export function useFitToScreen(
           probe.style.height = '';
           probe.style.columnFill = '';
         }
-        container.appendChild(probe);
+        if (!probe.parentNode) container.appendChild(probe);
         if (touchBrowser) {
           let previousDimensions: string | null = null;
           const applied = await settleSongLayout(() => {
@@ -428,15 +527,28 @@ export function useFitToScreen(
             Array.from(probe.querySelectorAll('[data-song-column-group]')).some((group) =>
               crossesColumnBoundary(group.getClientRects()),
             ));
-        probe.remove();
-        activeProbes.delete(probe);
+        if (touchBrowser) {
+          probe.remove();
+          activeProbes.delete(probe);
+        }
         return overflowing;
       };
 
+      const groupHeights = Array.from(
+        content.querySelectorAll('[data-song-column-group]'),
+        (group) => {
+          const rows = group.querySelectorAll<HTMLElement>('[data-song-line-height]');
+          let heightInEm = 0;
+          for (const line of rows) heightInEm += Number(line.dataset.songLineHeight);
+          return { heightInEm, rows: rows.length };
+        },
+      );
       const best = await chooseFit({
         minFontPx: minFont,
         maxFittedFontPx: maxFittedFont,
         columns: columnCandidates(width, phoneScreen),
+        batchSize: touchBrowser ? 8 : 1,
+        canFit: (fontPx, columns) => canFitSongRows(groupHeights, fontPx, available, columns),
         overflows,
       });
       clearProbes();
@@ -450,18 +562,14 @@ export function useFitToScreen(
         return;
       }
 
-      fittedKey.current = options.key;
-      setResult((previous) =>
-        previous.fontPx === best.fontPx &&
-        previous.columns === best.columns &&
-        previous.compactSpacing === best.compactSpacing &&
-        previous.fits === best.fits &&
-        previous.heightPx === available &&
-        previous.phone === phoneScreen &&
-        !previous.measuring
-          ? previous
-          : { ...best, heightPx: available, phone: phoneScreen, measuring: false },
-      );
+      const fit = { ...best, heightPx: available, phone: phoneScreen, measuring: false };
+      layouts.delete(key);
+      layouts.set(key, { song, width, pixelRatio, minFont, maxFont: maxFittedFont, fit });
+      if (layouts.size > RECENT_LAYOUT_LIMIT) {
+        const oldest = layouts.keys().next();
+        if (!oldest.done) layouts.delete(oldest.value);
+      }
+      showFit(fit);
     };
 
     const schedule = (): void => {
@@ -480,7 +588,7 @@ export function useFitToScreen(
             clearProbes();
             if (disposed || error === cancelled) return;
             console.warn('Song fitting failed', String(error));
-            fittedKey.current = options.key;
+            fittedContent.current = identity;
             // The old layout may belong to the previous setting or song. Keeping its
             // font here allowed a 26px result to survive after the Stage floor moved
             // to 32px whenever a browser rejected one of the new measurement trials.
@@ -530,7 +638,7 @@ export function useFitToScreen(
       pendingFrames.clear();
       clearProbes();
     };
-    // `key` re-runs the fit when the content itself changed: transpose alters chord
+    // `key` re-runs the fit when layout options change: transpose alters chord
     // widths, toggling chords changes line height, and both change what fits.
   }, [
     containerRef,
@@ -539,8 +647,10 @@ export function useFitToScreen(
     preferredFont,
     maxFittedFont,
     overflowNotice,
-    options.key,
+    key,
+    song,
   ]);
 
-  return fittedKey.current === options.key ? result : { ...result, measuring: true };
+  const fitted = fittedContent.current;
+  return fitted?.key === key && fitted.song === song ? result : { ...result, measuring: true };
 }

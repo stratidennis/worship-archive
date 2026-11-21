@@ -47,7 +47,7 @@ export const STAGE_PREFERRED_FONT = 72;
 export function StagePage() {
   const screenFrame = useRef<HTMLDivElement>(null);
   useStablePerformanceHeight(screenFrame);
-  const { t } = useT();
+  const { t, lang } = useT();
   const [params] = useSearchParams();
   const native = useMemo(() => clientDesktop(), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -134,11 +134,12 @@ export function StagePage() {
   }, [viewing, performanceKey, state.transpose]);
 
   const fit = useFitToScreen(container, content, {
+    song: state.output === 'cleared' ? null : song,
     overflowNotice,
     preferredFontPx: STAGE_PREFERRED_FONT,
     minFontPx: stage.minFontPx ?? DEFAULT_SONG_FONT_SIZE,
     maxFittedFontPx: stage.maxFontPx ?? MAX_FITTED_SONG_FONT_SIZE,
-    key: `${song?.id ?? ''}:${showChords}:${showBass}:${stage.cueStyle}:${extraTranspose}:${capo}:${stage.minFontPx}:${stage.maxFontPx}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
+    key: `${song?.id}:${lang}:${showChords}:${showBass}:${stage.cueStyle}:${extraTranspose}:${capo}:${performanceKey}:${state.transpose}:${stage.lineHeight}:${JSON.stringify(accidentalPreferences)}`,
   });
 
   // A TV that sleeps mid-service is the single most visible failure this screen can have.

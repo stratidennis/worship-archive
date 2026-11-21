@@ -152,6 +152,9 @@ export function singerInk(
   return `var(--reading-${singer}, ${fallback ?? 'inherit'})`;
 }
 
+const CHORD_FONT_SCALE = 0.72;
+const CHORD_LINE_HEIGHT = 1.1;
+
 function LineView({
   line,
   options,
@@ -179,10 +182,14 @@ function LineView({
   }
 
   const showChordRow = hasVisibleChordRow(line, options);
+  const lineHeight = options.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT;
+  const minimumHeight =
+    fontScale * (lineHeight + (showChordRow ? CHORD_FONT_SCALE * CHORD_LINE_HEIGHT : 0));
 
   return (
     <div
       className="flex flex-wrap items-end"
+      data-song-line-height={line.text.trim() ? minimumHeight : undefined}
       style={{
         paddingLeft: `${(line.indent ?? 0) * 1.5}em`,
         color: singerInk(singer, line.color),
@@ -197,8 +204,9 @@ function LineView({
             <span key={i} className="whitespace-pre">
               {showChordRow && (
                 <span
-                  data-song-font-scale={fontScale * 0.72}
-                  className="block text-[0.72em] font-semibold leading-[1.1] reading-chord-ink"
+                  data-song-font-scale={fontScale * CHORD_FONT_SCALE}
+                  className="block font-semibold reading-chord-ink"
+                  style={{ fontSize: `${CHORD_FONT_SCALE}em`, lineHeight: CHORD_LINE_HEIGHT }}
                 >
                   {part.chord ?? ' '}
                   {part.bass && (
@@ -208,11 +216,7 @@ function LineView({
                   )}
                 </span>
               )}
-              <span
-                data-song-font-scale={fontScale}
-                className="block"
-                style={{ lineHeight: options.lineHeight ?? DEFAULT_SONG_LINE_HEIGHT }}
-              >
+              <span data-song-font-scale={fontScale} className="block" style={{ lineHeight }}>
                 {part.text}
               </span>
             </span>

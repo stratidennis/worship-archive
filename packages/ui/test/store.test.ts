@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { emptyBlock, emptyLine, type Song } from '@worship/core';
+import { emptyBlock, emptyLine, type ServiceSet, type SetItem, type Song } from '@worship/core';
 import { fold, store } from '../src/lib/store.js';
 
 function song(id: string, title: string, lyric: string): Song {
@@ -117,6 +117,37 @@ describe('the offline mirror', () => {
     expect(await store.set('set-1')).not.toBeNull();
     await store.deleteSet('set-1');
     expect(await store.set('set-1')).toBeNull();
+  });
+
+  it('caches a live set and returns only its available songs offline', async () => {
+    const item = (songId: string): SetItem => ({
+      kind: 'song',
+      songId,
+      keyOverride: null,
+      capoOverride: null,
+      arrangementOverride: null,
+    });
+    const set: ServiceSet = {
+      id: 'set-1',
+      title: 'Duminică',
+      date: null,
+      items: [
+        item('a'),
+        { kind: 'note', text: 'Welcome' },
+        item('new'),
+        item('a'),
+        item('missing'),
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      rev: 1,
+    };
+    const updated = song('a', 'Bunătatea Ta', 'Updated lyrics');
+    const added = song('new', 'Cântare nouă', 'New lyrics');
+
+    expect(await store.fullSet(set.id)).toBeNull();
+    await store.putFullSet(set, [updated, added]);
+    expect(await store.fullSet(set.id)).toEqual({ set, songs: { a: updated, new: added } });
   });
 });
 

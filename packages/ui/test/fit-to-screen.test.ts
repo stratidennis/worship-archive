@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   chooseFit,
+  canFitSongRows,
   columnCandidates,
   crossesColumnBoundary,
   exceedsAvailableSpace,
@@ -76,6 +77,47 @@ describe('fit-to-screen font floor', () => {
 });
 
 describe('largest readable fit', () => {
+  it('does not lay out sizes that cannot fit even one row per lyric line', async () => {
+    const groups = Array.from({ length: 8 }, () => ({ heightInEm: 12, rows: 6 }));
+    const measure = vi.fn(
+      async (font: number, columns: number) => columns === 1 || (font > 12 && font !== 18),
+    );
+    const result = await chooseFit({
+      minFontPx: 12,
+      maxFittedFontPx: 72,
+      columns: [1, 2],
+      canFit: (font, columns) => canFitSongRows(groups, font, 840, columns),
+      overflows: measure,
+    });
+    expect(result).toEqual({ fontPx: 18, columns: 2, fits: true });
+    expect(measure.mock.calls.every(([font, columns]) => font <= 18 && columns === 2)).toBe(
+      true,
+    );
+    expect(measure.mock.calls.length).toBeLessThan(12);
+  });
+
+  it('does not prune layouts without known row heights', () => {
+    expect(canFitSongRows([], 72, 840, 2)).toBe(true);
+  });
+
+  it('rules out a layout that needs to split a group across columns', () => {
+    const groups = Array.from({ length: 3 }, () => ({ heightInEm: 16, rows: 8 }));
+    expect(canFitSongRows(groups, 20, 500, 2)).toBe(false);
+    expect(canFitSongRows(groups, 20, 500, 3)).toBe(true);
+    expect(canFitSongRows(groups, 16, 500, 2)).toBe(true);
+  });
+
+  it('stops desktop measurements as soon as the first ranked layout fits', async () => {
+    const measure = vi.fn(async (_font: number, columns: number) => columns === 1);
+    expect(
+      await chooseFit({ minFontPx: 12, columns: [1, 2, 3], batchSize: 1, overflows: measure }),
+    ).toEqual({ fontPx: 72, columns: 2, fits: true });
+    expect(measure.mock.calls).toEqual([
+      [72, 1, undefined],
+      [72, 2, undefined],
+    ]);
+  });
+
   it('finds the largest size even across an intermediate range that overflows', async () => {
     const result = await chooseFit({
       minFontPx: 32,
@@ -304,5 +346,11 @@ describe('fit overflow measurement', () => {
       columnFill: 'auto',
       visibility: 'visible',
     });
+  });
+
+  it('keeps a provisional layout out of document flow while measuring', () => {
+    const fit = { fontPx: 26, columns: 2, heightPx: 560, phone: false, fits: true };
+    expect(fittedSongStyle({ ...fit, measuring: true }).display).toBe('none');
+    expect(fittedSongStyle({ ...fit, measuring: false }).display).toBeUndefined();
   });
 });

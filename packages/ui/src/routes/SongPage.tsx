@@ -29,7 +29,7 @@ const SHORTCUTS: { keys: string; label: TranslationKey }[] = [
 ];
 
 export function SongPage() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { id = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -81,14 +81,12 @@ export function SongPage() {
 
   // Anything that changes what is on screen must trigger a re-fit: transposing changes
   // chord widths, and toggling chords changes every line's height.
-  // `song?.id` is part of the key on purpose: on the first render the song is still
-  // loading, so the refs are null and there is nothing to measure. Without it the
-  // effect would never re-run once the content arrived, and the page would stay blank.
   const fit = useFitToScreen(container, content, {
+    song,
     overflowNotice,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
-    key: `${song?.id ?? 'loading'}:${song?.rev ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.minFontPx}:${prefs.maxFontPx}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
+    key: `${song?.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
 
   if (error) {

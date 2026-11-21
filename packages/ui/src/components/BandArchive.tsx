@@ -16,7 +16,7 @@ import { Button, IconButton } from './ui.js';
 
 /** Browse and read without navigating away from the active Band session. */
 export function BandArchive({ onClose }: { onClose: () => void }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [prefs] = usePrefs();
   const reader = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -53,9 +53,10 @@ export function BandArchive({ onClose }: { onClose: () => void }) {
   };
   const song = result?.id === songId ? result?.song : null;
   const fit = useFitToScreen(reader, content, {
+    song,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
-    key: song,
+    key: `${song?.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
   });
   return (
     <dialog

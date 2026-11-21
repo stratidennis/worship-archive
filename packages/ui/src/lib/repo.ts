@@ -150,20 +150,10 @@ export const repo = {
       return null;
     }
     if (remote) {
-      await store.putSet(remote.set);
-      for (const song of Object.values(remote.songs)) await store.putSong(song);
+      await store.putFullSet(remote.set, Object.values(remote.songs));
       return remote;
     }
-
-    const set = await store.set(id);
-    if (!set) return null;
-    const songs: Record<string, Song> = {};
-    for (const item of set.items) {
-      if (item.kind !== 'song') continue;
-      const song = await store.song(item.songId);
-      if (song) songs[item.songId] = song;
-    }
-    return { set, songs };
+    return store.fullSet(id);
   },
 
   /** Write through: server first, mirror updated from what it stored. */

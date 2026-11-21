@@ -106,6 +106,29 @@ export const store = {
     await db.sets.put(set);
   },
 
+  async putFullSet(set: ServiceSet, songs: Song[]): Promise<void> {
+    await db.transaction('rw', db.sets, db.songs, async () => {
+      await db.sets.put(set);
+      await db.songs.bulkPut(songs);
+    });
+  },
+
+  async fullSet(id: string): Promise<{ set: ServiceSet; songs: Record<string, Song> } | null> {
+    return db.transaction('r', db.sets, db.songs, async () => {
+      const set = await db.sets.get(id);
+      if (!set) return null;
+      const ids = new Set<string>();
+      for (const item of set.items) {
+        if (item.kind === 'song') ids.add(item.songId);
+      }
+      const songs = await db.songs.bulkGet([...ids]);
+      return {
+        set,
+        songs: Object.fromEntries(songs.flatMap((song) => (song ? [[song.id, song]] : []))),
+      };
+    });
+  },
+
   /**
    * Search the mirror.
    *
