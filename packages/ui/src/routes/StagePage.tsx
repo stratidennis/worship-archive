@@ -4,6 +4,7 @@ import {
   DEFAULT_SONG_FONT_SIZE,
   DEFAULT_SONG_LINE_HEIGHT,
   MAX_FITTED_SONG_FONT_SIZE,
+  layerReadingColors,
   preferredKeyName,
   resolveStageDisplay,
   semitonesBetween,
@@ -173,7 +174,7 @@ export function StagePage() {
         ref={container}
         style={
           {
-            ...readingColorStyle({ ...prefs.readingColors, ...stage.readingColors }),
+            ...readingColorStyle(layerReadingColors(prefs.readingColors, stage.readingColors)),
             '--color-chord-ink':
               stage.readingColors?.chords === null
                 ? 'var(--color-chord)'
@@ -187,7 +188,7 @@ export function StagePage() {
       >
         {state.output === 'cleared' ? null : song ? (
           <div
-            key={`${song.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+            key={`${song.id}:${fit.fontPx}:${fit.columns}:${fit.compactSpacing}:${fit.heightPx}`}
             ref={content}
             style={fittedSongStyle(fit)}
           >

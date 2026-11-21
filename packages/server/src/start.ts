@@ -21,7 +21,7 @@ import { createServer, type NetworkRuntimeStatus } from './api.js';
 import { Library } from './library.js';
 import { SetStore } from './sets.js';
 import { SessionHub } from './hub.js';
-import { syncCloudFolder } from './cloud-sync.js';
+import { createCloudTaskQueue, syncCloudFolder } from './cloud-sync.js';
 
 export interface StartOptions {
   /** Where the `.chopro` files live. Created if missing. */
@@ -336,10 +336,12 @@ async function listenSomewhere(
 export async function startServer(options: StartOptions): Promise<RunningServer> {
   const log = options.log ?? ((message: string): void => console.log(message));
   const dataDir = resolve(options.dataDir);
+  const cloudRoot = options.cloudSyncDir ? resolve(options.cloudSyncDir) : null;
+  const cloudTasks = cloudRoot ? createCloudTaskQueue() : null;
 
-  if (options.cloudSyncDir) {
+  if (cloudRoot) {
     try {
-      const synced = syncCloudFolder(dataDir, resolve(options.cloudSyncDir));
+      const synced = await syncCloudFolder(dataDir, cloudRoot);
       log(
         `Cloud sync: uploaded ${synced.pushed}, downloaded ${synced.pulled}, ` +
           `conflicts ${synced.conflicts.length}`,
@@ -373,7 +375,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
     library,
     sets,
     powerpointsDir: resolve(options.powerpointsDir ?? resolve(dataDir, 'PowerPoints')),
-    ...(options.cloudSyncDir ? { cloudSyncDir: resolve(options.cloudSyncDir) } : {}),
+    ...(cloudRoot && cloudTasks ? { cloudSyncDir: cloudRoot, cloudTasks } : {}),
     port: options.port ?? 7374,
     mdnsName: `${MDNS_TYPE}.local`,
     networkStatus,
@@ -399,15 +401,15 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
 
   // Editing a .chopro by hand, or pulling from git, must show up without a restart.
   let watcher: FSWatcher | null = null;
+  let pendingReindex: NodeJS.Timeout | null = null;
   if (options.watch ?? true) {
     watcher = chokidar.watch([library.songsDir, sets.setsDir], {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
     });
-    let pending: NodeJS.Timeout | null = null;
     const scheduleReindex = (): void => {
-      if (pending) clearTimeout(pending);
-      pending = setTimeout(() => {
+      if (pendingReindex) clearTimeout(pendingReindex);
+      const reindex = (): void => {
         const r = library.reindex();
         const s = sets.reindex();
         if (r.added || r.updated || r.removed || s.added || s.updated || s.removed) {
@@ -417,6 +419,10 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
               `sets +${s.added} ~${s.updated} -${s.removed}`,
           );
         }
+      };
+      pendingReindex = setTimeout(() => {
+        if (!cloudTasks) reindex();
+        else void cloudTasks(reindex).catch((error: unknown) => log(String(error)));
       }, 150);
     };
     watcher
@@ -429,24 +435,18 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
   // regains internet access. Watching the mirror reacts when those files actually
   // arrive, rather than guessing with a timer or syncing too early on an online event.
   let cloudWatcher: FSWatcher | null = null;
-  if (options.cloudSyncDir) {
-    const remoteRoot = resolve(options.cloudSyncDir);
-    cloudWatcher = chokidar.watch([join(remoteRoot, 'Songs'), join(remoteRoot, 'Sets')], {
+  let pendingCloudSync: NodeJS.Timeout | null = null;
+  if (cloudRoot && cloudTasks) {
+    cloudWatcher = chokidar.watch([join(cloudRoot, 'Songs'), join(cloudRoot, 'Sets')], {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 75 },
     });
-    let pending: NodeJS.Timeout | null = null;
     const scheduleCloudSync = (): void => {
-      if (pending) clearTimeout(pending);
-      pending = setTimeout(() => {
-        try {
-          const synced = syncCloudFolder(dataDir, remoteRoot);
-          if (
-            synced.pushed ||
-            synced.pulled ||
-            synced.deletedLocally ||
-            synced.deletedRemotely
-          ) {
+      if (pendingCloudSync) clearTimeout(pendingCloudSync);
+      pendingCloudSync = setTimeout(() => {
+        void cloudTasks(async () => {
+          const synced = await syncCloudFolder(dataDir, cloudRoot);
+          if (synced.pulled || synced.deletedLocally) {
             library.reindex();
             sets.reindex();
             hub.notifyLibraryChanged();
@@ -454,9 +454,9 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
           if (synced.conflicts.length > 0) {
             log(`Cloud sync preserved ${synced.conflicts.length} conflict(s).`);
           }
-        } catch (error) {
-          log(`Cloud sync unavailable after a cloud-folder change: ${String(error)}`);
-        }
+        }).catch((error: unknown) =>
+          log(`Cloud sync unavailable after a cloud-folder change: ${String(error)}`),
+        );
       }, 250);
     };
     cloudWatcher
@@ -503,6 +503,8 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
       await hub.close();
       await watcher?.close();
       await cloudWatcher?.close();
+      if (pendingReindex) clearTimeout(pendingReindex);
+      if (pendingCloudSync) clearTimeout(pendingCloudSync);
       await app.close();
       library.close();
     },

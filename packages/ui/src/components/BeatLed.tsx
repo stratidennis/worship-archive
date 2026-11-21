@@ -15,10 +15,12 @@ export function BeatLed({
   state,
   clockOffset,
   size = 'md',
+  showTempo = true,
 }: {
   state: SessionState;
   clockOffset: number;
   size?: 'sm' | 'md';
+  showTempo?: boolean;
 }) {
   const [beat, setBeat] = useState<number | null>(null);
 
@@ -59,7 +61,9 @@ export function BeatLed({
           />
         );
       })}
-      <span className="ml-1 text-xs tabular-nums text-(--color-muted)">{state.tempo}</span>
+      {showTempo && (
+        <span className="ml-1 text-xs tabular-nums text-(--color-muted)">{state.tempo}</span>
+      )}
     </span>
   );
 }

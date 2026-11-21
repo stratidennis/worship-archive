@@ -17,8 +17,8 @@ import { MAX_FITTED_SONG_FONT_SIZE, type Song } from '@worship/core';
  * Find the largest size within the user's bounds. At equal sizes, prefer fewer
  * columns, then standard spacing.
  *
- * Trials never use the visible song. Desktop measures an off-screen copy in place;
- * touch browsers get a fresh copy and rendering turns to settle inherited styles.
+ * Trials never use the visible song. Each trial gets a fresh copy so the engine cannot
+ * reuse an earlier column layout. Touch browsers also need time to settle text styles.
  */
 
 export interface FitOptions {
@@ -30,8 +30,6 @@ export interface FitOptions {
   maxFittedFontPx?: number;
   /** Identify the song and anything besides the song itself that affects layout. */
   key: string;
-  /** Show a scrollable chart before fitting on interactive preview screens. */
-  showPreview?: boolean;
   /** A warning beside the reader that disappears whenever the song fits. */
   overflowNotice?: RefObject<HTMLElement | null>;
 }
@@ -43,11 +41,11 @@ export interface FitResult extends FitChoice {
   phone: boolean;
   /** True while measuring, so the caller can avoid showing a flash of wrong sizes. */
   measuring: boolean;
-  provisional?: true;
 }
 
 const MIN_DEFAULT = 12;
 const PREFERRED_DEFAULT = 26;
+const MIN_TWO_COLUMN_WIDTH = 360;
 const STANDARD_COLUMN_GAP = '2.5em';
 const COMPACT_COLUMN_GAP = '1.5em';
 const COMPACT_SECTION_GAP = '0.5em';
@@ -106,10 +104,9 @@ export function usesConstrainedColumnFlow(columns: number): boolean {
   return columns > 1;
 }
 
-/** The shared style for fitted songs and interactive previews. */
+/** The shared style for fitted songs. */
 export function fittedSongStyle(fit: FitResult): CSSProperties {
   const constrained = usesConstrainedColumnFlow(fit.columns);
-  const hidden = fit.measuring && !fit.provisional;
   return {
     fontSize: `${fit.fontPx}px`,
     columnCount: fit.columns,
@@ -117,21 +114,8 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
     ...(fit.compactSpacing ? { '--song-section-gap': COMPACT_SECTION_GAP } : {}),
     height: constrained ? `${fit.heightPx}px` : undefined,
     columnFill: constrained ? 'auto' : undefined,
-    display: hidden ? 'none' : undefined,
-    visibility: hidden ? 'hidden' : 'visible',
-  };
-}
-
-export function provisionalSongFit(previous: FitResult, minFontPx: number): FitResult {
-  return {
-    ...previous,
-    fontPx: minFontPx,
-    columns: 1,
-    compactSpacing: false,
-    heightPx: 0,
-    fits: false,
-    measuring: true,
-    provisional: true,
+    display: fit.measuring ? 'none' : undefined,
+    visibility: fit.measuring ? 'hidden' : 'visible',
   };
 }
 
@@ -146,7 +130,7 @@ export function fittedSongOverflowClass(fits: boolean, allowFallbackScroll: bool
  * Column counts worth trying at a given width. Phones use one column.
  */
 export function columnCandidates(width: number, phoneViewport: boolean): number[] {
-  if (phoneViewport || width < NARROW_SCREEN_WIDTH) return [1];
+  if (phoneViewport || width < MIN_TWO_COLUMN_WIDTH) return [1];
   if (width < 1100) return [1, 2];
   if (width < 1800) return [1, 2, 3];
   return [1, 2, 3, 4];
@@ -178,6 +162,11 @@ export function failedFit(
 interface MinimumGroupHeight {
   heightInEm: number;
   rows: number;
+  wrappedLines?: readonly {
+    heightInEm: number;
+    widthInEm: number;
+    words: number;
+  }[];
 }
 
 interface RecentLayout {
@@ -190,20 +179,26 @@ interface RecentLayout {
 }
 
 /**
- * Pack a lower bound: one row per lyric line, no headings or gaps, and up to two
- * pixels per row of rounding slack. A valid layout can never split a linked group.
+ * Pack a lower bound, including rows forced by wrapping. Headings, padding and gaps
+ * are omitted, and each word and row gets rounding slack.
  */
 export function canFitSongRows(
   groups: readonly MinimumGroupHeight[],
   fontPx: number,
   availableHeight: number,
   columns: number,
+  width = Infinity,
 ): boolean {
   const capacity = availableHeight + 1;
   let remaining = capacity;
   let usedColumns = 1;
   for (const group of groups) {
-    const height = Math.max(0, group.heightInEm * fontPx - 2 * group.rows);
+    let height = Math.max(0, group.heightInEm * fontPx - 2 * group.rows);
+    for (const line of group.wrappedLines ?? []) {
+      const lineWidth = line.widthInEm * fontPx - 2 * line.words;
+      const additionalRows = Math.max(0, Math.ceil(lineWidth / (width / columns + 1)) - 1);
+      height += additionalRows * Math.max(0, line.heightInEm * fontPx - 2);
+    }
     if (height > capacity) return false;
     if (height > remaining) {
       if (++usedColumns > columns) return false;
@@ -212,6 +207,57 @@ export function canFitSongRows(
     remaining -= height;
   }
   return true;
+}
+
+function measureMinimumGroups(content: HTMLElement, fontPx: number): MinimumGroupHeight[] {
+  return Array.from(content.querySelectorAll('[data-song-column-group]'), (group) => {
+    const lines = group.querySelectorAll<HTMLElement>('[data-song-line-height]');
+    let heightInEm = 0;
+    const wrappedLines = [];
+    for (const line of lines) {
+      const rowHeight = Number(line.dataset.songLineHeight);
+      heightInEm += rowHeight;
+      let width = 0;
+      let words = 0;
+      if (fontPx > 0) {
+        for (const word of line.children) {
+          if (word.classList.contains('sr-only')) continue;
+          width += word.getBoundingClientRect().width;
+          words++;
+        }
+      }
+      if (width > 0)
+        wrappedLines.push({ heightInEm: rowHeight, widthInEm: width / fontPx, words });
+    }
+    return { heightInEm, rows: lines.length, wrappedLines };
+  });
+}
+
+function songOverflows(content: HTMLElement, columns: number, available: number): boolean {
+  const { scrollWidth, scrollHeight, clientWidth } = content;
+  if (
+    exceedsAvailableSpace(
+      { scrollWidth, scrollHeight: columns === 1 ? scrollHeight : 0, clientWidth },
+      available,
+    )
+  )
+    return true;
+
+  const { left, top, right } = content.getBoundingClientRect();
+  for (const group of content.querySelectorAll('[data-song-column-group]')) {
+    const rects = group.getClientRects();
+    if (
+      crossesColumnBoundary(rects) ||
+      group.scrollWidth > group.clientWidth + 1 ||
+      Array.from(rects).some(
+        (rect) =>
+          rect.height > 0 &&
+          (rect.left < left - 1 || rect.right > right + 1 || rect.bottom > top + available + 1),
+      )
+    )
+      return true;
+  }
+  return false;
 }
 
 /** Check larger sizes first because column fragmentation can make fit non-monotonic. */
@@ -277,7 +323,7 @@ export function useFitToScreen(
     maxFittedFont,
     Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT),
   );
-  const { key, song, overflowNotice, showPreview } = options;
+  const { key, song, overflowNotice } = options;
   const [result, setResult] = useState<FitResult>({
     fontPx: preferredFont,
     columns: 1,
@@ -404,9 +450,34 @@ export function useFitToScreen(
         showFit(cached.fit);
         return;
       }
-      if (showPreview && !(await nextFrame())) throw cancelled;
       let desktopSliceStarted = performance.now();
-      let desktopProbe: HTMLElement | undefined;
+      const createProbe = (): HTMLElement => {
+        const probe = content.cloneNode(true) as HTMLElement;
+        activeProbes.add(probe);
+        probe.removeAttribute('id');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.style.position = 'fixed';
+        probe.style.left = '0';
+        probe.style.top = '0';
+        probe.style.display = '';
+        probe.style.visibility = 'hidden';
+        probe.style.pointerEvents = 'none';
+        return probe;
+      };
+      const intrinsic = createProbe();
+      intrinsic.style.fontSize = `${maxFittedFont}px`;
+      intrinsic.style.width = 'max-content';
+      intrinsic.style.height = '';
+      intrinsic.style.columnCount = '1';
+      intrinsic.style.columnFill = '';
+      container.appendChild(intrinsic);
+      if (touchBrowser && (!(await nextFrame()) || !(await nextFrame()))) throw cancelled;
+      if (disposed || queued) throw cancelled;
+      const referenceFont =
+        !touchBrowser || songFontsApplied(intrinsic, maxFittedFont) ? maxFittedFont : 0;
+      const groupHeights = measureMinimumGroups(intrinsic, referenceFont);
+      intrinsic.remove();
+      activeProbes.delete(intrinsic);
       const overflows = async (
         fontPx: number,
         columns: number,
@@ -420,20 +491,8 @@ export function useFitToScreen(
           desktopSliceStarted = performance.now();
         }
         if (disposed || queued) throw cancelled;
-        const probe = desktopProbe ?? (content.cloneNode(true) as HTMLElement);
-        if (!desktopProbe) {
-          activeProbes.add(probe);
-          probe.removeAttribute('id');
-          probe.setAttribute('aria-hidden', 'true');
-          probe.style.position = 'fixed';
-          probe.style.left = '-100000px';
-          probe.style.top = '0';
-          probe.style.width = `${width}px`;
-          probe.style.display = '';
-          probe.style.visibility = 'hidden';
-          probe.style.pointerEvents = 'none';
-          if (!touchBrowser) desktopProbe = probe;
-        }
+        const probe = createProbe();
+        probe.style.width = `${width}px`;
         probe.style.fontSize = `${fontPx}px`;
         probe.style.columnCount = String(columns);
         probe.style.columnGap = compactSpacing ? COMPACT_COLUMN_GAP : STANDARD_COLUMN_GAP;
@@ -455,7 +514,7 @@ export function useFitToScreen(
           probe.style.height = '';
           probe.style.columnFill = '';
         }
-        if (!probe.parentNode) container.appendChild(probe);
+        container.appendChild(probe);
         if (touchBrowser) {
           let previousDimensions: string | null = null;
           const applied = await settleSongLayout(() => {
@@ -512,61 +571,19 @@ export function useFitToScreen(
             );
           }
         }
-        /*
-          Some mobile Chromium variants flow excess multi-column content sideways
-          instead of increasing `scrollHeight`. Looking only at height made those
-          browsers report a song as fitting while one or more columns sat outside the
-          clipped viewport. Measure both axes against the content's own width: its
-          parent has horizontal padding, so comparing with the container width would
-          incorrectly grant that padding as usable song space.
-        */
-        let scrollHeight = probe.scrollHeight;
-        if (columns > 1 && scrollHeight > available + 1) {
-          // WebKit can include unfragmented flow in scrollHeight even when every
-          // section fits in its column. Check where the sections actually landed.
-          const sections = probe.querySelectorAll('section');
-          if (sections.length > 0) {
-            const top = probe.getBoundingClientRect().top;
-            scrollHeight = 0;
-            for (const section of sections) {
-              scrollHeight = Math.max(
-                scrollHeight,
-                section.getBoundingClientRect().bottom - top,
-              );
-            }
-          }
-        }
-        const overflowing =
-          exceedsAvailableSpace(
-            { scrollHeight, scrollWidth: probe.scrollWidth, clientWidth: probe.clientWidth },
-            available,
-          ) ||
-          (columns > 1 &&
-            Array.from(probe.querySelectorAll('[data-song-column-group]')).some((group) =>
-              crossesColumnBoundary(group.getClientRects()),
-            ));
-        if (touchBrowser) {
-          probe.remove();
-          activeProbes.delete(probe);
-        }
+        const overflowing = songOverflows(probe, columns, available);
+        probe.remove();
+        activeProbes.delete(probe);
         return overflowing;
       };
 
-      const groupHeights = Array.from(
-        content.querySelectorAll('[data-song-column-group]'),
-        (group) => {
-          const rows = group.querySelectorAll<HTMLElement>('[data-song-line-height]');
-          let heightInEm = 0;
-          for (const line of rows) heightInEm += Number(line.dataset.songLineHeight);
-          return { heightInEm, rows: rows.length };
-        },
-      );
       const best = await chooseFit({
         minFontPx: minFont,
         maxFittedFontPx: maxFittedFont,
         columns: columnCandidates(width, phoneScreen),
         batchSize: touchBrowser ? 8 : 1,
-        canFit: (fontPx, columns) => canFitSongRows(groupHeights, fontPx, available, columns),
+        canFit: (fontPx, columns) =>
+          canFitSongRows(groupHeights, fontPx, available, columns, width),
         overflows,
       });
       clearProbes();
@@ -665,13 +682,10 @@ export function useFitToScreen(
     preferredFont,
     maxFittedFont,
     overflowNotice,
-    showPreview,
     key,
     song,
   ]);
 
   const fitted = fittedContent.current;
-  const fit =
-    fitted?.key === key && fitted.song === song ? result : { ...result, measuring: true };
-  return showPreview && fit.measuring ? provisionalSongFit(fit, minFont) : fit;
+  return fitted?.key === key && fitted.song === song ? result : { ...result, measuring: true };
 }

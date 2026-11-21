@@ -1,10 +1,13 @@
 import {
   READING_COLOR_KEYS,
-  READING_SECTION_COLORS,
+  READING_SECTIONS,
   normaliseReadingColors,
+  sectionBackground,
+  sectionText,
   type CueStyle,
   type ReadingColorKey,
   type ReadingColors,
+  type ReadingSection,
 } from '@worship/core';
 import type { CSSProperties } from 'react';
 
@@ -19,7 +22,7 @@ export function sectionAccentInk(key: ReadingColorKey, accent: string): string {
 }
 
 export function readingSectionStyle(
-  key: ReadingColorKey,
+  key: ReadingSection,
   mode: CueStyle,
   panel: { border: string; background: string } | null,
 ): CSSProperties {
@@ -29,8 +32,8 @@ export function readingSectionStyle(
     };
   }
   return {
-    color: LYRIC_INK,
-    backgroundColor: `var(--reading-${key}, ${panel?.background ?? 'transparent'})`,
+    color: `var(--reading-${key}Text, ${LYRIC_INK})`,
+    backgroundColor: `var(--reading-${key}-background, ${panel?.background ?? 'transparent'})`,
     borderColor: panel ? `var(--reading-${key}-edge, ${panel.border})` : undefined,
   };
 }
@@ -42,16 +45,17 @@ export function readingColorStyle(colors: ReadingColors): CSSProperties {
   for (const key of READING_COLOR_KEYS) {
     style[`--reading-${key}`] = safe[key] ?? 'initial';
   }
-  for (const key of READING_SECTION_COLORS) {
-    if (key === 'background') continue;
-    const color = safe[key];
+  for (const key of READING_SECTIONS) {
+    const color = sectionBackground(safe, key);
+    const text = sectionText(safe, key, true);
+    style[`--reading-${key}-background`] = color ?? 'initial';
     style[`--reading-${key}-edge`] =
       color === 'transparent'
         ? 'transparent'
         : color
           ? `color-mix(in oklab, ${color} 65%, var(--color-stage-fg))`
           : 'initial';
-    style[`--reading-${key}-ink`] = color === 'transparent' ? LYRIC_INK : (color ?? 'initial');
+    style[`--reading-${key}-ink`] = text === 'transparent' ? LYRIC_INK : (text ?? 'initial');
   }
   return style as CSSProperties;
 }

@@ -17,6 +17,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
+import { access, mkdir, readdir, stat } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
 export interface LibraryDirectory {
@@ -27,16 +28,20 @@ export interface LibraryDirectory {
 
 type FolderKind = 'songs' | 'sets';
 
-function existingFolder(root: string, kind: FolderKind): string | null {
-  if (!existsSync(root)) return null;
-  const matches = readdirSync(root).filter((entry) => entry.toLocaleLowerCase() === kind);
+function existingFolderName(entries: string[], kind: FolderKind): string | null {
+  const matches = entries.filter((entry) => entry.toLocaleLowerCase() === kind);
   if (matches.length > 1) {
     throw new Error(
       `More than one ${kind} folder exists with different capitalisation. ` +
         'Keep one of them so Worship Archive knows which folder to use.',
     );
   }
-  const name = matches[0];
+  return matches[0] ?? null;
+}
+
+function existingFolder(root: string, kind: FolderKind): string | null {
+  if (!existsSync(root)) return null;
+  const name = existingFolderName(readdirSync(root), kind);
   if (!name) return null;
   const path = join(root, name);
   if (!statSync(path).isDirectory()) throw new Error(`${path} exists but is not a folder.`);
@@ -65,6 +70,36 @@ export function prepareLibraryDirectory(root: string): LibraryDirectory {
   for (const path of [layout.root, layout.songsDir, layout.setsDir]) {
     accessSync(path, constants.R_OK | constants.W_OK);
   }
+  return layout;
+}
+
+export async function inspectLibraryDirectoryAsync(root: string): Promise<LibraryDirectory> {
+  const absolute = resolve(root);
+  const entries = await readdir(absolute).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  });
+  const folder = async (kind: FolderKind, fallback: string): Promise<string> => {
+    const name = existingFolderName(entries, kind);
+    const path = join(absolute, name ?? fallback);
+    if (name && !(await stat(path)).isDirectory()) throw new Error(`${path} is not a folder.`);
+    return path;
+  };
+  const [songsDir, setsDir] = await Promise.all([
+    folder('songs', 'Songs'),
+    folder('sets', 'Sets'),
+  ]);
+  return { root: absolute, songsDir, setsDir };
+}
+
+export async function prepareLibraryDirectoryAsync(root: string): Promise<LibraryDirectory> {
+  const layout = await inspectLibraryDirectoryAsync(root);
+  await Promise.all(
+    [layout.root, layout.songsDir, layout.setsDir].map(async (path) => {
+      await mkdir(path, { recursive: true });
+      await access(path, constants.R_OK | constants.W_OK);
+    }),
+  );
   return layout;
 }
 

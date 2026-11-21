@@ -55,6 +55,23 @@ describe('song cue blocks', () => {
       '--reading-Solo-ink': 'var(--reading-lyrics, var(--color-stage-fg))',
     });
   });
+
+  it('preserves legacy Minimal ink when editing a background and accepts explicit text ink', () => {
+    const palette = { Bridge: '#3c74af', BridgeBackground: '#102030' };
+    expect(readingColorStyle(palette)).toMatchObject({
+      '--reading-Bridge-background': '#102030',
+      '--reading-Bridge-ink': '#3c74af',
+      '--reading-BridgeText': 'initial',
+    });
+    expect(readingColorStyle({ ...palette, BridgeText: '#ffeedd' })).toMatchObject({
+      '--reading-Bridge-background': '#102030',
+      '--reading-Bridge-ink': '#ffeedd',
+      '--reading-BridgeText': '#ffeedd',
+    });
+    expect(readingColorStyle({ ...palette, BridgeText: null })).toMatchObject({
+      '--reading-Bridge-ink': 'initial',
+    });
+  });
 });
 
 describe('performance markings', () => {
@@ -110,7 +127,7 @@ Guitar solo
     },
   );
 
-  it('inherits section singers and respects line assignments over a Bridge background', () => {
+  it('inherits section singers and respects line assignments over section text', () => {
     const html = render('full');
     expect(html).toMatch(
       /color:var\(--reading-Women, var\(--color-singers-women\)\)[^>]*>.*?Women\. .*?>First /,
@@ -122,22 +139,23 @@ Guitar solo
       html.match(/color:var\(--reading-Women, var\(--color-singers-women\)\)/g),
     ).toHaveLength(2);
     expect(html).toMatch(
-      /<section[^>]*background-color:var\(--reading-Bridge, var\(--color-cue-bridge-bg\)\)[^>]*>.*?color:var\(--reading-Men,/,
+      /<section[^>]*color:var\(--reading-BridgeText,[^>]*>.*?color:var\(--reading-Men,/,
     );
   });
 
   it.each(['full', 'compact'] as const)(
-    'applies section colors only as backgrounds in %s',
+    'uses independent section background and text colors in %s',
     (style) => {
       const html = render(style);
       expect(html).toContain(
-        'background-color:var(--reading-Bridge, var(--color-cue-bridge-bg))',
+        'background-color:var(--reading-Bridge-background, var(--color-cue-bridge-bg))',
       );
-      expect(html).toContain('background-color:var(--reading-Solo, var(--color-cue-solo-bg))');
-      expect(html).toContain('background-color:var(--reading-Verse, transparent)');
-      expect(html).not.toMatch(/(?:^|[;" ])color:var\(--reading-(Bridge|Solo|Verse)/);
+      expect(html).toContain(
+        'background-color:var(--reading-Solo-background, var(--color-cue-solo-bg))',
+      );
+      expect(html).toContain('background-color:var(--reading-Verse-background, transparent)');
       expect(html).toMatch(
-        /<section[^>]*color:var\(--reading-lyrics, var\(--color-stage-fg\)\)[^>]*background-color:var\(--reading-Solo,[^>]*>.*?Guitar /,
+        /<section[^>]*color:var\(--reading-SoloText, var\(--reading-lyrics, var\(--color-stage-fg\)\)\)[^>]*>.*?Guitar /,
       );
     },
   );

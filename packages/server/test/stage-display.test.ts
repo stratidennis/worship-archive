@@ -140,7 +140,12 @@ describe('the stage screens’ appearance', () => {
         theme: 'dark',
         language: 'en',
         chordColor: '#ff6600',
-        readingColors: { Women: '#ff44aa', Intro: '#eab308' },
+        readingColors: {
+          Women: '#ff44aa',
+          Intro: '#eab308',
+          IntroBackground: '#223344',
+          IntroText: '#f2e8d8',
+        },
       },
     });
     expect(host.statusCode).toBe(200);
@@ -151,6 +156,7 @@ describe('the stage screens’ appearance', () => {
         chords: null,
         Chorus: '#22bb44',
         Intro: 'transparent',
+        IntroText: 'transparent',
         Women: 'transparent',
       },
     });
@@ -159,11 +165,14 @@ describe('the stage screens’ appearance', () => {
       chords: '#ff6600',
       Women: '#cc3366',
       Intro: '#eab308',
+      IntroBackground: '#223344',
+      IntroText: '#f2e8d8',
     });
     expect(resolveStageDisplay(state, null, 'drums').readingColors).toEqual({
       chords: null,
       Women: '#cc3366',
       Intro: 'transparent',
+      IntroText: '#f2e8d8',
       Chorus: '#22bb44',
     });
     await put({ deviceId: 'drums', readingColors: {} });

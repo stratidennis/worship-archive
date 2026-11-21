@@ -98,7 +98,13 @@ final class LeaderSessionHub implements Closeable {
         }
         for (String key : new String[]{"background", "info", "Verse", "Chorus", "PreChorus", "Bridge",
                 "Ending", "Tag", "Intro", "Instrumental", "Solo", "Note"}) {
-            colors.put(key, themeColor(supplied.opt(key), true));
+            Object legacy = themeColor(supplied.opt(key), true);
+            colors.put(key, legacy);
+            if ("background".equals(key)) continue;
+            String background = key + "Background";
+            String ink = key + "Text";
+            colors.put(background, supplied.has(background) ? themeColor(supplied.opt(background), true) : legacy);
+            if (legacy == JSONObject.NULL || supplied.has(ink)) colors.put(ink, themeColor(supplied.opt(ink), false));
         }
 
         JSONObject byDevice = new JSONObject(state.getJSONObject("stageByDevice").toString());

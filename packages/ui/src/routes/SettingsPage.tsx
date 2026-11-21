@@ -27,8 +27,10 @@ import {
   MAX_FITTED_SONG_FONT_SIZE,
   DEFAULT_STAGE_DISPLAY,
   READING_COLOR_KEYS,
+  layerReadingColors,
   type StageDisplay,
   readingColorsWithChords,
+  withReadingColor,
 } from '@worship/core';
 import { confirmAction } from '../lib/confirm.js';
 import { Button as UiButton, Checkbox, Segment, Segmented } from '../components/ui.js';
@@ -414,12 +416,12 @@ export function SettingsPage() {
                 <ReadingColorSettings
                   key={selected ?? 'shared-stage'}
                   colors={readingColorsWithChords(stage.readingColors, stage.chordColor)}
-                  inherited={{
-                    ...prefs.readingColors,
-                    ...(selected
+                  inherited={layerReadingColors(
+                    prefs.readingColors,
+                    selected
                       ? readingColorsWithChords(shared.readingColors, shared.chordColor)
-                      : {}),
-                  }}
+                      : undefined,
+                  )}
                   inheritLabel={inherit}
                   theme={stage.theme ?? (selected ? shared.theme : null) ?? prefs.theme}
                   cueStyle={stage.cueStyle ?? (selected ? shared.cueStyle : null) ?? 'full'}
@@ -428,10 +430,8 @@ export function SettingsPage() {
                       stage.readingColors,
                       stage.chordColor,
                     );
-                    if (value === undefined) delete readingColors[key];
-                    else readingColors[key] = value;
                     setStage({
-                      readingColors,
+                      readingColors: withReadingColor(readingColors, key, value),
                       ...(key === 'chords' ? { chordColor: value ?? null } : {}),
                     });
                   }}

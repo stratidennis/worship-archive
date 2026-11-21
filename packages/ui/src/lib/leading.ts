@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import type { SessionPatch, SessionState } from '@worship/core';
 
 /**
  * Who is being led, and how — for as long as the leader says so.
@@ -18,6 +19,7 @@ import { useSyncExternalStore } from 'react';
 export interface Leading {
   /** The set being led, or null when nobody here is leading. */
   setId: string | null;
+  start: ((state: SessionState, clockOffset: number) => SessionPatch) | null;
   /**
    * Whether the preview follows the service or runs ahead of it.
    *
@@ -37,7 +39,7 @@ export interface Leading {
   devicesOpen: boolean;
 }
 
-let current: Leading = { setId: null, auto: true, devicesOpen: false };
+let current: Leading = { setId: null, start: null, auto: true, devicesOpen: false };
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -48,6 +50,7 @@ export function setLeading(patch: Partial<Leading>): void {
   const next = { ...current, ...patch };
   if (
     next.setId === current.setId &&
+    next.start === current.start &&
     next.auto === current.auto &&
     next.devicesOpen === current.devicesOpen
   ) {

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect } from 'react';
 import { useT } from '../lib/i18n.js';
-import { useLeading } from '../lib/leading.js';
+import { setLeading, useLeading } from '../lib/leading.js';
 import { useSession, type Session } from '../lib/useSession.js';
 
 /**
@@ -16,13 +16,20 @@ const LeaderSessionContext = createContext<Session | null>(null);
 
 export function LeaderSessionProvider({ children }: { children: React.ReactNode }) {
   const { t } = useT();
-  const { setId } = useLeading();
+  const { setId, start } = useLeading();
   const session = useSession('leader', t('lead.roleLeader'), setId !== null);
+  const { synced, state, patch, clockOffset } = session;
 
   useEffect(() => {
-    if (setId === null || !session.synced || session.state.active) return;
-    session.patch({ active: true });
-  }, [setId, session.synced, session.state.active, session.patch]);
+    if (setId === null || !synced) return;
+    if (state.active && state.setId === setId) {
+      if (start) setLeading({ start: null });
+    } else if (start) {
+      patch({ active: true, setId, ...start(state, clockOffset) });
+    } else if (!state.active) {
+      patch({ active: true });
+    }
+  }, [setId, start, synced, state, patch, clockOffset]);
 
   return (
     <LeaderSessionContext.Provider value={session}>{children}</LeaderSessionContext.Provider>

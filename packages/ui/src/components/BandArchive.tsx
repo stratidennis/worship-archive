@@ -103,7 +103,7 @@ export function BandArchive({ onClose }: { onClose: () => void }) {
           >
             {song ? (
               <div
-                key={`${song.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+                key={`${song.id}:${fit.fontPx}:${fit.columns}:${fit.compactSpacing}:${fit.heightPx}`}
                 ref={content}
                 style={fittedSongStyle(fit)}
               >

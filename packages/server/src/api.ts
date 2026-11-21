@@ -44,7 +44,12 @@ import {
   presentationMimeType,
   resolvePowerPointFile,
 } from './powerpoints.js';
-import { cloudSyncStatus, syncCloudFolder } from './cloud-sync.js';
+import {
+  cloudSyncStatus,
+  createCloudTaskQueue,
+  syncCloudFolder,
+  type CloudTaskQueue,
+} from './cloud-sync.js';
 
 export interface ApiOptions {
   library: Library;
@@ -59,6 +64,7 @@ export interface ApiOptions {
   powerpointsDir?: string | undefined;
   /** Provider-managed folder containing a mirror of Songs and Sets. */
   cloudSyncDir?: string | undefined;
+  cloudTasks?: CloudTaskQueue | undefined;
   /** Directory of the built UI. When absent, only the API is served. */
   uiDir?: string | undefined;
   logger?: boolean | undefined;
@@ -71,11 +77,30 @@ export interface NetworkRuntimeStatus {
 }
 
 export function createServer(options: ApiOptions): FastifyInstance {
-  const { library, sets } = options;
+  const { library, sets, cloudSyncDir } = options;
   // A backup POST carries the whole library. 1 MB (Fastify's default) is enough for
   // 153 songs and not enough for a library that has grown, and a 413 at restore time
   // would be inexplicable. 64 MB is far past any plausible text library.
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 * 1024 });
+  const cloudTasks = cloudSyncDir ? (options.cloudTasks ?? createCloudTaskQueue()) : null;
+  const libraryWrite = { config: { serializeLibraryWrite: true } };
+  if (cloudTasks) {
+    app.addHook('onRoute', (route) => {
+      if (
+        !route.config ||
+        !('serializeLibraryWrite' in route.config) ||
+        route.config.serializeLibraryWrite !== true
+      )
+        return;
+      const handler = route.handler;
+      route.handler = function (request, reply) {
+        return cloudTasks(() => handler.call(this, request, reply));
+      };
+    });
+    app.addHook('onClose', async () => {
+      await cloudTasks(() => undefined);
+    });
+  }
 
   /*
     An empty body is not a malformed one.
@@ -126,22 +151,22 @@ export function createServer(options: ApiOptions): FastifyInstance {
   });
   app.options('/api/*', async (_req, reply) => reply.code(204).send());
 
-  /**
-   * Mirror an intentional library change immediately, without making a cloud outage
-   * capable of losing the local save that triggered it. Sync may also pull unrelated
-   * remote edits, so refresh both indexes before notifying connected screens.
-   */
+  let mirrorQueued = false;
   const libraryChanged = (): void => {
-    if (options.cloudSyncDir) {
-      try {
-        syncCloudFolder(library.dataDir, options.cloudSyncDir);
+    options.hub?.notifyLibraryChanged();
+    if (!cloudSyncDir || !cloudTasks || mirrorQueued) return;
+    mirrorQueued = true;
+    void cloudTasks(async () => {
+      mirrorQueued = false;
+      const result = await syncCloudFolder(library.dataDir, cloudSyncDir);
+      if (result.pulled || result.deletedLocally) {
         library.reindex();
         sets.reindex();
-      } catch (error) {
-        app.log.warn({ error }, 'Cloud sync after a library change failed');
+        options.hub?.notifyLibraryChanged();
       }
-    }
-    options.hub?.notifyLibraryChanged();
+    }).catch((error: unknown) =>
+      app.log.warn({ error }, 'Cloud sync after a library change failed'),
+    );
   };
 
   app.get('/api/stats', async () => ({
@@ -157,7 +182,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
 
   app.get('/api/song-locations', async () => ({ locations: library.locations() }));
 
-  app.post('/api/song-locations', async (request, reply) => {
+  app.post('/api/song-locations', libraryWrite, async (request, reply) => {
     const body = request.body as { name?: unknown } | undefined;
     if (typeof body?.name !== 'string') {
       return reply.code(400).send({ error: 'location name is required' });
@@ -208,7 +233,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
    * The previous version is snapshotted before the file is written, so no edit can be
    * unrecoverable. `rev` is bumped server-side rather than trusted from the client.
    */
-  app.put('/api/songs/:id', async (request, reply) => {
+  app.put('/api/songs/:id', libraryWrite, async (request, reply) => {
     const { id } = request.params as { id: string };
     const incoming = request.body as Song | undefined;
     if (!incoming || typeof incoming !== 'object') {
@@ -242,7 +267,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return saved;
   });
 
-  app.post('/api/songs', async (request, reply) => {
+  app.post('/api/songs', libraryWrite, async (request, reply) => {
     const incoming = (request.body ?? {}) as Partial<Song>;
     if (!incoming.title?.trim()) {
       return reply.code(400).send({ error: 'song title is required' });
@@ -284,7 +309,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     }
   });
 
-  app.delete('/api/songs/:id', async (request, reply) => {
+  app.delete('/api/songs/:id', libraryWrite, async (request, reply) => {
     const { id } = request.params as { id: string };
     if (!library.delete(id)) return reply.code(404).send({ error: 'not found' });
     libraryChanged();
@@ -303,7 +328,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return song;
   });
 
-  app.post('/api/songs/:id/revisions/:rev/restore', async (request, reply) => {
+  app.post('/api/songs/:id/revisions/:rev/restore', libraryWrite, async (request, reply) => {
     const { id, rev } = request.params as { id: string; rev: string };
     const song = library.revert(id, Number(rev));
     if (!song) return reply.code(404).send({ error: 'not found' });
@@ -322,7 +347,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return set;
   });
 
-  app.post('/api/sets', async (request, reply) => {
+  app.post('/api/sets', libraryWrite, async (request, reply) => {
     const incoming = (request.body ?? {}) as Partial<ServiceSet>;
     const now = new Date().toISOString();
     const saved = sets.save({
@@ -338,7 +363,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return reply.code(201).send(saved);
   });
 
-  app.put('/api/sets/:id', async (request, reply) => {
+  app.put('/api/sets/:id', libraryWrite, async (request, reply) => {
     const { id } = request.params as { id: string };
     const incoming = request.body as ServiceSet | undefined;
     if (!incoming || typeof incoming !== 'object') {
@@ -349,7 +374,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return saved;
   });
 
-  app.post('/api/sets/:id/duplicate', async (request, reply) => {
+  app.post('/api/sets/:id/duplicate', libraryWrite, async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = (request.body ?? {}) as { title?: string; date?: string | null };
     const copy = sets.duplicate(id, body);
@@ -358,7 +383,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return reply.code(201).send(copy);
   });
 
-  app.delete('/api/sets/:id', async (request, reply) => {
+  app.delete('/api/sets/:id', libraryWrite, async (request, reply) => {
     const { id } = request.params as { id: string };
     if (!sets.delete(id)) return reply.code(404).send({ error: 'not found' });
     libraryChanged();
@@ -442,16 +467,14 @@ export function createServer(options: ApiOptions): FastifyInstance {
 
   // ---- cloud folder synchronization --------------------------------------
 
-  app.get('/api/cloud-sync', async () =>
-    cloudSyncStatus(library.dataDir, options.cloudSyncDir),
-  );
+  app.get('/api/cloud-sync', async () => cloudSyncStatus(library.dataDir, cloudSyncDir));
 
-  app.post('/api/cloud-sync', async (_request, reply) => {
-    if (!options.cloudSyncDir) {
+  app.post('/api/cloud-sync', libraryWrite, async (_request, reply) => {
+    if (!cloudSyncDir) {
       return reply.code(409).send({ error: 'Cloud synchronization is not configured' });
     }
     try {
-      const result = syncCloudFolder(library.dataDir, options.cloudSyncDir);
+      const result = await syncCloudFolder(library.dataDir, cloudSyncDir);
       const songs = library.reindex();
       const serviceSets = sets.reindex();
       options.hub?.notifyLibraryChanged();
@@ -561,7 +584,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
     return backup;
   });
 
-  app.post('/api/restore', async (request, reply) => {
+  app.post('/api/restore', libraryWrite, async (request, reply) => {
     const body = request.body as { backup?: unknown; mode?: 'merge' | 'replace' } | undefined;
     const candidate = body && 'backup' in body ? body.backup : body;
     if (!isBackup(candidate)) {
@@ -577,7 +600,7 @@ export function createServer(options: ApiOptions): FastifyInstance {
   /** Proposed chord-spelling fixes across the whole library. Never applied here. */
   app.get('/api/cleanup', async () => auditLibrary(library));
 
-  app.post('/api/cleanup/apply', async (request, reply) => {
+  app.post('/api/cleanup/apply', libraryWrite, async (request, reply) => {
     const body = request.body as { fixes?: Fix[] } | undefined;
     if (!body || !Array.isArray(body.fixes)) {
       return reply.code(400).send({ error: 'expected { fixes: [...] }' });
@@ -750,7 +773,10 @@ export function createServer(options: ApiOptions): FastifyInstance {
     devices: options.hub?.getDevices() ?? [],
   }));
 
-  app.post('/api/reindex', async () => ({ songs: library.reindex(), sets: sets.reindex() }));
+  app.post('/api/reindex', libraryWrite, async () => ({
+    songs: library.reindex(),
+    sets: sets.reindex(),
+  }));
 
   if (options.uiDir && existsSync(options.uiDir)) {
     app.register(fastifyStatic, { root: options.uiDir });

@@ -1,6 +1,7 @@
 import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   BLOCK_TYPES,
+  READING_SECTIONS,
   READING_SECTION_COLORS,
   READING_TEXT_COLORS,
   SINGERS,
@@ -8,9 +9,12 @@ import {
   emptyLine,
   isReadingColor,
   isReadingSectionColor,
+  layerReadingColors,
   parseChordPro,
   readingColorsWithChords,
-  type BlockType,
+  sectionBackground,
+  sectionText,
+  withReadingColor,
   type CueStyle,
   type ReadingColorKey,
   type ReadingColors,
@@ -21,6 +25,7 @@ import { useT, type TranslationKey } from '../lib/i18n.js';
 import { confirmAction } from '../lib/confirm.js';
 import { cueAppearance } from '../lib/cueAppearance.js';
 import {
+  LYRIC_INK,
   readingColorStyle,
   sectionAccentInk,
   SETUP_ACCENT,
@@ -28,7 +33,7 @@ import {
 } from '../lib/readingColors.js';
 import { PerformanceInfo } from './PerformanceInfo.js';
 import { SongBody } from './SongBody.js';
-import { Button, Input, Select } from './ui.js';
+import { Button, Input, Segment, Segmented, Select } from './ui.js';
 
 const PRESETS = [
   ['#f59e0b', 'amber'],
@@ -49,6 +54,9 @@ const TEXT_LABELS: Record<(typeof READING_TEXT_COLORS)[number], TranslationKey> 
 };
 
 type ColorChange = (key: ReadingColorKey, color: string | null | undefined) => void;
+type ColorTarget = (
+  typeof READING_TEXT_COLORS | typeof READING_SECTION_COLORS | typeof SINGERS
+)[number];
 const COLOR_SAVE_DELAY_MS = 1000;
 type ThemeShareResult = { stage: number; band: number };
 
@@ -80,11 +88,8 @@ export function DeviceReadingColorSettings({ shareTheme = false }: { shareTheme?
       theme={prefs.theme}
       cueStyle={prefs.cueStyle}
       onChange={(key, value) => {
-        const readingColors = { ...prefs.readingColors };
-        if (value === undefined) delete readingColors[key];
-        else readingColors[key] = value;
         setPrefs({
-          readingColors,
+          readingColors: withReadingColor(getPrefs().readingColors, key, value),
           ...(key === 'chords' ? { chordColor: value ?? null } : {}),
         });
       }}
@@ -115,8 +120,15 @@ export function ReadingColorSettings({
 }) {
   const { t, blockName, singerName } = useT();
   const id = useId();
-  const [key, setKey] = useState<ReadingColorKey>('chords');
-  const [draft, setDraft] = useState<string | null>(null);
+  const [target, setTarget] = useState<ColorTarget>('chords');
+  const [sectionChannel, setSectionChannel] = useState<'Background' | 'Text'>('Background');
+  const [edited, setEdited] = useState<{ key: ReadingColorKey; value: string } | null>(null);
+  const section = READING_SECTIONS.find((section) => section === target);
+  const textChannel = cueStyle === 'minimal' || sectionChannel === 'Text';
+  const key: ReadingColorKey = section
+    ? `${section}${textChannel ? 'Text' : 'Background'}`
+    : target;
+  const draft = edited?.key === key ? edited.value : null;
   const [sharing, setSharing] = useState(false);
   const [shareResult, setShareResult] = useState<ThemeShareResult | 'error' | null>(null);
   const pending = useRef<{ key: ReadingColorKey; color: string; timer: number } | null>(null);
@@ -137,6 +149,8 @@ export function ReadingColorSettings({
     if (queued) save.current(queued.key, queued.color);
   }, [cancelPending]);
 
+  const clearDraft = (): void => setEdited(null);
+
   // Save the pending choice if the user closes settings or switches screens.
   useLayoutEffect(() => savePending, [savePending]);
 
@@ -144,29 +158,35 @@ export function ReadingColorSettings({
     cancelPending();
     const color = value.toLowerCase();
     if (isReadingColor(color) && color === colors[key]?.toLowerCase()) {
-      setDraft(null);
+      clearDraft();
       return;
     }
-    setDraft(value);
+    setEdited({ key, value });
     if (!isReadingColor(color)) return;
     const timer = window.setTimeout(() => {
       savePending();
-      setDraft(null);
+      clearDraft();
     }, COLOR_SAVE_DELAY_MS);
     pending.current = { key, color, timer };
   };
 
   const changeColor = (value: string | null | undefined): void => {
     cancelPending();
-    setDraft(null);
-    if (value !== colors[key]) onChange(key, value);
+    clearDraft();
+    if (value !== (textChannel ? colors[key] : resolvedColor(colors))) onChange(key, value);
   };
 
-  const effective = { ...inherited, ...colors };
+  const effective = layerReadingColors(inherited, colors);
+  const resolvedColor = (palette: ReadingColors) =>
+    section
+      ? textChannel
+        ? sectionText(palette, section, cueStyle === 'minimal')
+        : sectionBackground(palette, section)
+      : palette[key];
   const share = async (): Promise<void> => {
     if (!onShare || sharing) return;
     savePending();
-    setDraft(null);
+    clearDraft();
     setSharing(true);
     setShareResult(null);
     try {
@@ -187,7 +207,7 @@ export function ReadingColorSettings({
     )
       return;
     cancelPending();
-    setDraft(null);
+    clearDraft();
     onReset();
   };
   return (
@@ -198,11 +218,11 @@ export function ReadingColorSettings({
       <label className="mt-3 grid max-w-xl gap-1.5 text-sm">
         <span>{t('settings.colors.edit')}</span>
         <Select
-          value={key}
+          value={target}
           onChange={(event) => {
             savePending();
-            setDraft(null);
-            setKey(event.target.value as ReadingColorKey);
+            clearDraft();
+            setTarget(event.target.value as ColorTarget);
           }}
         >
           <optgroup label={t('settings.colors.textAndMusic')}>
@@ -232,11 +252,36 @@ export function ReadingColorSettings({
           </optgroup>
         </Select>
       </label>
+      {section && cueStyle !== 'minimal' && (
+        <Segmented label={t('settings.colors.sectionChannel')} className="mt-3">
+          {(['Background', 'Text'] as const).map((channel) => (
+            <Segment
+              key={channel}
+              active={sectionChannel === channel}
+              aria-pressed={sectionChannel === channel}
+              onClick={() => {
+                savePending();
+                clearDraft();
+                setSectionChannel(channel);
+              }}
+            >
+              {t(
+                channel === 'Background'
+                  ? 'settings.colors.sectionBackground'
+                  : 'settings.colors.sectionText',
+              )}
+            </Segment>
+          ))}
+        </Segmented>
+      )}
       <ColorEditor
         key={key}
         colorKey={key}
+        target={target}
         colors={effective}
-        override={colors[key]}
+        saved={resolvedColor(effective)}
+        override={section && textChannel ? colors[key] : resolvedColor(colors)}
+        sectionTextColor={section !== undefined && textChannel}
         draft={draft}
         inheritLabel={inheritLabel}
         theme={theme}
@@ -273,8 +318,11 @@ export function ReadingColorSettings({
 
 function ColorEditor({
   colorKey,
+  target,
   colors,
+  saved,
   override,
+  sectionTextColor,
   draft,
   inheritLabel,
   theme,
@@ -283,8 +331,11 @@ function ColorEditor({
   onChange,
 }: {
   colorKey: ReadingColorKey;
+  target: ColorTarget;
   colors: ReadingColors;
+  saved: string | null | undefined;
   override: string | null | undefined;
+  sectionTextColor: boolean;
   draft: string | null;
   inheritLabel: string | undefined;
   theme: 'auto' | 'light' | 'dark' | undefined;
@@ -296,10 +347,11 @@ function ColorEditor({
   const hexId = useId();
   const [defaultHex, setDefaultHex] = useState('#000000');
   const swatch = useRef<HTMLSpanElement>(null);
-  const saved = colors[colorKey];
-  const themeColor = defaultColor(colorKey, cueStyle);
+  const themeColor = defaultColor(target, sectionTextColor, cueStyle);
+  const swatchColor = sectionTextColor && saved === 'transparent' ? LYRIC_INK : themeColor;
   const transparentDefault = themeColor === 'transparent';
-  const transparent = saved === 'transparent' || (saved == null && transparentDefault);
+  const transparent =
+    !sectionTextColor && (saved === 'transparent' || (saved == null && transparentDefault));
   const pickerColor = isReadingColor(saved) ? saved : defaultHex;
   const hex = draft ?? (transparent ? '' : pickerColor);
   const valid = isReadingColor(hex);
@@ -315,9 +367,9 @@ function ColorEditor({
     ctx.fillRect(0, 0, 1, 1);
     const rgb = [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
     setDefaultHex('#' + rgb.map((value) => value.toString(16).padStart(2, '0')).join(''));
-  }, [themeColor, theme]);
+  }, [swatchColor, theme]);
 
-  const isDefault = draft === null && (inheritLabel ? override === null : override == null);
+  const isDefault = draft === null && (inheritLabel ? override === null : saved == null);
   return (
     <div className="mt-3 grid max-w-xl gap-3">
       <div
@@ -330,7 +382,7 @@ function ColorEditor({
           } as React.CSSProperties
         }
       >
-        <ReadingColorPreview colorKey={colorKey} cueStyle={cueStyle} />
+        <ReadingColorPreview colorKey={target} cueStyle={cueStyle} />
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
@@ -367,7 +419,7 @@ function ColorEditor({
           type="button"
           aria-pressed={isDefault}
           className="flex h-9 items-center gap-1.5 rounded-full border border-(--color-line) px-2 text-xs hover:border-(--color-muted) aria-pressed:border-(--color-chord)"
-          onClick={() => onChange(inheritLabel ? null : undefined)}
+          onClick={() => onChange(inheritLabel || colorKey !== target ? null : undefined)}
         >
           <span
             ref={swatch}
@@ -378,7 +430,7 @@ function ColorEditor({
                 ? 'border-dashed border-(--color-muted)'
                 : 'border-black/15 bg-current'
             }`}
-            style={{ color: transparentDefault ? 'var(--color-stage-bg)' : themeColor }}
+            style={{ color: transparentDefault ? 'var(--color-stage-bg)' : swatchColor }}
           />
           {t('settings.colors.themeDefault')}
         </button>
@@ -393,11 +445,7 @@ function ColorEditor({
               aria-hidden="true"
               className="size-5 rounded-full border border-dashed border-(--color-muted)"
             />
-            {t(
-              cueStyle === 'minimal' && colorKey !== 'background'
-                ? 'settings.colors.noSectionColor'
-                : 'settings.colors.noBackground',
-            )}
+            {t('settings.colors.noBackground')}
           </button>
         )}
         {PRESETS.map(([color, label]) => (
@@ -433,22 +481,26 @@ function ColorEditor({
   );
 }
 
-function defaultColor(key: ReadingColorKey, cueStyle: CueStyle): string {
+function defaultColor(key: ColorTarget, sectionTextColor: boolean, cueStyle: CueStyle): string {
   const panel = cueAppearance(key);
-  const minimal = cueStyle === 'minimal';
+  if (sectionTextColor) {
+    if (cueStyle !== 'minimal') return LYRIC_INK;
+    if (key === 'info') return sectionAccentInk(key, SETUP_ACCENT);
+    return panel ? sectionAccentInk(key, panel.border) : LYRIC_INK;
+  }
   const base: Partial<Record<ReadingColorKey, string>> = {
     background: 'var(--color-stage-bg)',
     chords: 'var(--color-chord)',
     bass: 'var(--color-bass)',
     titles: 'var(--color-muted)',
-    info: minimal ? sectionAccentInk(key, SETUP_ACCENT) : SETUP_BACKGROUND,
+    info: SETUP_BACKGROUND,
     infoDetails: 'var(--color-muted)',
     Men: 'var(--color-singers-men)',
     Women: 'var(--color-singers-women)',
   };
   return (
     base[key] ??
-    (panel && (minimal ? sectionAccentInk(key, panel.border) : panel.background)) ??
+    panel?.background ??
     (isReadingSectionColor(key) ? 'transparent' : 'var(--color-stage-fg)')
   );
 }
@@ -457,7 +509,7 @@ function ReadingColorPreview({
   colorKey,
   cueStyle,
 }: {
-  colorKey: ReadingColorKey;
+  colorKey: ColorTarget;
   cueStyle: CueStyle;
 }) {
   const { t } = useT();
@@ -474,9 +526,9 @@ function ReadingColorPreview({
       </div>
     );
   }
-  const isBlock = BLOCK_TYPES.some((type) => type === colorKey);
+  const blockType = BLOCK_TYPES.find((type) => type === colorKey) ?? 'Verse';
   const singer = SINGERS.find((who) => who === colorKey);
-  const block = emptyBlock('V1', isBlock ? (colorKey as BlockType) : 'Verse');
+  const block = emptyBlock('V1', blockType);
   const line = emptyLine(t('settings.chordColorSample'));
   if (colorKey === 'chords')
     line.chords = [

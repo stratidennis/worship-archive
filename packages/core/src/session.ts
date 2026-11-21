@@ -8,6 +8,7 @@
  */
 import type { AccidentalPreferences } from './key.js';
 import {
+  layerReadingColors,
   normaliseReadingColors,
   readingColorsWithChords,
   type ReadingTheme,
@@ -237,11 +238,11 @@ export function resolveStageDisplay(
     display?.showBlockTitles == null ? null : display.showBlockTitles ? 'full' : 'compact';
   const cueStyle =
     own?.cueStyle ?? legacyCueStyle(own) ?? state.stage.cueStyle ?? legacyCueStyle(state.stage);
-  const readingColors = {
-    ...readingColorsWithChords(host?.readingColors, host?.chordColor ?? null),
-    ...readingColorsWithChords(state.stage.readingColors, state.stage.chordColor),
-    ...readingColorsWithChords(own?.readingColors, own?.chordColor ?? null),
-  };
+  const readingColors = layerReadingColors(
+    readingColorsWithChords(host?.readingColors, host?.chordColor ?? null),
+    readingColorsWithChords(state.stage.readingColors, state.stage.chordColor),
+    readingColorsWithChords(own?.readingColors, own?.chordColor ?? null),
+  );
   return {
     ...(Object.keys(readingColors).length ? { readingColors } : {}),
     theme: own?.theme ?? state.stage.theme ?? host?.theme ?? null,

@@ -10,7 +10,6 @@ import {
   failedFit,
   isPhoneScreen,
   NARROW_SCREEN_WIDTH,
-  provisionalSongFit,
   usesConstrainedColumnFlow,
 } from '../src/lib/useFitToScreen.js';
 
@@ -57,6 +56,7 @@ describe('fit-to-screen font floor', () => {
 
   it('does not mistake a narrow song pane on a laptop for a phone', () => {
     expect(isPhoneScreen(1366, 768)).toBe(false);
+    expect(columnCandidates(507, false)).toEqual([1, 2]);
   });
 
   it('recognizes a phone in either orientation', () => {
@@ -99,6 +99,14 @@ describe('largest readable fit', () => {
 
   it('does not prune layouts without known row heights', () => {
     expect(canFitSongRows([], 72, 840, 2)).toBe(true);
+  });
+
+  it('accounts for the additional rows a long line needs in a narrow column', () => {
+    const groups = [
+      { heightInEm: 2, rows: 1, wrappedLines: [{ heightInEm: 2, widthInEm: 72, words: 12 }] },
+    ];
+    expect(canFitSongRows(groups, 20, 72, 1, 490)).toBe(false);
+    expect(canFitSongRows(groups, 20, 76, 1, 740)).toBe(true);
   });
 
   it('rules out a layout that needs to split a group across columns', () => {
@@ -349,32 +357,9 @@ describe('fit overflow measurement', () => {
     });
   });
 
-  it('keeps charts out of document flow while fitting on non-preview screens', () => {
+  it('keeps charts out of document flow until the first layout is ready', () => {
     const fit = { fontPx: 26, columns: 2, heightPx: 560, phone: false, fits: true };
     expect(fittedSongStyle({ ...fit, measuring: true }).display).toBe('none');
     expect(fittedSongStyle({ ...fit, measuring: false }).display).toBeUndefined();
-  });
-
-  it('shows a readable, scrollable preview without reusing the previous chart columns', () => {
-    const fit = provisionalSongFit(
-      {
-        fontPx: 54,
-        columns: 3,
-        fits: true,
-        compactSpacing: true,
-        heightPx: 700,
-        phone: false,
-        measuring: true,
-      },
-      18,
-    );
-    expect(fit).toMatchObject({ fontPx: 18, columns: 1, fits: false, measuring: true });
-    expect(fittedSongStyle(fit)).toMatchObject({
-      visibility: 'visible',
-      display: undefined,
-      height: undefined,
-      columnFill: undefined,
-    });
-    expect(fittedSongOverflowClass(fit.fits, true)).toContain('overflow-y-auto');
   });
 });

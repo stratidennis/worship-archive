@@ -267,7 +267,12 @@ it('shares colors with connected Stage and consent-capable Band devices only', a
   });
   const theme = {
     theme: 'dark' as const,
-    readingColors: { Chorus: '#456789', Intro: 'transparent' },
+    readingColors: {
+      Chorus: '#456789',
+      ChorusBackground: '#283746',
+      ChorusText: '#ffeecc',
+      Intro: 'transparent',
+    },
   };
   expect(hub.shareTheme(theme)).toEqual({ stage: 1, band: 1 });
   expect(await waitFor(band, 'theme-offer')).toEqual({ t: 'theme-offer', theme });
@@ -281,7 +286,14 @@ it('shares colors with connected Stage and consent-capable Band devices only', a
     minFontPx: 21,
     lineHeight: 1.4,
     showChords: false,
-    readingColors: { Bridge: null, Chorus: '#456789', Intro: 'transparent' },
+    readingColors: {
+      Bridge: null,
+      Chorus: '#456789',
+      ChorusBackground: '#283746',
+      ChorusText: '#ffeecc',
+      Intro: 'transparent',
+      IntroBackground: 'transparent',
+    },
   });
   expect(state.stageByDevice.offline?.display.theme).toBe('light');
   expect(state.stage.theme).toBe('light');

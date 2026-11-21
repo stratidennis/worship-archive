@@ -84,7 +84,6 @@ export function SongPage() {
   const fit = useFitToScreen(container, content, {
     song,
     overflowNotice,
-    showPreview: true,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
     key: `${song?.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
@@ -188,7 +187,7 @@ export function SongPage() {
 
       {/*
         The container is the measuring frame: exactly the space a song must fit into.
-        The reader can scroll while fitting, or if the chart cannot fit at the minimum.
+        The reader can scroll if the chart cannot fit at the minimum.
       */}
       <main
         id="main"
@@ -199,10 +198,9 @@ export function SongPage() {
         )}`}
       >
         <div
-          key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+          key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.compactSpacing}:${fit.heightPx}`}
           ref={content}
           className="w-full"
-          data-song-preview={fit.provisional ? '' : undefined}
           style={fittedSongStyle(fit)}
         >
           <SongBody

@@ -339,6 +339,32 @@ export function SetPage() {
     },
     [set, songs],
   );
+  const tempoFor = useCallback(
+    (index: number, offset: number): SessionPatch => {
+      const item = set?.items[index];
+      const saved = item?.kind === 'song' ? songs[item.songId]?.tempo : null;
+      return saved && Number.isFinite(saved) && saved > 0
+        ? { tempo: saved, beatEpoch: Date.now() + offset }
+        : { tempo: null, beatEpoch: null };
+    },
+    [set, songs],
+  );
+  const lastPublished = useRef<{ epoch: string | null; from: number; to: number } | null>(null);
+  const publishItem = useCallback(
+    (index: number) => {
+      const pending = lastPublished.current;
+      const previous =
+        pending?.epoch === state.sessionEpoch && pending.from === state.itemIndex
+          ? pending.to
+          : state.itemIndex;
+      lastPublished.current = { epoch: state.sessionEpoch, from: state.itemIndex, to: index };
+      patch({
+        ...livePatchFor(index),
+        ...(previous === index ? {} : tempoFor(index, clockOffset)),
+      });
+    },
+    [patch, livePatchFor, state.sessionEpoch, state.itemIndex, tempoFor, clockOffset],
+  );
 
   const facets = useMemo(() => {
     const keys = new Map<string, number>();
@@ -416,35 +442,33 @@ export function SetPage() {
   }, [flush]);
 
   /*
-    Take over the service, but only once the host has actually said where it is.
-
-    Before the first frame `state` is the *initial* session, whose `setId` is null —
-    adopting on that would move the screens off a running service every time a leader's
-    page reloaded.
-  */
-  useEffect(() => {
-    if (!leading || !synced) return;
-    if (state.setId !== id) patch({ setId: id, ...livePatchFor(0) });
-  }, [leading, synced, state.setId, id, patch, livePatchFor]);
-
-  /*
     Key, transpose and capo travel together.
 
     Saving the set triggers a library refresh, but the live session must also receive
     the complete current instruction. Band devices use it as their default while still
     retaining any explicit per-song choice made by that musician for this session.
   */
+  const liveSong = useRef<{ slot: string; id: string | null } | null>(null);
   useEffect(() => {
-    if (!leading || !synced || state.setId !== id || !set) return;
+    if (!leading || !synced || !state.active || state.setId !== id || !set) return;
+    const slot = `${state.sessionEpoch}:${state.itemIndex}`;
+    const item = set.items[state.itemIndex];
+    const songId = item?.kind === 'song' ? item.songId : null;
+    const changedSong = liveSong.current?.slot === slot && liveSong.current.id !== songId;
+    liveSong.current = { slot, id: songId };
     const expected = livePatchFor(state.itemIndex);
     if (
+      changedSong ||
       state.performanceKey !== expected.performanceKey ||
       state.transpose !== expected.transpose ||
       state.capo !== expected.capo
     ) {
-      patch(expected);
+      patch({
+        ...expected,
+        ...(changedSong ? tempoFor(state.itemIndex, clockOffset) : {}),
+      });
     }
-  }, [leading, synced, state, id, set, livePatchFor, patch]);
+  }, [leading, synced, state, id, set, livePatchFor, patch, tempoFor, clockOffset]);
 
   // In Auto, the preview is simply what the room is seeing.
   useEffect(() => {
@@ -488,9 +512,9 @@ export function SetPage() {
   const selectItem = useCallback(
     (index: number) => {
       setSelection({ kind: 'item', index });
-      if (leading && auto) patch(livePatchFor(index));
+      if (leading && auto && state.active && state.setId === id) publishItem(index);
     },
-    [leading, auto, patch, livePatchFor],
+    [leading, auto, state.active, state.setId, id, publishItem],
   );
 
   const songIndices = useMemo(
@@ -524,8 +548,8 @@ export function SetPage() {
   useSongArrows(step);
 
   const sendLive = useCallback(() => {
-    if (cursorIndex !== null) patch(livePatchFor(cursorIndex));
-  }, [cursorIndex, patch, livePatchFor]);
+    if (cursorIndex !== null && state.active && state.setId === id) publishItem(cursorIndex);
+  }, [cursorIndex, state.active, state.setId, id, publishItem]);
 
   // Only while leading: a leader's hands are on an instrument, but someone merely
   // editing a set should get the letter b when they press b.
@@ -638,7 +662,16 @@ export function SetPage() {
   /** Turning the switch on also opens the tools, because that is where the controls are. */
   const toggleLead = (): void => {
     const next = !leading;
-    setLeading({ setId: next ? id : null });
+    setLeading({
+      setId: next ? id : null,
+      start: next
+        ? (current, offset) => {
+            const index =
+              current.setId === id && set?.items[current.itemIndex] ? current.itemIndex : 0;
+            return { ...livePatchFor(index), ...tempoFor(index, offset) };
+          }
+        : null,
+    });
     if (next) {
       setPrefs({ setHeaderExpanded: true });
       setTab('program');
@@ -744,7 +777,7 @@ export function SetPage() {
                 pushed the navigation onto a second row every time anything was saved. */}
             <SaveBadge state={saveState} quietWhenDirty />
 
-            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
               {/* Whether chords are showing is a view preference, not a leading
                   control. It used to appear only once the switch was on, which left a
                   guitarist reading through Sunday's set on a Tuesday with no way to
@@ -767,7 +800,7 @@ export function SetPage() {
                   onAuto={setAuto}
                 />
               )}
-            </span>
+            </div>
           </div>
         </div>
       )}
@@ -1305,7 +1338,7 @@ function LeadControls({
 }) {
   const { t } = useT();
   return (
-    <span className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {/*
         Auto and Manual, the one idea worth keeping wholesale from the legacy app: in
         Manual the leader can look ahead — check the next song's key, find the bridge —
@@ -1327,10 +1360,15 @@ function LeadControls({
       >
         {t('lead.clear')}
       </Button>
-      <Tempo state={state} patch={patch} clockOffset={clockOffset} />
+      <Tempo
+        key={`${state.sessionEpoch}:${state.setId}:${state.itemIndex}`}
+        state={state}
+        patch={patch}
+        clockOffset={clockOffset}
+      />
 
       <StatusDot status={status} />
-    </span>
+    </div>
   );
 }
 
@@ -1344,40 +1382,76 @@ function Tempo({
   clockOffset: number;
 }) {
   const { t } = useT();
-  const [taps, setTaps] = useState<number[]>([]);
+  const taps = useRef<number[]>([]);
+  const [draft, setDraft] = useState<string | null>(null);
+  const bpm = draft !== null && /^[0-9]+$/.test(draft) ? Number(draft) : 0;
+  const valid = Number.isSafeInteger(bpm) && bpm > 0;
 
-  // Tapping is how musicians set tempo; typing a number is a fallback.
   const tap = (): void => {
     const now = Date.now();
-    const recent = [...taps, now].filter((at) => now - at < 3000).slice(-5);
-    setTaps(recent);
+    const recent = [...taps.current, now].filter((at) => now - at < 3000).slice(-5);
+    taps.current = recent;
+    setDraft(null);
     if (recent.length >= 2) {
       const gaps = recent.slice(1).map((at, i) => at - recent[i]!);
       const average = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-      patch({ tempo: Math.round(60000 / average), beatEpoch: now });
-    } else {
-      patch({ beatEpoch: now });
+      if (average > 0)
+        patch({ tempo: Math.round(60000 / average), beatEpoch: now + clockOffset });
+    } else if (state.tempo !== null) {
+      patch({ beatEpoch: now + clockOffset });
     }
   };
 
   return (
-    <span className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <Button size="sm" onClick={tap}>
         {t('lead.tap')}
       </Button>
+      <form
+        className="flex items-center gap-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!valid) return;
+          taps.current = [];
+          patch({ tempo: bpm, beatEpoch: Date.now() + clockOffset });
+          setDraft(null);
+        }}
+      >
+        <label className="flex items-center gap-1.5 text-xs text-(--color-muted)">
+          <Input
+            tight
+            inputMode="numeric"
+            pattern="[0-9]+"
+            aria-label={t('lead.tempoBpm')}
+            aria-invalid={(draft !== null && draft !== '' && !valid) || undefined}
+            value={draft ?? state.tempo?.toString() ?? ''}
+            placeholder="—"
+            onChange={(event) => setDraft(event.target.value)}
+            className="w-14 text-right tabular-nums aria-invalid:border-red-500"
+          />
+          BPM
+        </label>
+        <Button size="sm" type="submit" disabled={!valid} aria-label={t('lead.applyTempo')}>
+          {t('lead.setTempo')}
+        </Button>
+      </form>
       {state.tempo !== null && (
         <>
-          <BeatLed state={state} clockOffset={clockOffset} size="sm" />
+          <BeatLed state={state} clockOffset={clockOffset} size="sm" showTempo={false} />
           <IconButton
             size="sm"
             label={t('lead.stopTempo')}
-            onClick={() => patch({ tempo: null, beatEpoch: null })}
+            onClick={() => {
+              taps.current = [];
+              setDraft(null);
+              patch({ tempo: null, beatEpoch: null });
+            }}
           >
             <IconClose size={14} />
           </IconButton>
         </>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -1490,7 +1564,6 @@ function Preview({
   const fit = useFitToScreen(container, content, {
     song,
     overflowNotice,
-    showPreview: true,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
     key: `${song?.id}:${lang}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
@@ -1541,10 +1614,9 @@ function Preview({
         )}`}
       >
         <div
-          key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+          key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.compactSpacing}:${fit.heightPx}`}
           ref={content}
           className="w-full"
-          data-song-preview={fit.provisional ? '' : undefined}
           style={fittedSongStyle(fit)}
         >
           <SongBody

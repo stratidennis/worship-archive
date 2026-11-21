@@ -504,7 +504,7 @@ export function BandPage() {
         >
           {viewing ? (
             <div
-              key={`${viewing.song.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
+              key={`${viewing.song.id}:${fit.fontPx}:${fit.columns}:${fit.compactSpacing}:${fit.heightPx}`}
               ref={content}
               style={fittedSongStyle(fit)}
             >

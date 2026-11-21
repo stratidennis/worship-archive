@@ -14,8 +14,11 @@ import {
   DEFAULT_STAGE_DISPLAY,
   INITIAL_SESSION,
   READING_COLOR_KEYS,
+  READING_SECTIONS,
   SESSION_PROTOCOL_VERSION,
   patchStageDisplay,
+  sectionBackground,
+  type ReadingColors,
   type ReadingTheme,
   type ClientMessage,
   type DeviceInfo,
@@ -186,9 +189,17 @@ export class SessionHub {
   }
 
   shareTheme(theme: ReadingTheme): { stage: number; band: number } {
-    const readingColors = Object.fromEntries(
+    const readingColors: ReadingColors = Object.fromEntries(
       READING_COLOR_KEYS.map((key) => [key, theme.readingColors[key] ?? null]),
     );
+    for (const section of READING_SECTIONS) {
+      readingColors[`${section}Background`] =
+        sectionBackground(theme.readingColors, section) ?? null;
+      const ink = `${section}Text` as const;
+      if (theme.readingColors[section] != null && theme.readingColors[ink] === undefined) {
+        delete readingColors[ink];
+      }
+    }
     const colours = { ...theme, readingColors, chordColor: theme.readingColors.chords ?? null };
     const byDevice = new Map(Object.entries(this.state.stageByDevice));
     const byName = new Map(Object.entries(this.state.stageBy));

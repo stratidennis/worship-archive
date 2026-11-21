@@ -26,7 +26,8 @@ describe('Song setup cue styles', () => {
     const html = render('full');
     expect(html).toContain('Song setup');
     expect(html).toContain('<h2');
-    expect(html).toContain('background-color:var(--reading-info,');
+    expect(html).toContain('background-color:var(--reading-info-background,');
+    expect(html).toContain('color:var(--reading-infoText,');
     expect(html).toContain('class="font-normal leading-snug"');
   });
 
@@ -34,7 +35,8 @@ describe('Song setup cue styles', () => {
     const html = render('compact');
     expect(html).not.toContain('Song setup');
     expect(html).not.toContain('<h2');
-    expect(html).toContain('background-color:var(--reading-info,');
+    expect(html).toContain('background-color:var(--reading-info-background,');
+    expect(html).toContain('color:var(--reading-infoText,');
     expect(html).toContain('Performance key G');
     expect(html).toContain('Capo 2');
   });
