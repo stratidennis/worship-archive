@@ -10,6 +10,7 @@ import {
   failedFit,
   isPhoneScreen,
   NARROW_SCREEN_WIDTH,
+  provisionalSongFit,
   usesConstrainedColumnFlow,
 } from '../src/lib/useFitToScreen.js';
 
@@ -348,9 +349,32 @@ describe('fit overflow measurement', () => {
     });
   });
 
-  it('keeps a provisional layout out of document flow while measuring', () => {
+  it('keeps charts out of document flow while fitting on non-preview screens', () => {
     const fit = { fontPx: 26, columns: 2, heightPx: 560, phone: false, fits: true };
     expect(fittedSongStyle({ ...fit, measuring: true }).display).toBe('none');
     expect(fittedSongStyle({ ...fit, measuring: false }).display).toBeUndefined();
+  });
+
+  it('shows a readable, scrollable preview without reusing the previous chart columns', () => {
+    const fit = provisionalSongFit(
+      {
+        fontPx: 54,
+        columns: 3,
+        fits: true,
+        compactSpacing: true,
+        heightPx: 700,
+        phone: false,
+        measuring: true,
+      },
+      18,
+    );
+    expect(fit).toMatchObject({ fontPx: 18, columns: 1, fits: false, measuring: true });
+    expect(fittedSongStyle(fit)).toMatchObject({
+      visibility: 'visible',
+      display: undefined,
+      height: undefined,
+      columnFill: undefined,
+    });
+    expect(fittedSongOverflowClass(fit.fits, true)).toContain('overflow-y-auto');
   });
 });

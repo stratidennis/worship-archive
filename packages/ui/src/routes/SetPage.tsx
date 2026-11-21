@@ -1490,6 +1490,7 @@ function Preview({
   const fit = useFitToScreen(container, content, {
     song,
     overflowNotice,
+    showPreview: true,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
     key: `${song?.id}:${lang}:${shift}:${capo ?? 0}:${prefs.showChords}:${prefs.cueStyle}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
@@ -1534,7 +1535,7 @@ function Preview({
       </div>
       <div
         ref={container}
-        className={`reading-surface min-h-0 flex-1 px-3 py-3 sm:px-4 ${fittedSongOverflowClass(
+        className={`reading-surface relative min-h-0 flex-1 px-3 py-3 sm:px-4 ${fittedSongOverflowClass(
           fit.fits,
           true,
         )}`}
@@ -1543,6 +1544,7 @@ function Preview({
           key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
           ref={content}
           className="w-full"
+          data-song-preview={fit.provisional ? '' : undefined}
           style={fittedSongStyle(fit)}
         >
           <SongBody
@@ -1559,7 +1561,7 @@ function Preview({
           />
         </div>
       </div>
-      {!fit.fits && (
+      {!fit.measuring && !fit.fits && (
         <p
           ref={overflowNotice}
           className="shrink-0 border-t border-(--color-line) px-3 py-1 text-center text-xs text-(--color-muted)"

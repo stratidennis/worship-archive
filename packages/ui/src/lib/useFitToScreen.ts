@@ -30,6 +30,8 @@ export interface FitOptions {
   maxFittedFontPx?: number;
   /** Identify the song and anything besides the song itself that affects layout. */
   key: string;
+  /** Show a scrollable chart before fitting on interactive preview screens. */
+  showPreview?: boolean;
   /** A warning beside the reader that disappears whenever the song fits. */
   overflowNotice?: RefObject<HTMLElement | null>;
 }
@@ -41,6 +43,7 @@ export interface FitResult extends FitChoice {
   phone: boolean;
   /** True while measuring, so the caller can avoid showing a flash of wrong sizes. */
   measuring: boolean;
+  provisional?: true;
 }
 
 const MIN_DEFAULT = 12;
@@ -103,9 +106,10 @@ export function usesConstrainedColumnFlow(columns: number): boolean {
   return columns > 1;
 }
 
-/** The shared final style for every fitted song surface. */
+/** The shared style for fitted songs and interactive previews. */
 export function fittedSongStyle(fit: FitResult): CSSProperties {
   const constrained = usesConstrainedColumnFlow(fit.columns);
+  const hidden = fit.measuring && !fit.provisional;
   return {
     fontSize: `${fit.fontPx}px`,
     columnCount: fit.columns,
@@ -113,12 +117,25 @@ export function fittedSongStyle(fit: FitResult): CSSProperties {
     ...(fit.compactSpacing ? { '--song-section-gap': COMPACT_SECTION_GAP } : {}),
     height: constrained ? `${fit.heightPx}px` : undefined,
     columnFill: constrained ? 'auto' : undefined,
-    display: fit.measuring ? 'none' : undefined,
-    visibility: fit.measuring ? 'hidden' : 'visible',
+    display: hidden ? 'none' : undefined,
+    visibility: hidden ? 'hidden' : 'visible',
   };
 }
 
-/** Interactive song screens may scroll only after every readable fit has failed. */
+export function provisionalSongFit(previous: FitResult, minFontPx: number): FitResult {
+  return {
+    ...previous,
+    fontPx: minFontPx,
+    columns: 1,
+    compactSpacing: false,
+    heightPx: 0,
+    fits: false,
+    measuring: true,
+    provisional: true,
+  };
+}
+
+/** Unfitted interactive charts can scroll; fixed displays stay clipped. */
 export function fittedSongOverflowClass(fits: boolean, allowFallbackScroll: boolean): string {
   return !fits && allowFallbackScroll
     ? 'touch-pan-y overflow-y-auto'
@@ -260,7 +277,7 @@ export function useFitToScreen(
     maxFittedFont,
     Math.max(minFont, options.preferredFontPx ?? PREFERRED_DEFAULT),
   );
-  const { key, song, overflowNotice } = options;
+  const { key, song, overflowNotice, showPreview } = options;
   const [result, setResult] = useState<FitResult>({
     fontPx: preferredFont,
     columns: 1,
@@ -387,6 +404,7 @@ export function useFitToScreen(
         showFit(cached.fit);
         return;
       }
+      if (showPreview && !(await nextFrame())) throw cancelled;
       let desktopSliceStarted = performance.now();
       let desktopProbe: HTMLElement | undefined;
       const overflows = async (
@@ -647,10 +665,13 @@ export function useFitToScreen(
     preferredFont,
     maxFittedFont,
     overflowNotice,
+    showPreview,
     key,
     song,
   ]);
 
   const fitted = fittedContent.current;
-  return fitted?.key === key && fitted.song === song ? result : { ...result, measuring: true };
+  const fit =
+    fitted?.key === key && fitted.song === song ? result : { ...result, measuring: true };
+  return showPreview && fit.measuring ? provisionalSongFit(fit, minFont) : fit;
 }

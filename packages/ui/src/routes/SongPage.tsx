@@ -84,6 +84,7 @@ export function SongPage() {
   const fit = useFitToScreen(container, content, {
     song,
     overflowNotice,
+    showPreview: true,
     minFontPx: prefs.minFontPx,
     maxFittedFontPx: prefs.maxFontPx,
     key: `${song?.id}:${lang}:${prefs.showChords}:${prefs.cueStyle}:${prefs.transpose}:${prefs.capo}:${prefs.lineHeight}:${JSON.stringify(prefs.accidentalPreferences)}`,
@@ -187,14 +188,12 @@ export function SongPage() {
 
       {/*
         The container is the measuring frame: exactly the space a song must fit into.
-        Fitting remains the first choice on every screen. If no allowed column layout
-        can hold the song at the selected minimum, Reader is interactive and may scroll
-        rather than clipping the end of the song.
+        The reader can scroll while fitting, or if the chart cannot fit at the minimum.
       */}
       <main
         id="main"
         ref={container}
-        className={`reading-surface min-h-0 flex-1 px-3 py-3 print:overflow-visible sm:px-4 ${fittedSongOverflowClass(
+        className={`reading-surface relative min-h-0 flex-1 px-3 py-3 print:overflow-visible sm:px-4 ${fittedSongOverflowClass(
           fit.fits,
           true,
         )}`}
@@ -203,6 +202,7 @@ export function SongPage() {
           key={`${song?.id}:${fit.fontPx}:${fit.columns}:${fit.heightPx}`}
           ref={content}
           className="w-full"
+          data-song-preview={fit.provisional ? '' : undefined}
           style={fittedSongStyle(fit)}
         >
           <SongBody
@@ -220,7 +220,7 @@ export function SongPage() {
         </div>
       </main>
 
-      {!fit.fits && (
+      {!fit.measuring && !fit.fits && (
         <p
           ref={overflowNotice}
           className="shrink-0 border-t border-(--color-line) px-4 py-1.5 text-center text-xs text-(--color-muted) print:hidden"
