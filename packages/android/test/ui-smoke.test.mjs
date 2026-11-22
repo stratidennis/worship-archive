@@ -177,3 +177,29 @@ test('typing repairs a first character dropped by the emulator keyboard', async 
     ['shell', 'input', 'text', 'A'],
   ]);
 });
+
+test('typing replaces a partial value that cannot be repaired by prepending', async () => {
+  let text = '';
+  let insertions = 0;
+  const input = await enterNativeInput(
+    () =>
+      `<node class="android.widget.EditText" text="${text}" focused="true" bounds="[92,375][1108,466]" />`,
+    () => {},
+    (shell, input, command, ...args) => {
+      assert.deepEqual([shell, input], ['shell', 'input']);
+      if (command === 'text') {
+        assert.deepEqual(args, ['Android-CI']);
+        text += ++insertions === 1 ? 'C' : args[0];
+      } else {
+        assert.equal(command, 'keyevent');
+        assert.deepEqual(args, ['KEYCODE_MOVE_END', 'KEYCODE_DEL']);
+        text = text.slice(0, -1);
+      }
+    },
+    0,
+    'Android-CI',
+    { attempts: 6, pause: async () => {} },
+  );
+  assert.ok(input.includes('text="Android-CI"'));
+  assert.equal(insertions, 2);
+});

@@ -114,13 +114,17 @@ export async function enterNativeInput(hierarchy, tap, adb, index, value, option
         previousText = typed;
         repeatedReads = 1;
       }
-      // Headless Android keyboards occasionally discard the first injected
-      // character while their input connection is settling. Once the same
-      // suffix is observed twice, insert only the missing prefix at the start.
-      if (repeatedReads >= 2 && repairs < 2 && value.endsWith(typed)) {
-        const missingPrefix = value.slice(0, value.length - typed.length);
-        if (typed) adb('shell', 'input', 'keyevent', 'KEYCODE_MOVE_HOME');
-        adb('shell', 'input', 'text', missingPrefix);
+      // Wait for the field to settle before repairing a partial key injection.
+      if (repeatedReads >= 2 && repairs < 2) {
+        if (value.endsWith(typed)) {
+          const missingPrefix = value.slice(0, value.length - typed.length);
+          if (typed) adb('shell', 'input', 'keyevent', 'KEYCODE_MOVE_HOME');
+          adb('shell', 'input', 'text', missingPrefix);
+        } else {
+          const backspaces = Array.from(typed, () => 'KEYCODE_DEL');
+          adb('shell', 'input', 'keyevent', 'KEYCODE_MOVE_END', ...backspaces);
+          adb('shell', 'input', 'text', value);
+        }
         previousText = undefined;
         repeatedReads = 0;
         repairs++;
