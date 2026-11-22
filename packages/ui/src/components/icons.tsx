@@ -35,6 +35,7 @@ import {
   Minus,
   Moon,
   Music4,
+  PanelLeft,
   Pencil,
   Presentation,
   Plus,
@@ -76,6 +77,7 @@ function make(Component: React.ComponentType<LucideProps>) {
 export const IconHome = make(House);
 export const IconLibrary = make(Library);
 export const IconSets = make(ListMusic);
+export const IconSidebar = make(PanelLeft);
 export const IconLead = make(Disc3);
 export const IconSettings = make(Settings);
 export const IconBack = make(ArrowLeft);

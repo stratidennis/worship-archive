@@ -71,6 +71,7 @@ import {
   IconGrip,
   IconLead,
   IconPlus,
+  IconSidebar,
 } from '../components/icons.js';
 import { PrintableSet } from '../components/PrintableSet.js';
 import { lazy, Suspense } from 'react';
@@ -96,8 +97,8 @@ import {
  *
  * Three panes, and the reason for each:
  *
- *  - **The running order, on the left.** Always visible, drag to reorder. This is the
- *    thing being built, so it never hides behind a tab or a dialog.
+ *  - **The running order, on the left.** Drag to reorder, or hide it for a wider
+ *    song preview. On mobile the sidebar and preview share the screen.
  *  - **A preview, in the middle.** Clicking anything shows the actual song, at the size
  *    it will be led at. Adding a song to a service without reading it first is how the
  *    wrong arrangement ends up in front of a congregation, so the picker deliberately
@@ -138,6 +139,9 @@ type Selection =
   | { kind: 'candidate'; songId: string }
   | null;
 
+// Match Tailwind's md breakpoint, where the sidebar and preview can sit side by side.
+const SPLIT_VIEW_QUERY = '(min-width: 48rem)';
+
 export function SetPage() {
   const { t, date: formatDate } = useT();
   const { id = '' } = useParams();
@@ -159,6 +163,25 @@ export function SetPage() {
     const songId = archiveState.get('candidate');
     return songId ? { kind: 'candidate', songId } : null;
   });
+  const [splitView, setSplitView] = useState(() => window.matchMedia(SPLIT_VIEW_QUERY).matches);
+  const [sidebarOverride, setSidebarOverride] = useState<boolean | null>(null);
+  const sidebarOpen = sidebarOverride ?? (splitView || selection === null);
+  useEffect(() => {
+    const query = window.matchMedia(SPLIT_VIEW_QUERY);
+    const update = (): void => setSplitView(query.matches);
+    query.addEventListener('change', update);
+    update();
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  const previewSelection = useCallback(
+    (next: NonNullable<Selection>) => {
+      setSelection(next);
+      if (!splitView) setSidebarOverride(null);
+    },
+    [splitView],
+  );
+
   /** Archive filters apply immediately as their chips are toggled. */
   const [filters, setFilters] = useState<ArchiveFilters>(() =>
     archiveFiltersFromParams(archiveState),
@@ -291,6 +314,7 @@ export function SetPage() {
   const archiveScroll = useArchiveScroll<HTMLUListElement>(
     'workspace:' + JSON.stringify([query, filters]),
     Boolean(set) &&
+      sidebarOpen &&
       tab === 'library' &&
       hitsReady &&
       (!filters.collection || inCollection !== null),
@@ -511,10 +535,10 @@ export function SetPage() {
    */
   const selectItem = useCallback(
     (index: number) => {
-      setSelection({ kind: 'item', index });
+      previewSelection({ kind: 'item', index });
       if (leading && auto && state.active && state.setId === id) publishItem(index);
     },
-    [leading, auto, state.active, state.setId, id, publishItem],
+    [previewSelection, leading, auto, state.active, state.setId, id, publishItem],
   );
 
   const songIndices = useMemo(
@@ -533,7 +557,7 @@ export function SetPage() {
           current,
           delta,
         );
-        if (next !== undefined) setSelection({ kind: 'candidate', songId: next });
+        if (next !== undefined) previewSelection({ kind: 'candidate', songId: next });
         return;
       }
       const from = cursorIndex ?? (leading ? state.itemIndex : -1);
@@ -543,7 +567,17 @@ export function SetPage() {
           : songIndices.findLast((index) => index < from);
       if (next !== undefined) selectItem(next);
     },
-    [tab, selection, shown, cursorIndex, leading, state.itemIndex, songIndices, selectItem],
+    [
+      tab,
+      selection,
+      shown,
+      cursorIndex,
+      leading,
+      state.itemIndex,
+      songIndices,
+      selectItem,
+      previewSelection,
+    ],
   );
   useSongArrows(step);
 
@@ -594,13 +628,13 @@ export function SetPage() {
       ],
     }));
     if (stay) return;
-    setSelection({ kind: 'item', index: set ? set.items.length : 0 });
+    previewSelection({ kind: 'item', index: set ? set.items.length : 0 });
     setTab('program');
   };
 
   const addItem = (item: SetItem): void => {
     update((s) => ({ ...s, items: [...s.items, item] }));
-    setSelection({ kind: 'item', index: set ? set.items.length : 0 });
+    previewSelection({ kind: 'item', index: set ? set.items.length : 0 });
   };
 
   const patchItem = (index: number, patch: Partial<Extract<SetItem, { kind: 'song' }>>): void =>
@@ -730,11 +764,22 @@ export function SetPage() {
           free-text title beside a date was two fields that had to agree — they did
           not, and "Program nou" sat at the top of a set for a whole Sunday.
         */}
-        <DatePicker
-          value={set.date}
-          onChange={(date) => update((s) => ({ ...s, date, title: titleForDate(date) }))}
-          label={t('sets.noDate')}
-        />
+        <div className="flex items-center gap-1.5">
+          <IconButton
+            label={t(sidebarOpen ? 'set.hideSidebar' : 'set.showSidebar')}
+            aria-controls="set-sidebar"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOverride(!sidebarOpen)}
+            className="shrink-0 aria-expanded:bg-(--color-chord)/15 aria-expanded:text-(--color-chord) max-md:min-h-11 max-md:min-w-11"
+          >
+            <IconSidebar size={17} />
+          </IconButton>
+          <DatePicker
+            value={set.date}
+            onChange={(date) => update((s) => ({ ...s, date, title: titleForDate(date) }))}
+            label={t('sets.noDate')}
+          />
+        </div>
       </HeaderTitle>
 
       <HeaderActions>
@@ -817,14 +862,15 @@ export function SetPage() {
 
       <div className="flex min-h-0 flex-1 print:hidden">
         <aside
+          id="set-sidebar"
           /*
             A custom property rather than an inline `width`: an inline width would beat
             the `w-full` that makes the panel take the whole screen on a phone, and the
             list would be stuck at its desktop width there.
           */
           style={{ '--sidebar': `${prefs.sidebarWidth}px` } as React.CSSProperties}
-          className={`w-full shrink-0 flex-col md:flex md:w-(--sidebar) ${
-            selection === null ? 'flex' : 'hidden'
+          className={`w-full shrink-0 flex-col md:w-(--sidebar) ${
+            sidebarOpen ? 'flex' : 'hidden'
           }`}
         >
           <Segmented className="m-2 shrink-0 self-stretch">
@@ -951,7 +997,7 @@ export function SetPage() {
                       onClick={(event) => {
                         if ((event.target as HTMLElement).closest('button,[role="button"]'))
                           return;
-                        setSelection({ kind: 'candidate', songId: song.id });
+                        previewSelection({ kind: 'candidate', songId: song.id });
                       }}
                       className={`group flex cursor-pointer items-center gap-1 pl-3 pr-1.5 text-sm hover:bg-(--color-line)/40 ${
                         selection?.kind === 'candidate' && selection.songId === song.id
@@ -961,7 +1007,7 @@ export function SetPage() {
                     >
                       <button
                         type="button"
-                        onClick={() => setSelection({ kind: 'candidate', songId: song.id })}
+                        onClick={() => previewSelection({ kind: 'candidate', songId: song.id })}
                         className="flex min-w-0 flex-1 items-baseline gap-2 py-1.5 text-left"
                       >
                         <span className="min-w-0 flex-1 truncate">
@@ -1001,23 +1047,17 @@ export function SetPage() {
           )}
         </aside>
 
-        <ResizeHandle
-          width={prefs.sidebarWidth}
-          onWidth={(sidebarWidth) => setPrefs({ sidebarWidth })}
-        />
+        {sidebarOpen && (
+          <ResizeHandle
+            width={prefs.sidebarWidth}
+            onWidth={(sidebarWidth) => setPrefs({ sidebarWidth })}
+          />
+        )}
 
         <main
           id="main"
-          className={`min-h-0 flex-1 flex-col ${selection === null ? 'hidden md:flex' : 'flex'}`}
+          className={`min-h-0 flex-1 flex-col ${sidebarOpen ? 'hidden md:flex' : 'flex'}`}
         >
-          <button
-            type="button"
-            onClick={() => setSelection(null)}
-            className="shrink-0 border-b border-(--color-line) px-3 py-1.5 text-left text-sm text-(--color-muted) md:hidden"
-          >
-            {t('set.backToProgram')}
-          </button>
-
           {selection?.kind === 'candidate' ? (
             <Preview
               song={songs[selection.songId]}
@@ -1104,7 +1144,13 @@ export function SetPage() {
             </div>
           ) : (
             <p className="p-8 text-center text-sm text-(--color-muted)">
-              {tab === 'library' ? t('set.searchToAdd') : t('set.pickSomething')}
+              {t(
+                !sidebarOpen
+                  ? 'set.pickFromSidebar'
+                  : tab === 'library'
+                    ? 'set.searchToAdd'
+                    : 'set.pickSomething',
+              )}
             </p>
           )}
         </main>
