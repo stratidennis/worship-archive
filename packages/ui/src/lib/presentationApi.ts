@@ -1,5 +1,6 @@
 export interface PresentationOptions {
   repeatMode?: 'compact' | 'expanded';
+  allowDraft?: boolean;
 }
 export type PresentationExportResult =
   | { status: 'cancelled' }

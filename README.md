@@ -38,6 +38,16 @@ report; all three must pass before it writes anything.
 native file dialogs and the tray icon, so a change made here is a change made everywhere
 — there is no need to rebuild the installer to try something.
 
+Run `pnpm audit:presentations "/path/to/library/songs"` to generate every song in
+both PowerPoint repeat modes in memory and list arrangements that need review.
+Add `--strict` to require every song to export without a draft cover.
+
+Presentation exports read `/: … :/`, `||: … :||`, `𝄆 … 𝄇`, and `% … %` repeats.
+Counts such as `x3`, `3×`, and `(3x)` can follow the closing mark or sit on the next
+line. Use opening and closing marks with different shapes when nesting repeats.
+An unresolved cue, such as `D.S. al Coda` without a reviewed order, is flagged in the
+presentation dialog. You can export a marked draft to edit the slides.
+
 ## Running the desktop app
 
 ```bash

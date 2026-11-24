@@ -6,7 +6,7 @@ import { supportsPresentations } from '../lib/presentationCapabilities.js';
 import { clientDesktop } from '../lib/clientDesktop.js';
 import { desktop } from '../lib/desktop.js';
 import { useT } from '../lib/i18n.js';
-import { Button } from './ui.js';
+import { Button, Checkbox } from './ui.js';
 import { IconCheck, IconClose, IconPresentation } from './icons.js';
 import { useOverlay } from './Modal.js';
 
@@ -37,7 +37,8 @@ export function PowerPointDialog({
   const band = role === 'band' ? clientDesktop() : null;
   const native = band ?? desktop();
   const nativeExport = !!native?.exportPresentation;
-  const options: PresentationOptions = { repeatMode: 'compact' };
+  const [allowDraft, setAllowDraft] = useState(false);
+  const options: PresentationOptions = { repeatMode: 'compact', allowDraft };
   const [notice, setNotice] = useState<string | null>(null);
   const [report, setReport] = useState<PowerPointReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,6 +73,9 @@ export function PowerPointDialog({
 
   const found = report?.results.filter((result) => result.status === 'found') ?? [];
   const missing = report?.results.filter((result) => result.status === 'missing') ?? [];
+  const hasArrangementIssues = report?.results.some(
+    (result) => result.arrangementIssues?.length,
+  );
 
   const setSongError = (songId: string, message?: string): void => {
     setReport(
@@ -262,11 +266,23 @@ export function PowerPointDialog({
                     <p className="break-all text-xs text-(--color-muted)">
                       {result.file?.relativePath ?? t('powerpoint.missing')}
                     </p>
-                    {result.error && (
-                      <p role="alert" className="mt-1 break-words text-sm">
-                        {result.error}
-                      </p>
+                    {!!result.arrangementIssues?.length && (
+                      <div className="mt-1 break-words text-sm">
+                        <p className="font-medium">{t('powerpoint.arrangementReview')}</p>
+                        <ul className="list-disc pl-4 text-(--color-muted)">
+                          {result.arrangementIssues.map((issue) => (
+                            <li key={issue}>{issue}</li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
+                    {result.error &&
+                      (!result.arrangementIssues?.length ||
+                        !result.error.startsWith('Review presentation arrangement:')) && (
+                        <p role="alert" className="mt-1 break-words text-sm">
+                          {result.error}
+                        </p>
+                      )}
                   </div>
                   <div className="flex max-w-full flex-wrap justify-end gap-1.5">
                     {nativeExport && (
@@ -318,6 +334,16 @@ export function PowerPointDialog({
                 </li>
               ))}
             </ul>
+          )}
+          {hasArrangementIssues && (
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={allowDraft}
+                disabled={busy}
+                onChange={(event) => setAllowDraft(event.target.checked)}
+              />
+              {t('powerpoint.allowDraft')}
+            </label>
           )}
           {report && (
             <code className="mt-3 block break-all text-xs text-(--color-muted)">

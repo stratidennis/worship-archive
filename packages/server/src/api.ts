@@ -540,14 +540,18 @@ export function createServer(options: ApiOptions): FastifyInstance {
     const songs = requestedSongs(request.body);
     if (!songs) return reply.code(400).send({ error: 'expected songIds' });
     try {
-      const mode = (request.body as { repeatMode?: unknown }).repeatMode;
-      if (mode !== undefined && mode !== 'compact' && mode !== 'expanded')
+      const { repeatMode, allowDraft } = request.body as {
+        repeatMode?: unknown;
+        allowDraft?: unknown;
+      };
+      if (repeatMode !== undefined && repeatMode !== 'compact' && repeatMode !== 'expanded')
         return reply.code(400).send({ error: 'Invalid repeat mode' });
-      return await createMissingPowerPoints(
-        options.powerpointsDir,
-        songs,
-        mode ? { repeatMode: mode } : {},
-      );
+      if (allowDraft !== undefined && typeof allowDraft !== 'boolean')
+        return reply.code(400).send({ error: 'Invalid draft option' });
+      return await createMissingPowerPoints(options.powerpointsDir, songs, {
+        ...(repeatMode && { repeatMode }),
+        ...(allowDraft && { allowDraft }),
+      });
     } catch (error) {
       return reply.code(422).send({
         error: error instanceof Error ? error.message : String(error),

@@ -5,7 +5,7 @@ import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import JSZip from 'jszip';
-import { emptyBlock, emptyLine, type Song } from '@worship/core';
+import { emptyBlock, emptyLine, parseChordPro, type Song } from '@worship/core';
 import { generatePowerPoint, presentationPages } from '../src/powerpoints.js';
 import { writePresentation } from '../src/presentation-write.js';
 
@@ -130,6 +130,57 @@ it('counts only complete lyric rows as already-expanded copies', () => {
   song.blocks[0]!.repeat = null;
   song.blocks[0]!.lines = ['Before', '/: Sing :/ x2', 'Sing praises'].map(emptyLine);
   expect(presentationPages(song)).toEqual([['Before', 'Sing', 'Sing', 'Sing praises']]);
+});
+
+it('exports a repeated ending cue followed by a numbered chorus return', async () => {
+  const song = parseChordPro(`{title: Ending cue}
+{soc: C1}
+First chorus
+{eoc}
+{soc: C2}
+Second chorus
+Worthy, Jesus, worthy
+All the glory is Yours
+You are worthy
+{eoc}
+{sov: V1}
+Last verse
+{eov}
+{x_type: Note}
+{sov: M1}
+Ref 1
+{eov}
+{x_type: Ending}
+{sov: M2}
+Final: Worthy x 2
+Ref 2
+{eov}`);
+  const original = JSON.stringify(song);
+  const ending = ['Worthy, Jesus, worthy', 'All the glory is Yours', 'You are worthy'];
+  const secondChorus = ['Second chorus', ...ending];
+  const opening = [['First chorus'], secondChorus, ['Last verse'], ['First chorus']];
+  expect(presentationPages(song)).toEqual([...opening, ending, ending, secondChorus]);
+
+  const zip = await JSZip.loadAsync(await generatePowerPoint(song, { repeatMode: 'compact' }));
+  const slides = await Promise.all(
+    zip.file(/^ppt\/slides\/slide\d+\.xml$/).map((slide) => slide.async('string')),
+  );
+  expect(
+    slides.map((xml) => [...xml.matchAll(/<a:t>(.*?)<\/a:t>/g)].map((match) => match[1])),
+  ).toEqual([
+    ...opening,
+    ['/: Worthy, Jesus, worthy', 'All the glory is Yours', 'You are worthy :/'],
+    secondChorus,
+  ]);
+  expect(JSON.stringify(song)).toBe(original);
+});
+
+it('expands a sung ending with a trailing repeat count and validates its bounds', () => {
+  const song = example();
+  song.blocks = [{ ...emptyBlock('E1', 'Ending'), lines: [emptyLine('Final: Forever x3')] }];
+  expect(presentationPages(song)).toEqual([['Forever'], ['Forever'], ['Forever']]);
+  song.blocks[0]!.lines = [emptyLine('Final: Forever x21')];
+  expect(() => presentationPages(song)).toThrow('E1: unsupported repeat count 21');
 });
 
 it('publishes complete packages with no-clobber collisions and explicit replacement', async () => {

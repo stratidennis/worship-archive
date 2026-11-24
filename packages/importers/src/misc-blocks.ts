@@ -11,7 +11,13 @@
  * Note block and appears in the migration report for a human to look at.
  */
 
-import type { BlockType, Singers } from '@worship/core';
+import {
+  BLOCK_ID_PREFIX,
+  MAX_SECTION_REPEAT,
+  parseSectionReference,
+  type BlockType,
+  type Singers,
+} from '@worship/core';
 
 export interface MiscClassification {
   /** What the block should become. */
@@ -38,27 +44,6 @@ const KEY_CHANGE_RE =
 
 /** `STRUCTURA: Strofa -> Refren x2 -> Final` */
 const STRUCTURE_RE = /\b(?:STRUCTURA|STRUCTURĂ)\s*:?\s*(.+)$/i;
-
-/** Romanian section words → block types, for reading arrangement text. */
-const SECTION_WORDS: Record<string, string> = {
-  strofa: 'V',
-  strofă: 'V',
-  vers: 'V',
-  verse: 'V',
-  refren: 'C',
-  ref: 'C',
-  chorus: 'C',
-  bridge: 'B',
-  punte: 'B',
-  final: 'E',
-  ending: 'E',
-  incheiere: 'E',
-  intro: 'I',
-  intrare: 'I',
-  instrumental: 'N',
-  solo: 'S',
-  prechorus: 'P',
-};
 
 interface Rule {
   test: RegExp;
@@ -116,25 +101,18 @@ export function parseArrangementText(text: string): string[] | null {
   const seen = new Map<string, number>();
 
   for (const part of parts) {
-    const reference = /^([VCPBETINSM]\d+)\s*(?:[x×]\s*(\d+))?$/i.exec(part);
-    if (reference) {
-      const times = Number(reference[2] ?? 1);
-      if (times < 1 || times > 20) return null;
-      out.push(...Array<string>(times).fill(reference[1]!.toUpperCase()));
+    const reference = parseSectionReference(part);
+    if (!reference) return null;
+    const times = reference.repeat ?? 1;
+    if (!Number.isInteger(times) || times < 1 || times > MAX_SECTION_REPEAT) return null;
+    if ('id' in reference.target) {
+      out.push(...Array<string>(times).fill(reference.target.id));
       continue;
     }
-    // "Refren x2", "Strofa 1", "Refren"
-    const m = /^([A-Za-zĂÂÎȘȚăâîșț]+)\s*(\d+)?\s*(?:x\s*(\d+))?$/i.exec(part);
-    if (!m) return null;
-    const prefix = SECTION_WORDS[m[1]!.toLowerCase()];
-    if (!prefix) return null;
-
-    const explicit = m[2] ? Number(m[2]) : null;
-    const times = m[3] ? Number(m[3]) : 1;
-    if (!Number.isFinite(times) || times < 1 || times > 20) return null;
-
+    const prefix = BLOCK_ID_PREFIX[reference.target.type];
+    const explicit = reference.target.ordinal;
     const n = explicit ?? (seen.get(prefix) ?? 0) + 1;
-    if (explicit === null) seen.set(prefix, n);
+    if (explicit === undefined) seen.set(prefix, n);
 
     for (let i = 0; i < times; i++) out.push(`${prefix}${n}`);
   }

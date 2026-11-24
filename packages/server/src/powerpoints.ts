@@ -50,6 +50,7 @@ export interface PowerPointSongResult {
   status: 'found' | 'missing';
   file: PowerPointFile | null;
   error?: string;
+  arrangementIssues?: string[];
 }
 
 export interface PowerPointReport {
@@ -183,12 +184,14 @@ export function findPowerPoints(root: string, songs: Song[]): PowerPointReport {
       // additions such as "lyrics", a key name, or the combined generated filename.
       const match =
         ranked[0]?.score !== undefined && ranked[0].score >= 0.72 ? ranked[0].file : null;
+      const { issues } = resolvePerformedOrder(song);
       return {
         songId: song.id,
         title: song.title,
         firstLine,
         status: match ? 'found' : 'missing',
         file: match,
+        ...(issues.length ? { arrangementIssues: issues } : {}),
       };
     }),
   };
@@ -277,11 +280,12 @@ export function lyricLineSpacing(lines: string[], fontSize = lyricFontSize(lines
 
 export interface PresentationOptions {
   repeatMode?: 'compact' | 'expanded';
+  allowDraft?: boolean;
 }
 
 export function presentationPages(song: Song, options: PresentationOptions = {}): string[][] {
   const performed = resolvePerformedOrder(song);
-  if (performed.issues.length)
+  if (performed.issues.length && options.allowDraft !== true)
     throw new Error(`Review presentation arrangement: ${performed.issues.join('; ')}`);
   const pages: string[][] = [];
   for (let i = 0; i < performed.sections.length; i++) {
@@ -303,6 +307,8 @@ export function presentationPages(song: Song, options: PresentationOptions = {})
     pages.push(...groups);
     i += count - 1;
   }
+  if (pages.length && performed.issues.length)
+    pages.unshift(['DRAFT', 'Review the song arrangement before presenting.']);
   return pages;
 }
 

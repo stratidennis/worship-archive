@@ -213,6 +213,32 @@ describe('PowerPoint generation', () => {
     expect(readFileSync(full).byteLength).toBeGreaterThan(10_000);
   });
 
+  it('reports arrangement issues during discovery and exports only opted-in drafts', async () => {
+    const value = song([
+      { type: 'Verse', lines: ['Keep these sung lyrics :/'] },
+      { type: 'Note', lines: ['Repeat chorus if there is time'] },
+    ]);
+    const issues = findPowerPoints(dir, [value]).results[0]!.arrangementIssues;
+    expect(issues).toEqual([
+      'Review ambiguous instruction: Repeat chorus if there is time',
+      'V1: unmatched or unsupported lyric repeat; review the source',
+    ]);
+    expect((await createMissingPowerPoints(dir, [value])).results[0]?.status).toBe('missing');
+
+    const report = await createMissingPowerPoints(dir, [value], { allowDraft: true });
+    expect(report.results[0]).toMatchObject({ status: 'found', arrangementIssues: issues });
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(
+      readFileSync(join(dir, report.results[0]!.file!.relativePath)),
+    );
+    const [cover, lyrics] = await Promise.all(
+      zip.file(/^ppt\/slides\/slide\d+\.xml$/).map((entry) => entry.async('string')),
+    );
+    expect(cover).toContain('<a:t>DRAFT</a:t>');
+    expect(lyrics).toContain('<a:t>Keep these sung lyrics</a:t>');
+    expect(lyrics).not.toContain('Repeat chorus');
+  });
+
   it('uses smaller text only when rows need it', () => {
     expect(lyricFontSize(['Short line'])).toBe(52);
     expect(lyricFontSize(['A line '.repeat(14)])).toBeLessThan(30);

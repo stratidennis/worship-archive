@@ -11,7 +11,9 @@ import {
   BLOCK_ID_PREFIX,
   emptyBlock,
   emptyLine,
+  multiplierValue,
   parseChord,
+  REPEAT_MULTIPLIER,
   type Anchor,
   type Block,
   type BlockType,
@@ -96,6 +98,15 @@ const SECTION_TYPES: Record<string, BlockType> = {
 
 const NUMBERED_VERSE_RE = /^\s*(\d{1,2})\s*[-.):]\s*(\S[\s\S]*)$/;
 const INLINE_CHORUS_RE = /^\s*(?:r|ref|refren|refrain|chorus)\s*[-:.)]\s*/i;
+const REPEAT_OPEN = /^(\/:|\|\|:|𝄆|%)\s*/u;
+const REPEAT_CLOSE = new RegExp(
+  String.raw`(?:[ \t]*)(:[ \t]*[/\\]|:\|\||𝄇|(?<!\d)%)(?:[ \t]*(${REPEAT_MULTIPLIER}))?[ \t]*$`,
+  'iu',
+);
+const TEXT_REPEAT_COUNT = new RegExp(
+  String.raw`(?:[ \t]+|(?=\())(${REPEAT_MULTIPLIER})[ \t]*$`,
+  'i',
+);
 const STRUCTURAL_TOKEN_RE = /^(?:[|/]+|\/:|:\/|%|[x×]\s*\d+)$/i;
 
 function expandTabs(value: string, size = 4): string {
@@ -357,10 +368,6 @@ function blockFromGroup(
   let type = group.section?.type ?? 'Verse';
   let wantedNumber = group.section?.number ?? null;
   let repeat: number | null = null;
-  let slashStart = false;
-  let slashEnd = false;
-  let percentStart = false;
-  let percentEnd = false;
 
   const lines: Line[] = parsed.map((parsedLine, index) => {
     let text = parsedLine.source.text;
@@ -384,42 +391,6 @@ function blockFromGroup(
           removed += chorus.removed;
         }
       }
-
-      const slash = removePrefix(text, /^\/:\s*/);
-      if (slash.matched) {
-        slashStart = true;
-        text = slash.text;
-        removed += slash.removed;
-      }
-      const percent = removePrefix(text, /^%\s*/);
-      if (percent.matched) {
-        percentStart = true;
-        type = 'Chorus';
-        text = percent.text;
-        removed += percent.removed;
-      }
-    }
-
-    if (index === lastIndex) {
-      let match = /\s*:\/\s*(?:[x×]\s*(\d+))?\s*$/i.exec(text);
-      if (match) {
-        slashEnd = true;
-        repeat = Number(match[1] ?? 2);
-        text = text.slice(0, match.index).replace(/\s+$/, '');
-      }
-      match = /\s*%\s*(?:[x×]\s*(\d+))?\s*$/i.exec(text);
-      if (match) {
-        percentEnd = true;
-        type = 'Chorus';
-        repeat = Number(match[1] ?? 2);
-        text = text.slice(0, match.index).replace(/\s+$/, '');
-      } else {
-        match = /\s+[x×]\s*(\d+)\s*$/i.exec(text);
-        if (match) {
-          repeat = Number(match[1]);
-          text = text.slice(0, match.index).replace(/\s+$/, '');
-        }
-      }
     }
 
     const line = emptyLine(text);
@@ -430,25 +401,48 @@ function blockFromGroup(
     return line;
   });
 
-  if (slashStart !== slashEnd) {
-    const source = parsed[firstIndex]?.source ?? group.rows[0]!;
-    warnings.push({
-      kind: 'unpaired-repeat-marker',
-      line: source.line,
-      text: source.text.trim(),
-    });
-  } else if (slashStart && slashEnd && repeat === null) {
-    repeat = 2;
-  }
-  if (percentStart !== percentEnd) {
-    const source = parsed[firstIndex]?.source ?? group.rows[0]!;
-    warnings.push({
-      kind: 'unpaired-repeat-marker',
-      line: source.line,
-      text: source.text.trim(),
-    });
-  } else if (percentStart && percentEnd && repeat === null) {
-    repeat = 2;
+  const first = lines[firstIndex];
+  const last = lines[lastIndex];
+  if (first && last) {
+    const opening = REPEAT_OPEN.exec(first.text);
+    const closing = REPEAT_CLOSE.exec(last.text);
+    const marks = lines.flatMap((line) => [
+      ...line.text.matchAll(/\/:|\|\|:|𝄆|:[ \t]*[/\\]|:\|\||𝄇|(?<!\d)%/gu),
+    ]);
+    if (opening?.[1] === '%') type = 'Chorus';
+    // Convert only a simple pair covering the entire block. Preserve nested and
+    // cross-block notation, including an unmatched mark, for presentation review.
+    if (
+      opening &&
+      closing &&
+      marks.length === 2 &&
+      (opening[1] === '%') === (closing[1] === '%')
+    ) {
+      repeat = closing[2] ? multiplierValue(closing[2]) : 2;
+      last.text = last.text.slice(0, closing.index).trimEnd();
+      first.text = first.text.slice(opening[0].length);
+      first.chords = first.chords.map((anchor) => ({
+        ...anchor,
+        at: Math.max(0, anchor.at - opening[0].length),
+      }));
+    } else if (!marks.length) {
+      const count = TEXT_REPEAT_COUNT.exec(last.text);
+      if (count) {
+        repeat = multiplierValue(count[1]!);
+        last.text = last.text.slice(0, count.index).trimEnd();
+      }
+    } else if (marks.length === 1 && (opening || closing)) {
+      const source = parsed[opening ? firstIndex : lastIndex]!.source;
+      warnings.push({
+        kind: 'unpaired-repeat-marker',
+        line: source.line,
+        text: source.text.trim(),
+      });
+    }
+    last.chords = last.chords.map((anchor) => ({
+      ...anchor,
+      at: Math.min(anchor.at, last.text.length),
+    }));
   }
 
   const usable = lines.filter((line) => line.text !== '' || line.chords.length > 0);

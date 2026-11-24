@@ -150,6 +150,77 @@ describe('performed order before pagination', () => {
     expect(resolvePerformedOrder(song).issues).toEqual([]);
     expect(text(song)).toEqual(['Opening\nSing\nWith joy\nSing\nWith joy']);
   });
+  it.each([': /', ':\\', '/:'])('accepts the legacy %s closing mark', (close) => {
+    const song = make([['B1', 'Bridge', '/: Sing\nWith joy ' + close + ' x3']]);
+    const result = resolvePerformedOrder(song);
+    expect(result.issues).toEqual([]);
+    expect(result.sections.map(({ lines }) => lines)).toEqual(
+      Array(3).fill(['Sing', 'With joy']),
+    );
+  });
+  it('keeps a bracketed range together across verses, a bridge and a chorus', () => {
+    const song = make([
+      ['V1', 'Verse', '/: Opening line'],
+      ['V2', 'Verse', 'Next verse'],
+      ['B1', 'Bridge', 'Through the bridge'],
+      ['C1', 'Chorus', 'Sung chorus : / x3'],
+      ['E1', 'Ending', 'Final word'],
+    ]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(order(song)).toEqual([...Array(3).fill(['V1', 'V2', 'B1', 'C1']).flat(), 'E1']);
+    song.arrangement = ['C1', 'V1'];
+    song.arrangementSource = 'reviewed';
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(text(song)).toEqual(['Sung chorus', 'Opening line']);
+  });
+  it('applies a trailing lyric count separately from an earlier bracketed repeat', () => {
+    const song = make([['B1', 'Bridge', '/: Sing\nWith joy :/\nWith joy x2']]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(text(song)).toEqual(['Sing\nWith joy\nSing\nWith joy\nWith joy\nWith joy']);
+  });
+  it('keeps numeric percentages and words ending in x followed by a number', () => {
+    const song = make([['V1', 'Verse', 'Give 100%\nTrack mix 2']]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(text(song)).toEqual(['Give 100%\nTrack mix 2']);
+  });
+  it('recognizes compact, prefixed and ordinal cues and honors ordered cue sequences', () => {
+    const song = make([
+      ['M1', 'Note', 'Început: 1xRef'],
+      ['V1', 'Verse', 'Opening verse'],
+      ['C1', 'Chorus', 'First chorus'],
+      ['C2', 'Chorus', 'Second chorus'],
+      ['B1', 'Bridge', 'Sung bridge'],
+      ['M2', 'Note', 'Repetăm: Bridge + Al 2-lea Refren'],
+      ['M3', 'Note', 'REFX2 (Forte)'],
+    ]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(order(song)).toEqual(['C1', 'V1', 'C1', 'C2', 'B1', 'B1', 'C2', 'C2', 'C2']);
+  });
+  it('repeats the performed lyrics up to an explicit repeat-all cue', () => {
+    const song = make([
+      ['V1', 'Verse', 'Opening verse'],
+      ['C1', 'Chorus', '/: Chorus lyrics :/'],
+      ['M1', 'Note', 'Se repetă tot încă o dată'],
+      ['E1', 'Ending', 'Sung ending'],
+    ]);
+    expect(resolvePerformedOrder(song).issues).toEqual([]);
+    expect(order(song)).toEqual(['V1', 'C1', 'C1', 'V1', 'C1', 'C1', 'E1']);
+    song.arrangement = ['V1', 'C1', 'E1'];
+    song.arrangementSource = 'reviewed';
+    expect(order(song)).toEqual(song.arrangement);
+  });
+  it('does not turn conditional or direction-only prose into projected lyrics', () => {
+    const song = make([
+      ['V1', 'Verse', 'Verse lyrics'],
+      ['C1', 'Chorus', 'Chorus lyrics'],
+      ['V2', 'Verse', 'Strofa x2 + Refren x2 (optional)'],
+      ['T1', 'Tag', 'Instrumental'],
+    ]);
+    expect(resolvePerformedOrder(song).issues).toEqual([
+      'Review ambiguous instruction: Strofa x2 + Refren x2 (optional)',
+    ]);
+    expect(order(song)).toEqual(['V1', 'C1']);
+  });
   it('still flags different repeat counts for the same chorus appearance', () => {
     const song = base();
     song.blocks.splice(2, 0, {
